@@ -1,0 +1,9 @@
+{
+  "id": "jev",
+  "name": "JEV-27B-VL",
+  "description": "autotrust/JEV-27B-VL through /v1/decide, one question per call.",
+  "capabilities": { "maxOptions": 256, "multiQuestionPerCall": false, "supportsImages": true, "maxContextTokens": 32768, "orderSensitive": true },
+  "thresholds": { "act": 0.85, "pass": 0.8, "fail": 0.2, "escalate": 0.5 },
+  "recommendedAdapter": "decide",
+  "notes": "Order sensitivity is about 7% on 16 options, so judge critical assertions in dual order."
+}

@@ -1,0 +1,9 @@
+{
+  "id": "clef-flash",
+  "name": "Clef Flash",
+  "description": "Smaller, faster Clef variant for laptops.",
+  "capabilities": { "maxOptions": 64, "multiQuestionPerCall": true, "supportsImages": false, "maxContextTokens": 8192, "orderSensitive": false },
+  "thresholds": { "act": 0.85, "pass": 0.8, "fail": 0.2, "escalate": 0.5 },
+  "recommendedAdapter": "systemone",
+  "notes": "Placeholder capabilities (maxOptions 64); confirm with the provider probe (S-011)."
+}

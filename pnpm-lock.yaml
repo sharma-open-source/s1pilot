@@ -113,7 +113,11 @@ importers:
 
   packages/integrations: {}
 
-  packages/providers: {}
+  packages/providers:
+    dependencies:
+      '@s1pilot/domain':
+        specifier: workspace:^
+        version: link:../domain
 
   packages/reporters: {}
 

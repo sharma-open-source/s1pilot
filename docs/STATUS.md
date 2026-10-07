@@ -8,6 +8,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 
 | Date | Spec | Change | Notes |
 |---|---|---|---|
+| 2026-10-07 | S-006 | todo → done | Contract, registry, mock + MockChatModel, normalize, fan-out, timeout/retry guard, 5 profiles. |
 | 2026-10-07 | S-005 | todo → done | `@s1pilot/fixture-sites`: shop/settings/forms/mail, 5 bugs, 3 variants, ground-truth.json. **P0 complete (S-001–S-005).** |
 | 2026-10-07 | S-004 | todo → done | Vault, variable resolution, redactor, logger hook. |
 | 2026-10-07 | S-003 | todo → done | Drizzle schema (23 tables), migration `0000`, 12 repos, `withTx`, `seed:demo`. |
@@ -24,7 +25,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-003 | Database schema & repositories | P0 | done | build/typecheck/lint/test green (28 db tests). Env fix: installed full `python3` via apt so better-sqlite3 compiles. Added domain schemas `Workspace`, `Suite`, `TestDataSet`, `HealProposal`, `ReviewItem` (minimal; S-025/S-047 may extend). Added `zod` dep to db. `openDb` needs a `crypto` (S-004) to store secret variables. |
 | S-004 | Secrets vault & redaction | P0 | done | build/typecheck/lint/test green (domain 78, db 39 tests). New dep: `libsodium-wrappers` (+types) in db. `createLogger` option `redactValue` replaced by `redactor`. `createVault()` is async and its result can be passed directly as `openDb({ crypto })`. |
 | S-005 | Fixture sites | P0 | done | build/typecheck/lint/test green (30 Playwright tests). New deps (fixture-sites devDeps): `playwright`, `@playwright/test` (for auto-waiting `expect`). Env fix: Chromium system libs installed via `playwright install-deps` (sudo apt). CI gained a `playwright install --with-deps chromium` step. Bugs/variants switchable by server option, `?bugs=`/`?variant=` (cookie-remembered) or `x-fixture-bugs`/`x-fixture-variant` headers. |
-| S-006 | Provider contract, mock adapter & profiles | P1 | todo | |
+| S-006 | Provider contract, mock adapter & profiles | P1 | done | build/typecheck/lint/test green (51 provider tests). Added domain `ProfileSchema`. Profile capability values other than the spec'd maxOptions (JEV 256, Laya 20, Clef 64) are placeholders — confirm via probe (S-011). Real adapters call `registerDecisionAdapter`/`registerChatAdapter`. |
 | S-007 | `systemone` adapter | P1 | todo | |
 | S-008 | `decide` adapter | P1 | todo | |
 | S-009 | `openai-logprobs` adapter | P1 | todo | |

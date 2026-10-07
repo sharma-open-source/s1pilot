@@ -1,0 +1,9 @@
+{
+  "id": "laya",
+  "name": "Laya",
+  "description": "convaiinnovations/laya served by laya-serve through /v1/systemone.",
+  "capabilities": { "maxOptions": 20, "multiQuestionPerCall": true, "supportsImages": false, "maxContextTokens": 8192, "orderSensitive": false },
+  "thresholds": { "act": 0.95, "pass": 0.9, "fail": 0.1, "escalate": 0.6 },
+  "recommendedAdapter": "systemone",
+  "notes": "Degrades above about 20 options and ships over-confident, so thresholds start higher; calibrate before trusting."
+}

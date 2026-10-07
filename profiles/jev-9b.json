@@ -1,0 +1,9 @@
+{
+  "id": "jev-9b",
+  "name": "JEV-9B",
+  "description": "Smaller JEV for local use through /v1/decide.",
+  "capabilities": { "maxOptions": 256, "multiQuestionPerCall": false, "supportsImages": false, "maxContextTokens": 16384, "orderSensitive": true },
+  "thresholds": { "act": 0.85, "pass": 0.8, "fail": 0.2, "escalate": 0.5 },
+  "recommendedAdapter": "decide",
+  "notes": "Placeholder: image support and context size to be confirmed with the provider probe (S-011)."
+}
