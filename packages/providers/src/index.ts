@@ -24,6 +24,8 @@ export type {
   PickOptionRequest,
   Question,
 } from './contract.js';
+export { probe } from './probe.js';
+export type { ProbeOptions, ProbeTarget } from './probe.js';
 export { listProfiles, loadProfile } from './profiles.js';
 export { createChatModel, createDecisionModel, registerChatAdapter, registerDecisionAdapter } from './registry.js';
 export type {

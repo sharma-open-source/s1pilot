@@ -12,7 +12,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
     "typecheck": "tsc -p tsconfig.json",
@@ -20,6 +22,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@s1pilot/domain": "workspace:*",
+    "@s1pilot/providers": "workspace:*",
     "commander": "^12.1.0"
   }
 }

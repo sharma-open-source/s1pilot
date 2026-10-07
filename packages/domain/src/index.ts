@@ -9,6 +9,7 @@ export * from './learned-script.js';
 export * from './logger.js';
 export * from './model-settings.js';
 export * from './plan.js';
+export * from './probe.js';
 export * from './profile.js';
 export * from './project.js';
 export * from './redact.js';
