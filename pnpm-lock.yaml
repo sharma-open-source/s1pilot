@@ -41,6 +41,12 @@ importers:
 
   apps/cli:
     dependencies:
+      '@s1pilot/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@s1pilot/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       commander:
         specifier: ^12.1.0
         version: 12.1.0
@@ -110,6 +116,9 @@ importers:
       '@s1pilot/domain':
         specifier: workspace:*
         version: link:../domain
+      '@s1pilot/providers':
+        specifier: workspace:*
+        version: link:../providers
 
   packages/integrations: {}
 
