@@ -20,6 +20,11 @@
   },
   "dependencies": {
     "@s1pilot/domain": "workspace:*",
-    "@s1pilot/providers": "workspace:*"
+    "@s1pilot/providers": "workspace:*",
+    "playwright": "^1.63.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@s1pilot/fixture-sites": "workspace:*"
   }
 }

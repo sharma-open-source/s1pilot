@@ -1,0 +1,80 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`descriptor snapshots per fixture site > forms 1`] = `
+"e1 link "Form" @nav:Main
+e2 textbox "Full name" @form
+e3 textbox "Email address" @form
+e4 textbox "ZIP code" @form
+e5 combobox "Country" @form
+e6 textbox "Date of birth" @form
+e7 radio "Email" @form
+e8 radio "Phone" @form
+e9 checkbox "I accept the terms" @form
+e10 button "Send" @form"
+`;
+
+exports[`descriptor snapshots per fixture site > mail 1`] = `
+"e1 link "Inbox" @nav:Main
+e2 link "Welcome to Fixture Mail" @main
+e3 link "Your verification code" @main
+e4 link "Weekly digest" @main"
+`;
+
+exports[`descriptor snapshots per fixture site > settings 1`] = `
+"e1 link "Settings" @nav:Main
+e2 textbox "Display name" @form
+e3 textbox "Email" @form
+e4 switch "Email notifications" @form
+e5 switch "Dark mode" @form
+e6 button "Save changes" @form
+e7 button "Delete account" @main"
+`;
+
+exports[`descriptor snapshots per fixture site > shop cart (empty) 1`] = `
+"e1 link "Home" @nav:Main
+e2 link "Cart 0" @nav:Main
+e3 link "Log in" @nav:Main
+e4 textbox "Promo code" @main
+e5 button "Apply code" @main
+e6 link "Checkout" @main"
+`;
+
+exports[`descriptor snapshots per fixture site > shop checkout (cart with item) 1`] = `
+"e1 link "Home" @nav:Main
+e2 link "Cart 1" @nav:Main
+e3 link "Log in" @nav:Main
+e4 button "Guest checkout" @form
+e5 link "Log in" @main"
+`;
+
+exports[`descriptor snapshots per fixture site > shop home 1`] = `
+"e1 link "Home" @nav:Main
+e2 link "Cart 0" @nav:Main
+e3 link "Log in" @nav:Main
+e4 searchbox "Search products" @form
+e5 button "Search" @form
+e6 link "Classic Tee" @main
+e7 link "Classic Hoodie" @main
+e8 link "Coffee Mug" @main"
+`;
+
+exports[`descriptor snapshots per fixture site > shop login 1`] = `
+"e1 link "Home" @nav:Main
+e2 link "Cart 0" @nav:Main
+e3 link "Log in" @nav:Main
+e4 textbox "Email" @form
+e5 textbox "Password" @form
+e6 button "Log in" @form"
+`;
+
+exports[`descriptor snapshots per fixture site > shop product 1`] = `
+"e1 link "Home" @nav:Main
+e2 link "Cart 0" @nav:Main
+e3 link "Log in" @nav:Main
+e4 radio "Blue" @form
+e5 radio "Black" @form
+e6 radio "S" @form
+e7 radio "M" @form
+e8 radio "L" @form
+e9 button "Add to cart" @form"
+`;

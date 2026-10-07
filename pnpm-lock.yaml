@@ -119,6 +119,16 @@ importers:
       '@s1pilot/providers':
         specifier: workspace:*
         version: link:../providers
+      playwright:
+        specifier: ^1.63.0
+        version: 1.63.0
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.63.0
+        version: 1.63.0
+      '@s1pilot/fixture-sites':
+        specifier: workspace:*
+        version: link:../../fixtures/sites
 
   packages/integrations: {}
 
