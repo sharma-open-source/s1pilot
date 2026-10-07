@@ -29,9 +29,13 @@ export async function withTimeout<T>(ms: number, fn: (signal: AbortSignal) => Pr
   }
 }
 
-/** True for failures worth one more try: network errors and HTTP 5xx (never timeouts or 4xx). */
+/**
+ * True for failures worth one more try: network errors and HTTP 5xx (never timeouts or 4xx).
+ * Errors marked `details.retried` already used an adapter-level retry and are final.
+ */
 export function isRetryable(error: unknown): boolean {
   if (error instanceof S1PilotError) {
+    if (error.details?.['retried'] === true) return false;
     if (error.code === 'MODEL_NETWORK') return true;
     const status = error.details?.['status'];
     return error.code === 'MODEL_HTTP' && typeof status === 'number' && status >= 500;

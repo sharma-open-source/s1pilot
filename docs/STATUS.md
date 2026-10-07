@@ -8,6 +8,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 
 | Date | Spec | Change | Notes |
 |---|---|---|---|
+| 2026-10-07 | S-008 | todo → done | `decide` adapter (one question per call, ≤4 parallel), wire-format doc. |
 | 2026-10-07 | S-007 | todo → done | `systemone` adapter, HTTP helpers, wire-format doc. |
 | 2026-10-07 | S-006 | todo → done | Contract, registry, mock + MockChatModel, normalize, fan-out, timeout/retry guard, 5 profiles. |
 | 2026-10-07 | S-005 | todo → done | `@s1pilot/fixture-sites`: shop/settings/forms/mail, 5 bugs, 3 variants, ground-truth.json. **P0 complete (S-001–S-005).** |
@@ -28,7 +29,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-005 | Fixture sites | P0 | done | build/typecheck/lint/test green (30 Playwright tests). New deps (fixture-sites devDeps): `playwright`, `@playwright/test` (for auto-waiting `expect`). Env fix: Chromium system libs installed via `playwright install-deps` (sudo apt). CI gained a `playwright install --with-deps chromium` step. Bugs/variants switchable by server option, `?bugs=`/`?variant=` (cookie-remembered) or `x-fixture-bugs`/`x-fixture-variant` headers. |
 | S-006 | Provider contract, mock adapter & profiles | P1 | done | build/typecheck/lint/test green (51 provider tests). Added domain `ProfileSchema`. Profile capability values other than the spec'd maxOptions (JEV 256, Laya 20, Clef 64) are placeholders — confirm via probe (S-011). Real adapters call `registerDecisionAdapter`/`registerChatAdapter`. |
 | S-007 | `systemone` adapter | P1 | done | build/typecheck/lint/test green (70 provider tests, local-HTTP fixtures). **Wire format is an assumption** (plan only names the endpoint) — documented in `adapters/systemone.md`; verify against a real server via S-011. New dep: `zod` in providers. Shared helpers in `util/http.ts` (`postJson`, `badResponse`, `safeSnippet`) for S-008–S-010. |
-| S-008 | `decide` adapter | P1 | todo | |
+| S-008 | `decide` adapter | P1 | done | build/typecheck/lint/test green (83 provider tests). **Wire format is an assumption** (same caveat as S-007), see `adapters/decide.md`. Per-question retry lives in the adapter; errors it gives up on carry `details.retried=true` so the generic guard doesn't retry again. Shared test helper `src/test-http.ts`; shared `util/wire.ts`. |
 | S-009 | `openai-logprobs` adapter | P1 | todo | |
 | S-010 | `openai-chat` System 2 adapter | P1 | todo | |
 | S-011 | Provider probe & auto-detect | P1 | todo | |

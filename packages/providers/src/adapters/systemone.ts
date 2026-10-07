@@ -5,6 +5,7 @@ import type { AdapterContext } from '../registry.js';
 import { fanOut } from '../util/fanout.js';
 import { badResponse, joinUrl, postJson } from '../util/http.js';
 import { normalizeAnswer } from '../util/normalize.js';
+import { AnswerWireSchema } from '../util/wire.js';
 
 /** Used when the endpoint has no `profileId`. */
 export const SYSTEMONE_DEFAULT_CAPABILITIES: Capabilities = {
@@ -15,12 +16,6 @@ export const SYSTEMONE_DEFAULT_CAPABILITIES: Capabilities = {
   orderSensitive: false,
 };
 
-const AnswerWireSchema = z.object({
-  choice: z.string().optional(),
-  score: z.number().optional(),
-  noul: z.number().optional(),
-  probabilities: z.record(z.number()).optional(),
-});
 const AnswersWireSchema = z.record(AnswerWireSchema);
 
 /**

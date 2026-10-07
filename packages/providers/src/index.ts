@@ -1,5 +1,6 @@
 export { MOCK_CAPABILITIES, MockChatModel, MockDecisionModel, fallbacks } from './adapters/mock.js';
 export type { MockAnswer, MockCall, MockChatOptions, MockOptions, MockResolver, MockRule } from './adapters/mock.js';
+export { DECIDE_DEFAULT_CAPABILITIES, createDecideModel, toDecideQuestion } from './adapters/decide.js';
 export { SYSTEMONE_DEFAULT_CAPABILITIES, createSystemOneModel } from './adapters/systemone.js';
 export type {
   Capabilities,
