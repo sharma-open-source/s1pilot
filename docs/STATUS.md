@@ -8,6 +8,9 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 
 | Date | Spec | Change | Notes |
 |---|---|---|---|
+| 2026-10-07 | S-012 | todo → done | Observer: `captureElements`, locators, `ElementMap` (sub-agent, reviewed + merged). |
+| 2026-10-07 | S-017 | todo → done | Gate, dual-order, human hook (sub-agent, reviewed + fixed). |
+| 2026-10-07 | S-011 | todo → done | Provider probe + `s1pilot probe` CLI. |
 | 2026-10-07 | S-010 | todo → done | `openai-chat` adapter: chat, chatJson with repair, pickOption, redaction, `isCloudEndpoint`. |
 | 2026-10-07 | S-009 | todo → done | `openai-logprobs` adapter: label plans, prompt rendering, logprob → probability math, warnings. |
 | 2026-10-07 | S-008 | todo → done | `decide` adapter (one question per call, ≤4 parallel), wire-format doc. |
@@ -34,13 +37,13 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-008 | `decide` adapter | P1 | done | build/typecheck/lint/test green (83 provider tests). **Wire format is an assumption** (same caveat as S-007), see `adapters/decide.md`. Per-question retry lives in the adapter; errors it gives up on carry `details.retried=true` so the generic guard doesn't retry again. Shared test helper `src/test-http.ts`; shared `util/wire.ts`. |
 | S-009 | `openai-logprobs` adapter | P1 | done | build/typecheck/lint/test green (102 provider tests). Added optional `tokenIds` to domain `ProfileSchema` (label → token id); `CreateModelOptions` gained `labelAlphabet` and `onWarning` (+ `ModelWarning` type); shared `retryQuestion` in `util/guard.ts`. Adapter caps `maxOptions` at the label alphabet size (36). Verified against fixtures shaped like vLLM output, not a live server. |
 | S-010 | `openai-chat` System 2 adapter | P1 | done | build/typecheck/lint/test green (156 provider tests). `ChatModel` gained `chatJson(req, zodSchema)` (one repair attempt; also on `MockChatModel`). `CreateModelOptions.redactor` scrubs every prompt. `isCloudEndpoint` in `util/endpoint.ts`. No wire-format doc written (standard OpenAI chat API). |
-| S-011 | Provider probe & auto-detect | P1 | todo | |
-| S-012 | Observer: elements & locators | P1 | todo | |
+| S-011 | Provider probe & auto-detect | P1 | done | build/typecheck/lint/test green (providers 174, cli 8 tests). Added domain `ProbeResultSchema`; `probe()` in providers; `s1pilot probe` in cli (`--url --model --key --adapter --json`, key also via `S1PILOT_API_KEY`). Detection exercises the **assumed** systemone/decide wire formats against fake servers only — try it against a real model. Unreachable URL → `ok:false` in ~60 ms (timeouts cap at one request timeout, default 5 s). |
+| S-012 | Observer: elements & locators | P1 | done | Built by a sub-agent in a worktree, diff merged into main and re-verified; build/typecheck/lint/test green (engine 49 tests incl. 8 fixture-site snapshots). **Deviations:** Playwright 1.63 has no `page.accessibility`, so role/accessible name are computed in-page (one `evaluate` per frame, reaches shadow DOM); no separate "in viewport" filter (non-zero box only); `ObservedElement.frame` added; shadow content ordered right after its host. Perf test asserts best-of-5 after warm-up < 500 ms (lenient). New engine deps: `playwright`; dev: `@playwright/test`, `@s1pilot/fixture-sites`. `Observation` type left for S-013 (`ElementMap`/`indexElements` provided). |
 | S-013 | Observer: page context & Set-of-Marks | P1 | todo | |
 | S-014 | Coarse-to-fine narrowing | P1 | todo | |
 | S-015 | Executor | P1 | todo | |
 | S-016 | Text input resolution | P1 | todo | |
-| S-017 | Gate, escalation & dual-order | P1 | todo | |
+| S-017 | Gate, escalation & dual-order | P1 | done | Built by a sub-agent in a worktree, diff applied to main and re-verified; build/typecheck/lint/test green (engine 34 tests). I fixed a prototype-key bug (`in` → `Object.hasOwn` for option ids; regression tests added). `GateResult` is a union on `outcome` (act/blocked/skip/abort/takeover), each with a `DecisionRecord`; `gate()` takes a `disagreement` flag from `decideDualOrder`. Human hook signals "no human" by throwing `HUMAN_UNAVAILABLE`. New dep: `@s1pilot/providers` in engine. |
 | S-018 | Guards | P1 | todo | |
 | S-019 | Explore step loop & trace | P1 | todo | |
 | S-020 | Verifier: AI-judged assertions & verdict policy | P1 | todo | |
