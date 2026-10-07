@@ -1,2 +1,16 @@
-/** Package name; placeholder export until domain schemas land (S-002). */
-export const DOMAIN_PACKAGE = '@s1pilot/domain';
+export * from './common.js';
+export * from './decision.js';
+export * from './defect.js';
+export * from './environment.js';
+export * from './errors.js';
+export * from './events.js';
+export * from './ids.js';
+export * from './learned-script.js';
+export * from './logger.js';
+export * from './model-settings.js';
+export * from './plan.js';
+export * from './project.js';
+export * from './requirement.js';
+export * from './run.js';
+export * from './shared-step.js';
+export * from './test-case.js';

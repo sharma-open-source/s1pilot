@@ -1,0 +1,29 @@
+# .s1pilot/suites/checkout/tc-042-guest-checkout.yaml  (plan §1.2 example)
+key: SHOP-TC-42
+title: Guest can check out a single item
+priority: P1
+type: e2e
+tags: [checkout, guest, smoke]
+requirements: [SHOP-REQ-7]
+preconditions:
+  - flow: clear-cart
+parameters:
+  - { size: M, colour: blue }
+  - { size: L, colour: black }
+steps:
+  - action: Search for "t-shirt" and open the "Classic Tee" product
+    expected: The product page for Classic Tee is shown
+  - action: Choose colour {colour} and size {size}, then add to cart
+    expected: Cart badge shows 1 item
+    assert:
+      - type: elementText
+        role: status
+        contains: "1"
+  - action: Go to checkout as guest and fill the shipping form
+    inputs: [shipping_name, shipping_zip]
+    expected: The payment step is displayed
+    assert:
+      - type: urlMatches
+        pattern: "/checkout/payment"
+  - action: Stop before payment
+    expected: No order has been placed

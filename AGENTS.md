@@ -12,7 +12,7 @@ Stack: TypeScript (strict, ESM, Node ≥ 20) · pnpm workspaces + Turborepo · P
 
 ## Current state
 
-The repo currently contains **planning documents only**. Code is built spec by spec, starting with S-001 (monorepo scaffold). Check which specs are done with `git log --oneline` (commits are named `feat(<scope>): S-0NN <title>`) before assuming any package exists.
+Code is built spec by spec, starting with S-001 (monorepo scaffold). **Spec status is tracked in [`docs/STATUS.md`](docs/STATUS.md)** — read it before starting, and update it (status + log row) when you finish a spec. Cross-check with `git log --oneline` (commits are named `feat(<scope>): S-0NN <title>`) when a git history exists, before assuming any package exists.
 
 ## Document map — read these first
 
@@ -101,3 +101,14 @@ pnpm --filter @s1pilot/<pkg> test   # one package
 
 - Don't commit or push unless asked. When asked: one commit per spec, message `feat(<scope>): S-0NN <title>`.
 - Don't modify `docs/plan.md`, `docs/design.md`, specs or wireframes as part of implementation; if they're wrong or contradictory, say so in your summary.
+
+<!-- BEGIN:turborepo-agent-rules -->
+
+# This is NOT the Turborepo you know
+
+Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
+
+Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
+
+This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+<!-- END:turborepo-agent-rules -->

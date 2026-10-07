@@ -3,6 +3,7 @@ dist/
 .turbo/
 coverage/
 *.tsbuildinfo
+.pnpm-store
 
 # s1pilot runtime data, secrets and recorded auth state — never commit
 .s1pilot/
