@@ -7,6 +7,7 @@ import {
 } from '@s1pilot/domain';
 
 import { MOCK_CAPABILITIES, MockChatModel, MockDecisionModel } from './adapters/mock.js';
+import { createSystemOneModel } from './adapters/systemone.js';
 import type { ChatModel } from './contract.js';
 import { loadProfile } from './profiles.js';
 import { guardDecisionModel } from './util/guard.js';
@@ -49,6 +50,7 @@ export function registerChatAdapter(name: AdapterKind, factory: ChatAdapterFacto
   chatAdapters.set(name, factory);
 }
 
+registerDecisionAdapter('systemone', createSystemOneModel);
 registerDecisionAdapter('mock', ({ profile, options }) =>
   options.mock ?? new MockDecisionModel({ capabilities: profile?.capabilities ?? MOCK_CAPABILITIES }),
 );

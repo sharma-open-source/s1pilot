@@ -1,0 +1,13 @@
+{
+  "answers": {
+    "next_action": {
+      "choice": "e3",
+      "probabilities": { "e1": 0.0123, "e2": 0.0456, "e3": 0.9012, "e4": 0.0301, "e5": 0.0107 },
+      "latency_ms": 41
+    },
+    "step_done": { "noul": 0.12, "debug": { "tokens": 17 } },
+    "blocked": { "probabilities": { "true": 0.03, "false": 0.97 } }
+  },
+  "model": "clef-flash",
+  "usage": { "prompt_tokens": 312 }
+}

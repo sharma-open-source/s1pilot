@@ -19,6 +19,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@s1pilot/domain": "workspace:*"
+    "@s1pilot/domain": "workspace:*",
+    "zod": "^3.23.8"
   }
 }
