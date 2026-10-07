@@ -1,5 +1,4 @@
 import {
-  S1PilotError,
   type Capabilities,
   type DecideAnswer,
   type DecideRequest,
@@ -9,7 +8,7 @@ import {
 
 import type { AdapterContext } from '../registry.js';
 import { fanOut } from '../util/fanout.js';
-import { withRetry } from '../util/guard.js';
+import { retryQuestion } from '../util/guard.js';
 import { badResponse, joinUrl, postJson } from '../util/http.js';
 import { normalizeAnswer } from '../util/normalize.js';
 import { AnswerWireSchema } from '../util/wire.js';
@@ -50,7 +49,7 @@ export function createDecideModel(ctx: AdapterContext): DecisionModel {
   const url = joinUrl(endpoint.baseUrl ?? '', '/v1/decide');
   const secrets = options.apiKey ? [options.apiKey] : [];
 
-  async function ask(id: string, question: Question, req: DecideRequest): Promise<DecideAnswer> {
+  async function ask(question: Question, req: DecideRequest): Promise<DecideAnswer> {
     const body = {
       model: endpoint.model,
       state: req.state,
@@ -85,29 +84,13 @@ export function createDecideModel(ctx: AdapterContext): DecisionModel {
     }
   }
 
-  /** One question, with the adapter's own retry; failures name the question and are final. */
-  async function askWithRetry(id: string, question: Question, req: DecideRequest): Promise<DecideAnswer> {
-    try {
-      return await withRetry(() => ask(id, question, req), options.retries ?? 1, options.retryDelayMs ?? 200);
-    } catch (error) {
-      if (error instanceof S1PilotError) {
-        throw new S1PilotError(error.code, `${error.message} (question "${id}")`, {
-          ...error.details,
-          questionId: id,
-          retried: true,
-        });
-      }
-      throw error;
-    }
-  }
-
   return {
     capabilities,
     decide: (req) =>
       fanOut(req, capabilities, async (part) => {
         const [id, question] = Object.entries(part.questions)[0] ?? [];
         if (id === undefined || question === undefined) return {};
-        return { [id]: await askWithRetry(id, question, part) };
+        return { [id]: await retryQuestion(id, options, () => ask(question, part)) };
       }),
   };
 }

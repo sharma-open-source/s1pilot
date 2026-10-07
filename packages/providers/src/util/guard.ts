@@ -63,3 +63,26 @@ export function guardDecisionModel(model: DecisionModel, options: GuardOptions):
     decide: (req) => withRetry(() => withTimeout(timeoutMs, () => model.decide(req)), retries, retryDelayMs),
   };
 }
+
+/**
+ * Runs one question's call with the adapter's own retry (5xx/network). A failure that survives it is
+ * final: the error gets `details.questionId` and `details.retried`, so the generic wrapper does not retry again.
+ */
+export async function retryQuestion<T>(
+  questionId: string,
+  options: { retries?: number; retryDelayMs?: number },
+  fn: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await withRetry(fn, options.retries ?? 1, options.retryDelayMs ?? 200);
+  } catch (error) {
+    if (error instanceof S1PilotError) {
+      throw new S1PilotError(error.code, `${error.message} (question "${questionId}")`, {
+        ...error.details,
+        questionId,
+        retried: true,
+      });
+    }
+    throw error;
+  }
+}

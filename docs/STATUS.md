@@ -8,6 +8,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 
 | Date | Spec | Change | Notes |
 |---|---|---|---|
+| 2026-10-07 | S-009 | todo → done | `openai-logprobs` adapter: label plans, prompt rendering, logprob → probability math, warnings. |
 | 2026-10-07 | S-008 | todo → done | `decide` adapter (one question per call, ≤4 parallel), wire-format doc. |
 | 2026-10-07 | S-007 | todo → done | `systemone` adapter, HTTP helpers, wire-format doc. |
 | 2026-10-07 | S-006 | todo → done | Contract, registry, mock + MockChatModel, normalize, fan-out, timeout/retry guard, 5 profiles. |
@@ -30,7 +31,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-006 | Provider contract, mock adapter & profiles | P1 | done | build/typecheck/lint/test green (51 provider tests). Added domain `ProfileSchema`. Profile capability values other than the spec'd maxOptions (JEV 256, Laya 20, Clef 64) are placeholders — confirm via probe (S-011). Real adapters call `registerDecisionAdapter`/`registerChatAdapter`. |
 | S-007 | `systemone` adapter | P1 | done | build/typecheck/lint/test green (70 provider tests, local-HTTP fixtures). **Wire format is an assumption** (plan only names the endpoint) — documented in `adapters/systemone.md`; verify against a real server via S-011. New dep: `zod` in providers. Shared helpers in `util/http.ts` (`postJson`, `badResponse`, `safeSnippet`) for S-008–S-010. |
 | S-008 | `decide` adapter | P1 | done | build/typecheck/lint/test green (83 provider tests). **Wire format is an assumption** (same caveat as S-007), see `adapters/decide.md`. Per-question retry lives in the adapter; errors it gives up on carry `details.retried=true` so the generic guard doesn't retry again. Shared test helper `src/test-http.ts`; shared `util/wire.ts`. |
-| S-009 | `openai-logprobs` adapter | P1 | todo | |
+| S-009 | `openai-logprobs` adapter | P1 | done | build/typecheck/lint/test green (102 provider tests). Added optional `tokenIds` to domain `ProfileSchema` (label → token id); `CreateModelOptions` gained `labelAlphabet` and `onWarning` (+ `ModelWarning` type); shared `retryQuestion` in `util/guard.ts`. Adapter caps `maxOptions` at the label alphabet size (36). Verified against fixtures shaped like vLLM output, not a live server. |
 | S-010 | `openai-chat` System 2 adapter | P1 | todo | |
 | S-011 | Provider probe & auto-detect | P1 | todo | |
 | S-012 | Observer: elements & locators | P1 | todo | |

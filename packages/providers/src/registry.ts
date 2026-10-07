@@ -8,6 +8,7 @@ import {
 
 import { createDecideModel } from './adapters/decide.js';
 import { MOCK_CAPABILITIES, MockChatModel, MockDecisionModel } from './adapters/mock.js';
+import { createOpenAiLogprobsModel } from './adapters/openai-logprobs.js';
 import { createSystemOneModel } from './adapters/systemone.js';
 import type { ChatModel } from './contract.js';
 import { loadProfile } from './profiles.js';
@@ -23,9 +24,20 @@ export interface CreateModelOptions {
   retryDelayMs?: number;
   /** HTTP implementation for real adapters (tests inject a mock). */
   fetch?: typeof fetch;
+  /** `openai-logprobs`: characters used as single-token option labels. Default `A-Z` then `0-9`. */
+  labelAlphabet?: string;
+  /** Receives non-fatal adapter warnings (e.g. label tokens missing from the logprobs). */
+  onWarning?: (warning: ModelWarning) => void;
   /** Use this instance for `adapter: 'mock'` so tests can inspect its recorded calls. */
   mock?: MockDecisionModel;
   mockChat?: MockChatModel;
+}
+
+/** A non-fatal problem an adapter noticed (never contains secrets). */
+export interface ModelWarning {
+  code: string;
+  message: string;
+  details: Record<string, unknown>;
 }
 
 export interface AdapterContext {
@@ -53,6 +65,7 @@ export function registerChatAdapter(name: AdapterKind, factory: ChatAdapterFacto
 
 registerDecisionAdapter('systemone', createSystemOneModel);
 registerDecisionAdapter('decide', createDecideModel);
+registerDecisionAdapter('openai-logprobs', createOpenAiLogprobsModel);
 registerDecisionAdapter('mock', ({ profile, options }) =>
   options.mock ?? new MockDecisionModel({ capabilities: profile?.capabilities ?? MOCK_CAPABILITIES }),
 );

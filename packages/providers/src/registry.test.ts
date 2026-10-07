@@ -100,7 +100,7 @@ describe('createDecisionModel', () => {
   });
 
   it('reports unregistered adapters and wrong roles', () => {
-    expect(() => createDecisionModel({ adapter: 'openai-logprobs', baseUrl: 'http://x.test', model: 'm' })).toThrowError(
+    expect(() => createDecisionModel({ adapter: 'not-registered' as ModelEndpoint['adapter'], baseUrl: 'http://x.test', model: 'm' })).toThrowError(
       expect.objectContaining({ code: 'ADAPTER_NOT_FOUND' }),
     );
     expect(() => createDecisionModel({ adapter: 'openai-chat', baseUrl: 'http://x.test', model: 'm' })).toThrowError(
