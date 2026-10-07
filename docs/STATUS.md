@@ -8,6 +8,9 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 
 | Date | Spec | Change | Notes |
 |---|---|---|---|
+| 2026-10-07 | S-005 | todo → done | `@s1pilot/fixture-sites`: shop/settings/forms/mail, 5 bugs, 3 variants, ground-truth.json. **P0 complete (S-001–S-005).** |
+| 2026-10-07 | S-004 | todo → done | Vault, variable resolution, redactor, logger hook. |
+| 2026-10-07 | S-003 | todo → done | Drizzle schema (23 tables), migration `0000`, 12 repos, `withTx`, `seed:demo`. |
 | 2026-10-07 | S-002 | todo → done | All schemas, errors, logger, ids; `pnpm build/typecheck/lint/test` green. |
 | 2026-10-07 | S-001 | implemented → done | Verified by user (tests green, `--version` → 0.1.0). |
 | 2026-10-07 | S-001 | todo → implemented | Files written; `pnpm install/build/typecheck/lint/test` and `node apps/cli/dist/index.js --version` **not yet run** (shell tool unavailable). No git repo yet, so no commit. |
@@ -18,9 +21,9 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 |---|---|---|---|---|
 | S-001 | Monorepo scaffold | P0 | done | Verified by user 2026-10-07: test task green, CLI `--version` prints 0.1.0 |
 | S-002 | Domain schemas | P0 | done | build/typecheck/lint/test green (48 domain tests). Added `yaml` as devDependency (test fixture only). `./errors` and `./logger` subpath exports added. |
-| S-003 | Database schema & repositories | P0 | todo | |
-| S-004 | Secrets vault & redaction | P0 | todo | |
-| S-005 | Fixture sites | P0 | todo | |
+| S-003 | Database schema & repositories | P0 | done | build/typecheck/lint/test green (28 db tests). Env fix: installed full `python3` via apt so better-sqlite3 compiles. Added domain schemas `Workspace`, `Suite`, `TestDataSet`, `HealProposal`, `ReviewItem` (minimal; S-025/S-047 may extend). Added `zod` dep to db. `openDb` needs a `crypto` (S-004) to store secret variables. |
+| S-004 | Secrets vault & redaction | P0 | done | build/typecheck/lint/test green (domain 78, db 39 tests). New dep: `libsodium-wrappers` (+types) in db. `createLogger` option `redactValue` replaced by `redactor`. `createVault()` is async and its result can be passed directly as `openDb({ crypto })`. |
+| S-005 | Fixture sites | P0 | done | build/typecheck/lint/test green (30 Playwright tests). New deps (fixture-sites devDeps): `playwright`, `@playwright/test` (for auto-waiting `expect`). Env fix: Chromium system libs installed via `playwright install-deps` (sudo apt). CI gained a `playwright install --with-deps chromium` step. Bugs/variants switchable by server option, `?bugs=`/`?variant=` (cookie-remembered) or `x-fixture-bugs`/`x-fixture-variant` headers. |
 | S-006 | Provider contract, mock adapter & profiles | P1 | todo | |
 | S-007 | `systemone` adapter | P1 | todo | |
 | S-008 | `decide` adapter | P1 | todo | |

@@ -1,5 +1,7 @@
 import pino, { type DestinationStream, type LogFn, type Logger } from 'pino';
 
+import type { Redactor } from './redact.js';
+
 /** Field names whose values are always censored. */
 const REDACT_PATHS = [
   'password',
@@ -21,37 +23,27 @@ const REDACT_PATHS = [
 export interface LoggerOptions {
   name?: string;
   level?: string;
-  /** Applied to every string in the log arguments (e.g. the secret vault's scrubber, S-004). */
-  redactValue?: (value: string) => string;
+  /** Applied to every log argument via `redactDeep` (build it from the run's resolved secrets). */
+  redactor?: Redactor;
   /** Test hook: where to write instead of stdout. */
   destination?: DestinationStream;
 }
 
-function scrub(value: unknown, redactValue: (v: string) => string, depth = 0): unknown {
-  if (typeof value === 'string') return redactValue(value);
-  if (depth > 5 || value === null || typeof value !== 'object') return value;
-  if (Array.isArray(value)) return value.map((v) => scrub(v, redactValue, depth + 1));
-  if (value instanceof Error) return value;
-  return Object.fromEntries(
-    Object.entries(value).map(([k, v]) => [k, scrub(v, redactValue, depth + 1)]),
-  );
-}
-
 /**
- * Creates a pino logger with key-based redaction and an optional value-redaction hook.
+ * Creates a pino logger with key-based redaction and an optional value redactor.
  * Library code must log through this, never `console`.
  */
 export function createLogger(options: LoggerOptions = {}): Logger {
-  const { name, level = 'info', redactValue, destination } = options;
+  const { name, level = 'info', redactor, destination } = options;
   const config = {
     ...(name !== undefined ? { name } : {}),
     level,
     redact: { paths: REDACT_PATHS, censor: '[REDACTED]' },
-    ...(redactValue !== undefined
+    ...(redactor !== undefined
       ? {
           hooks: {
             logMethod(this: Logger, args: unknown[], method: LogFn) {
-              method.apply(this, scrub(args, redactValue) as Parameters<LogFn>);
+              method.apply(this, redactor.redactDeep(args) as Parameters<LogFn>);
             },
           },
         }

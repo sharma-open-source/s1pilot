@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { S1PilotError } from './errors.js';
 import { createLogger } from './logger.js';
+import { createRedactor } from './redact.js';
 
 function capture(): { stream: Writable; lines: () => Record<string, unknown>[] } {
   const chunks: string[] = [];
@@ -40,12 +41,15 @@ describe('createLogger', () => {
     expect(line).toMatchObject({ password: '[REDACTED]', user: { token: '[REDACTED]' }, ok: 1, msg: 'hi' });
   });
 
-  it('applies the value redaction hook to messages and nested strings', () => {
+  it('never prints secret values from messages, nested objects or errors', () => {
     const { stream, lines } = capture();
-    const log = createLogger({ destination: stream, redactValue: (v) => v.replaceAll('s3cret', '***') });
-    log.info({ note: 'has s3cret inside' }, 'token s3cret leaked');
-    const [line] = lines();
-    expect(line).toMatchObject({ note: 'has *** inside', msg: 'token *** leaked' });
-    expect(JSON.stringify(line)).not.toContain('s3cret');
+    const redactor = createRedactor({ secrets: ['s3cret value'], patterns: [] });
+    const log = createLogger({ destination: stream, redactor });
+    log.info({ note: 'has s3cret value inside', nested: { url: '/login?p=s3cret%20value' } }, 'leak: s3cret value');
+    log.error(new Error('failed with s3cret value'));
+    const output = JSON.stringify(lines());
+    expect(output).not.toContain('s3cret');
+    expect(output).toContain('[REDACTED]');
+    expect(lines()[0]).toMatchObject({ msg: 'leak: [REDACTED]' });
   });
 });

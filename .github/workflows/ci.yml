@@ -16,6 +16,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @s1pilot/fixture-sites exec playwright install --with-deps chromium
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
