@@ -1,3 +1,5 @@
+import type { ZodType, ZodTypeDef } from 'zod';
+
 export type {
   Capabilities,
   DecideAnswer,
@@ -32,6 +34,11 @@ export interface PickOptionRequest {
 /** System 2: a chat LLM used for text, second opinions and test generation. */
 export interface ChatModel {
   chat(req: ChatRequest): Promise<{ text: string; latencyMs: number }>;
+  /**
+   * JSON mode: the reply must parse and validate against `schema`. One repair attempt is made;
+   * after that this throws `S1PilotError('MODEL_BAD_RESPONSE')`.
+   */
+  chatJson<T>(req: Omit<ChatRequest, 'json'>, schema: ZodType<T, ZodTypeDef, unknown>): Promise<T>;
   /** Constrained to one of `options`; adapters must reject any other id. */
   pickOption(req: PickOptionRequest): Promise<{ choice: string; rationale?: string }>;
 }

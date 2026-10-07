@@ -123,8 +123,10 @@ describe('createChatModel', () => {
     expect(() => createChatModel({ adapter: 'decide', baseUrl: 'http://x.test', model: 'm' })).toThrowError(
       expect.objectContaining({ code: 'INVALID_ADAPTER_ROLE' }),
     );
-    expect(() => createChatModel({ adapter: 'openai-chat', baseUrl: 'http://x.test', model: 'm' })).toThrowError(
-      expect.objectContaining({ code: 'ADAPTER_NOT_FOUND' }),
+    expect(() => createChatModel({ adapter: 'mock', model: 'm' }, {})).not.toThrow();
+    expect(() => createChatModel({ adapter: 'openai-chat', baseUrl: 'http://x.test', model: 'm' })).not.toThrow();
+    expect(() => createChatModel({ adapter: 'not-registered' as ModelEndpoint['adapter'], model: 'm' })).toThrowError(
+      expect.objectContaining({ code: 'INVALID_ADAPTER_ROLE' }),
     );
   });
 });

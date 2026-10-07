@@ -6,8 +6,10 @@ import {
   type DecisionModel,
   type Question,
 } from '@s1pilot/domain';
+import type { ZodType, ZodTypeDef } from 'zod';
 
 import type { ChatModel, ChatRequest, PickOptionRequest } from '../contract.js';
+import { chatJsonWith } from '../util/chat-json.js';
 import { fanOut } from '../util/fanout.js';
 import { normalizeAnswer, type RawAnswer } from '../util/normalize.js';
 
@@ -165,6 +167,10 @@ export class MockChatModel implements ChatModel {
     this.chatCalls.push(req);
     const reply = this.replies.shift() ?? this.options.fallbackReply ?? 'ok';
     return { text: typeof reply === 'function' ? reply(req) : reply, latencyMs: 0 };
+  }
+
+  chatJson<T>(req: Omit<ChatRequest, 'json'>, schema: ZodType<T, ZodTypeDef, unknown>): Promise<T> {
+    return chatJsonWith((r) => this.chat(r), req, schema);
   }
 
   async pickOption(req: PickOptionRequest): Promise<{ choice: string; rationale?: string }> {

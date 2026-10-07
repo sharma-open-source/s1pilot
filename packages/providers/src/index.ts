@@ -1,5 +1,6 @@
 export { MOCK_CAPABILITIES, MockChatModel, MockDecisionModel, fallbacks } from './adapters/mock.js';
 export type { MockAnswer, MockCall, MockChatOptions, MockOptions, MockResolver, MockRule } from './adapters/mock.js';
+export { createOpenAiChatModel } from './adapters/openai-chat.js';
 export { DECIDE_DEFAULT_CAPABILITIES, createDecideModel, toDecideQuestion } from './adapters/decide.js';
 export {
   DEFAULT_LABEL_ALPHABET,
@@ -32,6 +33,8 @@ export type {
   ModelWarning,
   DecisionAdapterFactory,
 } from './registry.js';
+export { chatJsonWith } from './util/chat-json.js';
+export { isCloudEndpoint } from './util/endpoint.js';
 export { FANOUT_CONCURRENCY, fanOut } from './util/fanout.js';
 export type { DecideCall } from './util/fanout.js';
 export { guardDecisionModel, isRetryable, withRetry, withTimeout } from './util/guard.js';

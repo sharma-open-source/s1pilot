@@ -4,10 +4,12 @@ import {
   type DecisionModel,
   type ModelEndpoint,
   type Profile,
+  type Redactor,
 } from '@s1pilot/domain';
 
 import { createDecideModel } from './adapters/decide.js';
 import { MOCK_CAPABILITIES, MockChatModel, MockDecisionModel } from './adapters/mock.js';
+import { createOpenAiChatModel } from './adapters/openai-chat.js';
 import { createOpenAiLogprobsModel } from './adapters/openai-logprobs.js';
 import { createSystemOneModel } from './adapters/systemone.js';
 import type { ChatModel } from './contract.js';
@@ -26,6 +28,8 @@ export interface CreateModelOptions {
   fetch?: typeof fetch;
   /** `openai-logprobs`: characters used as single-token option labels. Default `A-Z` then `0-9`. */
   labelAlphabet?: string;
+  /** `openai-chat`: scrubs every prompt (secrets, patterns, built-ins) before it is sent. */
+  redactor?: Redactor;
   /** Receives non-fatal adapter warnings (e.g. label tokens missing from the logprobs). */
   onWarning?: (warning: ModelWarning) => void;
   /** Use this instance for `adapter: 'mock'` so tests can inspect its recorded calls. */
@@ -69,6 +73,7 @@ registerDecisionAdapter('openai-logprobs', createOpenAiLogprobsModel);
 registerDecisionAdapter('mock', ({ profile, options }) =>
   options.mock ?? new MockDecisionModel({ capabilities: profile?.capabilities ?? MOCK_CAPABILITIES }),
 );
+registerChatAdapter('openai-chat', createOpenAiChatModel);
 registerChatAdapter('mock', ({ options }) => options.mockChat ?? new MockChatModel());
 
 /**
