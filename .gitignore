@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# s1pilot runtime data, secrets and recorded auth state — never commit
+.s1pilot/
+.env
+.env.*
+!.env.example
+*.storage-state.json
+
+.DS_Store

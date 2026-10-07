@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04 · Test case editor · s1-pilot wireframe</title>
+<!-- Source: S1-Pilot Wireframes canvas, artboard "CaseEditor". UI rules: docs/design.md -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F4F1}
+a{color:#1A3F9E}a:hover{color:#122C70}
+</style>
+</head>
+<body>
+<div style="display: flex; flex-wrap: wrap; min-height: 1080px; background: #F4F4F1; font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; color: #1C1C1A">
+<div style="flex: 1 1 220px; max-width: 260px">
+<nav aria-label="Main" style="box-sizing: border-box; width: 100%; min-height: 980px; padding: 20px 14px; background: #FFFFFF; border-right: 1px solid #D9D9D4; display: flex; flex-direction: column; gap: 22px; font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; color: #1C1C1A">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+<div style="width: 28px; height: 28px; border-radius: 6px; background: #1C1C1A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600">S1</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 16px">s1-pilot</div>
+</div>
+<button type="button" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 8px 12px; border: 1px solid #D9D9D4; border-radius: 8px; background: #F7F7F5; font: inherit; font-size: 14px; color: #1C1C1A; text-align: left; cursor: pointer">
+<span style="display: flex; flex-direction: column"><span style="font-size: 11px; color: #5A5A55; text-transform: uppercase; letter-spacing: 0.06em">Project</span><span style="font-weight: 600">SHOP · Storefront</span></span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A5A55" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="01-dashboard.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Dashboard<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="02-project-wizard.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Project setup<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="09-environments.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Environments<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="03-test-cases.html" aria-current="page" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; background: #E8EEFB; color: #1A3F9E; font-weight: 600; font-size: 14px; text-decoration: none">Test cases<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px"></span></a>
+<a href="05-plan-builder.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Test plans<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="06-live-run.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Runs<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A">1 live</span></a>
+<a href="10-manual-run.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Manual testing<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="07-run-report.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Reports<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="08-review-queue.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Review queue<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A">[n]</span></a>
+<a href="11-defects.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Defects<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="12-analytics.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Analytics<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="13-settings.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Settings<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+</div>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px dashed #BDBDB7; border-radius: 8px; font-size: 12px; color: #4A4A45">
+<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #5A5A55">Models</div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #1F7A4D"></span><span><strong style="color: #1C1C1A">S1</strong> clef-flash · localhost:8000</span></div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #1F7A4D"></span><span><strong style="color: #1C1C1A">S2</strong> openai-chat · localhost:11434</span></div>
+</div>
+</nav>
+</div>
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 28px 36px; display: flex; flex-direction: column; gap: 20px">
+<header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px; flex: 1 1 400px">
+<div style="font-size: 13px; color: #5A5A55"><a href="03-test-cases.html">Test cases</a> / Checkout / Guest · <span style="font-family: 'IBM Plex Mono', monospace">SHOP-TC-42</span> · v3</div>
+<label style="display: flex; flex-direction: column"><span style="position: absolute; left: -9999px">Title</span><input type="text" value="Guest can check out a single item" style="border: 1px solid transparent; border-radius: 6px; padding: 4px 6px; margin-left: -6px; font: inherit; font-size: 26px; font-weight: 600; background: transparent"></label>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+<label style="display: flex; align-items: center; gap: 8px; font-size: 14px">Run on<select style="min-height: 44px; padding: 0 10px; border: 1px solid #CFCFCA; border-radius: 8px; font: inherit; font-size: 14px; background: #FFFFFF"><option>staging · Chromium</option><option>dev · Firefox</option></select></label>
+<a href="06-live-run.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid #CFCFCA; border-radius: 8px; background: #FFFFFF; color: #1C1C1A; text-decoration: none; font-size: 14px">Run now</a>
+<button type="button" style="min-height: 44px; padding: 0 18px; border: 0; border-radius: 8px; background: #1F4FC4; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Save</button>
+</div>
+</header>
+
+<nav aria-label="Case sections" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #D9D9D4">
+<a href="04-case-editor.html" aria-current="page" style="padding: 10px 14px; border-bottom: 2px solid #1C1C1A; color: #1C1C1A; font-weight: 600; text-decoration: none; font-size: 14px">Steps</a>
+<a href="04-case-editor.html" style="padding: 10px 14px; color: #4A4A45; text-decoration: none; font-size: 14px">Parameters · 2</a>
+<a href="04-case-editor.html" style="padding: 10px 14px; color: #4A4A45; text-decoration: none; font-size: 14px">Learned script</a>
+<a href="04-case-editor.html" style="padding: 10px 14px; color: #4A4A45; text-decoration: none; font-size: 14px">YAML</a>
+<a href="04-case-editor.html" style="padding: 10px 14px; color: #4A4A45; text-decoration: none; font-size: 14px">History</a>
+<a href="07-run-report.html" style="padding: 10px 14px; color: #4A4A45; text-decoration: none; font-size: 14px">Results</a>
+</nav>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<section aria-label="Steps" style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px dashed #BDBDB7; border-radius: 8px; background: #FFFFFF; font-size: 14px">
+<span style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5A5A55">Precondition</span>
+<span style="padding: 3px 10px; border-radius: 6px; background: #EFEFEC; font-family: 'IBM Plex Mono', monospace; font-size: 13px">flow: clear-cart</span>
+<span style="padding: 3px 10px; border-radius: 6px; background: #EFEFEC; font-family: 'IBM Plex Mono', monospace; font-size: 13px">auth: none (guest)</span>
+</div>
+
+<div style="overflow-x: auto; background: #FFFFFF; border: 1px solid #D9D9D4; border-radius: 10px">
+<table style="width: 100%; min-width: 780px; border-collapse: collapse; font-size: 14px">
+<thead>
+<tr style="text-align: left; color: #5A5A55; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; background: #F7F7F5">
+<th style="padding: 10px 14px; width: 36px; font-weight: 500">#</th><th style="padding: 10px 10px; font-weight: 500">Action (plain language)</th><th style="padding: 10px 10px; font-weight: 500">Expected result</th><th style="padding: 10px 14px; font-weight: 500; width: 220px">Checks</th>
+</tr>
+</thead>
+<tbody>
+<tr style="border-top: 1px solid #EDEDE9; vertical-align: top">
+<td style="padding: 14px; font-family: 'IBM Plex Mono', monospace; color: #5A5A55">1</td>
+<td style="padding: 12px 10px"><div style="border: 1px solid #E4E4E0; border-radius: 6px; padding: 8px 10px; min-height: 40px">Search for "t-shirt" and open the "Classic Tee" product</div></td>
+<td style="padding: 12px 10px"><div style="border: 1px solid #E4E4E0; border-radius: 6px; padding: 8px 10px; min-height: 40px">The product page for Classic Tee is shown</div></td>
+<td style="padding: 12px 14px; font-size: 13px"><span style="display: inline-block; padding: 2px 8px; border-radius: 6px; background: #EEF0FA; color: #2A3A86">AI check</span></td>
+</tr>
+<tr style="border-top: 1px solid #EDEDE9; vertical-align: top">
+<td style="padding: 14px; font-family: 'IBM Plex Mono', monospace; color: #5A5A55">2</td>
+<td style="padding: 12px 10px"><div style="border: 1px solid #E4E4E0; border-radius: 6px; padding: 8px 10px; min-height: 40px">Choose colour <span style="font-family: 'IBM Plex Mono', monospace; background: #FBEFD9; padding: 0 4px; border-radius: 4px">{colour}</span> and size <span style="font-family: 'IBM Plex Mono', monospace; background: #FBEFD9; padding: 0 4px; border-radius: 4px">{size}</span>, then add to cart</div></td>
+<td style="padding: 12px 10px"><div style="border: 1px solid #E4E4E0; border-radius: 6px; padding: 8px 10px; min-height: 40px">Cart badge shows 1 item</div></td>
+<td style="padding: 12px 14px; font-size: 13px; display: flex; flex-direction: column; gap: 6px"><span style="align-self: flex-start; padding: 2px 8px; border-radius: 6px; background: #EEF0FA; color: #2A3A86">AI check</span><span style="align-self: flex-start; padding: 2px 8px; border-radius: 6px; background: #EFEFEC; font-family: 'IBM Plex Mono', monospace">text(status) ⊇ "1"</span></td>
+</tr>
+<tr style="border-top: 1px solid #EDEDE9; vertical-align: top; background: #F5F8FE">
+<td style="padding: 14px; font-family: 'IBM Plex Mono', monospace; color: #5A5A55">3</td>
+<td style="padding: 12px 10px"><div style="border: 2px solid #1F4FC4; border-radius: 6px; padding: 7px 9px; min-height: 40px; background: #FFFFFF">Go to checkout as guest and fill the shipping form</div><div style="margin-top: 6px; font-size: 12px; color: #4A4A45">Inputs: <span style="font-family: 'IBM Plex Mono', monospace">shipping_name</span>, <span style="font-family: 'IBM Plex Mono', monospace">shipping_zip</span></div></td>
+<td style="padding: 12px 10px"><div style="border: 1px solid #E4E4E0; border-radius: 6px; padding: 8px 10px; min-height: 40px; background: #FFFFFF">The payment step is displayed</div></td>
+<td style="padding: 12px 14px; font-size: 13px; display: flex; flex-direction: column; gap: 6px"><span style="align-self: flex-start; padding: 2px 8px; border-radius: 6px; background: #EFEFEC; font-family: 'IBM Plex Mono', monospace">url ~ /checkout/payment</span><button type="button" style="align-self: flex-start; min-height: 32px; padding: 0 10px; border: 1px dashed #9A9A94; border-radius: 6px; background: transparent; font: inherit; font-size: 12px; cursor: pointer">+ Add check</button></td>
+</tr>
+<tr style="border-top: 1px solid #EDEDE9; vertical-align: top">
+<td style="padding: 14px; font-family: 'IBM Plex Mono', monospace; color: #5A5A55">4</td>
+<td style="padding: 12px 10px"><div style="border: 1px solid #E4E4E0; border-radius: 6px; padding: 8px 10px; min-height: 40px">Stop before payment</div></td>
+<td style="padding: 12px 10px"><div style="border: 1px solid #E4E4E0; border-radius: 6px; padding: 8px 10px; min-height: 40px">No order has been placed</div></td>
+<td style="padding: 12px 14px; font-size: 13px"><span style="display: inline-block; padding: 2px 8px; border-radius: 6px; background: #FBE7E4; color: #A0281C">Guard: block submit_payment</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<button type="button" style="min-height: 44px; padding: 0 14px; border: 1px dashed #9A9A94; border-radius: 8px; background: transparent; font: inherit; font-size: 14px; cursor: pointer">+ Add step</button>
+<button type="button" style="min-height: 44px; padding: 0 14px; border: 1px dashed #9A9A94; border-radius: 8px; background: transparent; font: inherit; font-size: 14px; cursor: pointer">+ Insert shared step</button>
+<button type="button" style="min-height: 44px; padding: 0 14px; border: 1px dashed #9A9A94; border-radius: 8px; background: transparent; font: inherit; font-size: 14px; cursor: pointer">Record steps from here</button>
+</div>
+</section>
+
+<aside aria-label="Case details" style="flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<section style="background: #FFFFFF; border: 1px solid #D9D9D4; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 12px; font-size: 14px">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600">Details</h2>
+<label style="display: flex; justify-content: space-between; align-items: center; gap: 8px">Priority<select style="min-height: 36px; border: 1px solid #CFCFCA; border-radius: 6px; font: inherit; background: #FFFFFF"><option>P1</option></select></label>
+<label style="display: flex; justify-content: space-between; align-items: center; gap: 8px">Type<select style="min-height: 36px; border: 1px solid #CFCFCA; border-radius: 6px; font: inherit; background: #FFFFFF"><option>e2e</option></select></label>
+<label style="display: flex; justify-content: space-between; align-items: center; gap: 8px">Status<select style="min-height: 36px; border: 1px solid #CFCFCA; border-radius: 6px; font: inherit; background: #FFFFFF"><option>Ready</option></select></label>
+<div style="display: flex; flex-wrap: wrap; gap: 6px"><span style="padding: 2px 8px; border-radius: 6px; background: #EFEFEC; font-size: 13px">checkout</span><span style="padding: 2px 8px; border-radius: 6px; background: #EFEFEC; font-size: 13px">guest</span><span style="padding: 2px 8px; border-radius: 6px; background: #EFEFEC; font-size: 13px">smoke</span></div>
+<div>Requirement · <a href="03-test-cases.html" style="font-family: 'IBM Plex Mono', monospace">SHOP-REQ-7</a></div>
+</section>
+<section style="background: #FFFFFF; border: 1px solid #D9D9D4; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600">Parameters</h2>
+<div style="overflow-x: auto"><table style="width: 100%; border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; font-size: 13px"><tr style="color: #5A5A55"><th style="text-align: left; padding: 4px 0; font-weight: 500">colour</th><th style="text-align: left; padding: 4px 0; font-weight: 500">size</th></tr><tr><td style="padding: 4px 0">blue</td><td>M</td></tr><tr><td style="padding: 4px 0">black</td><td>L</td></tr></table></div>
+</section>
+<section style="background: #FFFFFF; border: 1px solid #D9D9D4; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600">Learned script</h2>
+<div style="display: flex; justify-content: space-between"><span>staging</span><span style="color: #1F6B45; font-weight: 600">Ready · 4/4 steps</span></div>
+<div style="display: flex; justify-content: space-between"><span>dev</span><span style="color: #4A4A45">Not learned</span></div>
+<div style="font-size: 13px; color: #4A4A45">Next run replays without model calls; S1 heals only changed steps.</div>
+</section>
+</aside>
+</div>
+</main>
+</div>
+</body>
+</html>

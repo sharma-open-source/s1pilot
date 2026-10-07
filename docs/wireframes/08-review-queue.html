@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>08 · Review queue · s1-pilot wireframe</title>
+<!-- Source: S1-Pilot Wireframes canvas, artboard "ReviewQueue". UI rules: docs/design.md -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F4F1}
+a{color:#1A3F9E}a:hover{color:#122C70}
+</style>
+</head>
+<body>
+<div style="display: flex; flex-wrap: wrap; min-height: 1080px; background: #F4F4F1; font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; color: #1C1C1A">
+<div style="flex: 1 1 220px; max-width: 260px">
+<nav aria-label="Main" style="box-sizing: border-box; width: 100%; min-height: 980px; padding: 20px 14px; background: #FFFFFF; border-right: 1px solid #D9D9D4; display: flex; flex-direction: column; gap: 22px; font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; color: #1C1C1A">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+<div style="width: 28px; height: 28px; border-radius: 6px; background: #1C1C1A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600">S1</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 16px">s1-pilot</div>
+</div>
+<button type="button" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 8px 12px; border: 1px solid #D9D9D4; border-radius: 8px; background: #F7F7F5; font: inherit; font-size: 14px; color: #1C1C1A; text-align: left; cursor: pointer">
+<span style="display: flex; flex-direction: column"><span style="font-size: 11px; color: #5A5A55; text-transform: uppercase; letter-spacing: 0.06em">Project</span><span style="font-weight: 600">SHOP · Storefront</span></span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A5A55" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="01-dashboard.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Dashboard<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="02-project-wizard.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Project setup<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="09-environments.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Environments<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="03-test-cases.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Test cases<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="05-plan-builder.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Test plans<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="06-live-run.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Runs<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A">1 live</span></a>
+<a href="10-manual-run.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Manual testing<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="07-run-report.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Reports<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="08-review-queue.html" aria-current="page" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; background: #E8EEFB; color: #1A3F9E; font-weight: 600; font-size: 14px; text-decoration: none">Review queue<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px">[n]</span></a>
+<a href="11-defects.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Defects<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="12-analytics.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Analytics<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="13-settings.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Settings<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+</div>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px dashed #BDBDB7; border-radius: 8px; font-size: 12px; color: #4A4A45">
+<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #5A5A55">Models</div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #1F7A4D"></span><span><strong style="color: #1C1C1A">S1</strong> clef-flash · localhost:8000</span></div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #1F7A4D"></span><span><strong style="color: #1C1C1A">S2</strong> openai-chat · localhost:11434</span></div>
+</div>
+</nav>
+</div>
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 28px 36px; display: flex; flex-direction: column; gap: 20px">
+<header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 13px; color: #5A5A55">SHOP · Storefront</div>
+<h1 style="margin: 0; font-size: 28px; font-weight: 600">Review queue</h1>
+</div>
+<div style="font-size: 13px; color: #4A4A45; max-width: 420px">Every decision you make here is saved and used to recalibrate the model's confidence for this project.</div>
+</header>
+
+<nav aria-label="Queue type" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #D9D9D4">
+<a href="08-review-queue.html" style="padding: 10px 14px; color: #4A4A45; text-decoration: none; font-size: 14px">Uncertain verdicts · [n]</a>
+<a href="08-review-queue.html" aria-current="page" style="padding: 10px 14px; border-bottom: 2px solid #1C1C1A; color: #1C1C1A; font-weight: 600; text-decoration: none; font-size: 14px">Heal proposals · [n]</a>
+<a href="08-review-queue.html" style="padding: 10px 14px; color: #4A4A45; text-decoration: none; font-size: 14px">Generated drafts · [n]</a>
+<a href="08-review-queue.html" style="padding: 10px 14px; color: #4A4A45; text-decoration: none; font-size: 14px">Visual changes · [n]</a>
+</nav>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<section aria-label="Items" style="flex: 1 1 300px; max-width: 380px; min-width: 0; background: #FFFFFF; border: 1px solid #D9D9D4; border-radius: 10px; display: flex; flex-direction: column">
+<a href="08-review-queue.html" aria-current="true" style="display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; background: #F5F8FE; border-left: 3px solid #1F4FC4; color: #1C1C1A; text-decoration: none; font-size: 14px"><strong>Guest checkout button renamed</strong><span style="font-size: 12px; color: #4A4A45">Shared step “Checkout as guest” · used by 6 cases · conf 0.62 → approved in run</span></a>
+<a href="08-review-queue.html" style="display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-top: 1px solid #EDEDE9; color: #1C1C1A; text-decoration: none; font-size: 14px"><strong>Promo field moved into accordion</strong><span style="font-size: 12px; color: #4A4A45">SHOP-TC-43 step 2 · conf 0.88 · auto-healed</span></a>
+<a href="08-review-queue.html" style="display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-top: 1px solid #EDEDE9; color: #1C1C1A; text-decoration: none; font-size: 14px"><strong>Size picker is now a dropdown</strong><span style="font-size: 12px; color: #4A4A45">SHOP-TC-42 step 2 · conf 0.91 · auto-healed</span></a>
+</section>
+
+<section aria-label="Proposal detail" style="flex: 999 1 520px; min-width: 0; background: #FFFFFF; border: 1px solid #D9D9D4; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 600">Guest checkout button renamed</h2>
+<div style="font-size: 13px; color: #4A4A45">Found in run #[n] · staging · Chromium · step “Go to checkout as guest”</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #5A5A55">Before · learned script</div>
+<div style="height: 150px; border-radius: 8px; border: 1px solid #D9D9D4; background: repeating-linear-gradient(45deg, #F4F4F1 0 10px, #ECECE8 10px 20px); display: flex; align-items: flex-end; padding: 10px; box-sizing: border-box"><span style="padding: 6px 10px; border: 2px dashed #5A5A55; border-radius: 6px; background: #FFFFFF; font-size: 13px">Guest checkout</span></div>
+<code style="padding: 8px 10px; border-radius: 6px; background: #FBE7E4; color: #7A1F15; font-family: 'IBM Plex Mono', monospace; font-size: 12px">− getByRole('button', {name: 'Guest checkout'})</code>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #5A5A55">After · proposed by S1</div>
+<div style="height: 150px; border-radius: 8px; border: 1px solid #D9D9D4; background: repeating-linear-gradient(45deg, #F4F4F1 0 10px, #ECECE8 10px 20px); display: flex; align-items: flex-end; padding: 10px; box-sizing: border-box"><span style="padding: 6px 10px; border: 3px solid #1F4FC4; border-radius: 6px; background: #E8EEFB; color: #1A3F9E; font-weight: 600; font-size: 13px">Checkout as guest</span></div>
+<code style="padding: 8px 10px; border-radius: 6px; background: #E3F1E8; color: #154D31; font-family: 'IBM Plex Mono', monospace; font-size: 12px">+ getByRole('button', {name: 'Checkout as guest'})</code>
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 12px; font-size: 14px">
+<div style="flex: 1 1 200px; padding: 12px; border-radius: 8px; background: #F7F7F5; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #5A5A55">S1 confidence</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 600">0.62</span><span style="font-size: 12px; color: #4A4A45">S2 agreed · approved live by [ user ]</span></div>
+<div style="flex: 1 1 200px; padding: 12px; border-radius: 8px; background: #F7F7F5; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #5A5A55">Impact</span><span style="font-size: 18px; font-weight: 600">6 cases</span><span style="font-size: 12px; color: #4A4A45">via shared step · all environments</span></div>
+<div style="flex: 1 1 200px; padding: 12px; border-radius: 8px; background: #FBEFD9; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #6E3C08">Is this a bug?</span><span style="font-size: 14px; color: #4A2806">Renamed label may be intentional. If not, reject and file a defect.</span></div>
+</div>
+
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500">Note (optional)<textarea rows="2" placeholder="Why you approved or rejected" style="padding: 10px 12px; border: 1px solid #CFCFCA; border-radius: 8px; font: inherit; font-size: 14px; resize: vertical"></textarea></label>
+
+<div style="display: flex; flex-wrap: wrap; gap: 10px; padding-top: 12px; border-top: 1px solid #EDEDE9">
+<button type="button" style="min-height: 44px; padding: 0 18px; border: 0; border-radius: 8px; background: #1F6B45; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Approve for all 6 cases</button>
+<button type="button" style="min-height: 44px; padding: 0 16px; border: 1px solid #CFCFCA; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 14px; cursor: pointer">Approve for this case only</button>
+<button type="button" style="min-height: 44px; padding: 0 16px; border: 1px solid #E2B8B2; border-radius: 8px; background: #FFFFFF; color: #A0281C; font: inherit; font-size: 14px; cursor: pointer">Reject &amp; create defect</button>
+</div>
+</section>
+</div>
+</main>
+</div>
+</body>
+</html>

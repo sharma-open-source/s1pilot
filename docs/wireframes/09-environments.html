@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09 · Environments, secrets & login · s1-pilot wireframe</title>
+<!-- Source: S1-Pilot Wireframes canvas, artboard "Environments". UI rules: docs/design.md -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F4F1}
+a{color:#1A3F9E}a:hover{color:#122C70}
+</style>
+</head>
+<body>
+<div style="display: flex; flex-wrap: wrap; min-height: 1080px; background: #F4F4F1; font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; color: #1C1C1A">
+<div style="flex: 1 1 220px; max-width: 260px">
+<nav aria-label="Main" style="box-sizing: border-box; width: 100%; min-height: 980px; padding: 20px 14px; background: #FFFFFF; border-right: 1px solid #D9D9D4; display: flex; flex-direction: column; gap: 22px; font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; color: #1C1C1A">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+<div style="width: 28px; height: 28px; border-radius: 6px; background: #1C1C1A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600">S1</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 16px">s1-pilot</div>
+</div>
+<button type="button" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 8px 12px; border: 1px solid #D9D9D4; border-radius: 8px; background: #F7F7F5; font: inherit; font-size: 14px; color: #1C1C1A; text-align: left; cursor: pointer">
+<span style="display: flex; flex-direction: column"><span style="font-size: 11px; color: #5A5A55; text-transform: uppercase; letter-spacing: 0.06em">Project</span><span style="font-weight: 600">SHOP · Storefront</span></span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A5A55" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="01-dashboard.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Dashboard<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="02-project-wizard.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Project setup<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="09-environments.html" aria-current="page" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; background: #E8EEFB; color: #1A3F9E; font-weight: 600; font-size: 14px; text-decoration: none">Environments<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px"></span></a>
+<a href="03-test-cases.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Test cases<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="05-plan-builder.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Test plans<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="06-live-run.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Runs<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A">1 live</span></a>
+<a href="10-manual-run.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Manual testing<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="07-run-report.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Reports<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="08-review-queue.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Review queue<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A">[n]</span></a>
+<a href="11-defects.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Defects<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="12-analytics.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Analytics<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+<a href="13-settings.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 6px; color: #2E2E2B; font-size: 14px; text-decoration: none">Settings<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A4B0A"></span></a>
+</div>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px dashed #BDBDB7; border-radius: 8px; font-size: 12px; color: #4A4A45">
+<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #5A5A55">Models</div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #1F7A4D"></span><span><strong style="color: #1C1C1A">S1</strong> clef-flash · localhost:8000</span></div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #1F7A4D"></span><span><strong style="color: #1C1C1A">S2</strong> openai-chat · localhost:11434</span></div>
+</div>
+</nav>
+</div>
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 28px 36px; display: flex; flex-direction: column; gap: 20px">
+<header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 13px; color: #5A5A55">SHOP · Storefront</div>
+<h1 style="margin: 0; font-size: 28px; font-weight: 600">Environments</h1>
+</div>
+<div style="display: flex; gap: 10px">
+<button type="button" style="min-height: 44px; padding: 0 14px; border: 1px solid #CFCFCA; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 14px; cursor: pointer">+ Add environment</button>
+<button type="button" style="min-height: 44px; padding: 0 16px; border: 0; border-radius: 8px; background: #1F4FC4; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Save changes</button>
+</div>
+</header>
+
+<nav aria-label="Environment" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #D9D9D4">
+<a href="09-environments.html" style="padding: 10px 14px; color: #4A4A45; text-decoration: none; font-size: 14px">dev</a>
+<a href="09-environments.html" aria-current="page" style="padding: 10px 14px; border-bottom: 2px solid #1C1C1A; color: #1C1C1A; font-weight: 600; text-decoration: none; font-size: 14px">staging</a>
+<a href="09-environments.html" style="padding: 10px 14px; color: #4A4A45; text-decoration: none; font-size: 14px">prod <span style="font-size: 12px; color: #A0281C">read-only</span></a>
+</nav>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+<section aria-label="General" style="background: #FFFFFF; border: 1px solid #D9D9D4; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 600">General</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500">Base URL<input type="url" value="https://staging.shop.example" style="min-height: 44px; padding: 0 12px; border: 1px solid #CFCFCA; border-radius: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 14px"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500">Allowed domains<input type="text" value="staging.shop.example, pay.sandbox.example" style="min-height: 44px; padding: 0 12px; border: 1px solid #CFCFCA; border-radius: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 14px"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500">Default browser<select style="min-height: 44px; padding: 0 10px; border: 1px solid #CFCFCA; border-radius: 8px; font: inherit; font-size: 14px; background: #FFFFFF"><option>Chromium · 1280×800</option></select></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500">Locale &amp; timezone<select style="min-height: 44px; padding: 0 10px; border: 1px solid #CFCFCA; border-radius: 8px; font: inherit; font-size: 14px; background: #FFFFFF"><option>en-US · UTC</option></select></label>
+</div>
+</section>
+
+<section aria-label="Variables" style="background: #FFFFFF; border: 1px solid #D9D9D4; border-radius: 10px; display: flex; flex-direction: column">
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E4E4E0"><h2 style="margin: 0; font-size: 17px; font-weight: 600">Variables &amp; secrets</h2><button type="button" style="min-height: 36px; padding: 0 12px; border: 1px dashed #9A9A94; border-radius: 6px; background: transparent; font: inherit; font-size: 13px; cursor: pointer">+ Add</button></div>
+<div style="overflow-x: auto">
+<table style="width: 100%; min-width: 640px; border-collapse: collapse; font-size: 14px">
+<thead><tr style="text-align: left; color: #5A5A55; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em"><th style="padding: 10px 20px; font-weight: 500">Key</th><th style="padding: 10px 10px; font-weight: 500">Value</th><th style="padding: 10px 10px; font-weight: 500">Type</th><th style="padding: 10px 20px; font-weight: 500">Sent to models</th></tr></thead>
+<tbody>
+<tr style="border-top: 1px solid #EDEDE9"><td style="padding: 12px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 13px">shipping_zip</td><td style="padding: 12px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 13px">560001</td><td style="padding: 12px 10px">Variable</td><td style="padding: 12px 20px">Key + value</td></tr>
+<tr style="border-top: 1px solid #EDEDE9"><td style="padding: 12px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 13px">shipping_name</td><td style="padding: 12px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 13px">[ test name ]</td><td style="padding: 12px 10px">Variable</td><td style="padding: 12px 20px">Key + value</td></tr>
+<tr style="border-top: 1px solid #EDEDE9"><td style="padding: 12px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 13px">customer_password</td><td style="padding: 12px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 13px">•••••••••• <button type="button" style="margin-left: 6px; min-height: 28px; padding: 0 8px; border: 1px solid #CFCFCA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 12px; cursor: pointer">Reveal</button></td><td style="padding: 12px 10px"><span style="padding: 2px 8px; border-radius: 6px; background: #FBE7E4; color: #7A1F15; font-size: 12px">Secret · encrypted</span></td><td style="padding: 12px 20px; color: #A0281C; font-weight: 500">Key name only</td></tr>
+<tr style="border-top: 1px solid #EDEDE9"><td style="padding: 12px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 13px">test_card</td><td style="padding: 12px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 13px">from env S1P_TEST_CARD</td><td style="padding: 12px 10px"><span style="padding: 2px 8px; border-radius: 6px; background: #FBE7E4; color: #7A1F15; font-size: 12px">Secret · env</span></td><td style="padding: 12px 20px; color: #A0281C; font-weight: 500">Key name only</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section aria-label="Test data" style="background: #FFFFFF; border: 1px solid #D9D9D4; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: center"><h2 style="margin: 0; font-size: 17px; font-weight: 600">Test data sets</h2><button type="button" style="min-height: 36px; padding: 0 12px; border: 1px solid #CFCFCA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">Upload CSV / JSON</button></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 14px">
+<div style="padding: 12px; border: 1px solid #E4E4E0; border-radius: 8px"><strong>addresses.csv</strong><div style="font-size: 12px; color: #4A4A45">[n] rows · used by [n] cases</div></div>
+<div style="padding: 12px; border: 1px solid #E4E4E0; border-radius: 8px"><strong>invalid-zips.json</strong><div style="font-size: 12px; color: #4A4A45">[n] rows · used by SHOP-TC-44</div></div>
+<div style="padding: 12px; border: 1px solid #E4E4E0; border-radius: 8px"><strong>seed-catalog</strong><div style="font-size: 12px; color: #4A4A45">API setup hook · before each plan</div></div>
+</div>
+</section>
+</div>
+
+<aside style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<section aria-label="Login setup" style="background: #FFFFFF; border: 1px solid #D9D9D4; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 12px; font-size: 14px">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600">Login setup</h2>
+<div style="padding: 12px; border-radius: 8px; background: #F7F7F5; display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px">login-as-customer</span><span style="color: #1F6B45; font-weight: 600">Valid</span></div>
+<div style="font-size: 12px; color: #4A4A45">Saved session reused by every run · refreshed [t] ago</div>
+</div>
+<div style="padding: 12px; border-radius: 8px; background: #F7F7F5; display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px">login-as-admin</span><span style="color: #8A4B0A; font-weight: 600">Expired</span></div>
+<div style="font-size: 12px; color: #4A4A45">Needs OTP from mailbox</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="min-height: 40px; padding: 0 12px; border: 1px solid #CFCFCA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">Record a login</button>
+<button type="button" style="min-height: 40px; padding: 0 12px; border: 1px solid #CFCFCA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">Refresh now</button>
+</div>
+</section>
+<section aria-label="Mailbox" style="background: #FFFFFF; border: 1px solid #D9D9D4; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600">Test mailbox</h2>
+<div>Mailpit · <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px">localhost:8025</span></div>
+<div style="font-size: 13px; color: #4A4A45">For sign-up links, OTP codes and order emails.</div>
+</section>
+<section aria-label="Safeguards" style="background: #FFFFFF; border: 1px solid #D9D9D4; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600">Safeguards</h2>
+<label style="display: flex; align-items: center; gap: 8px"><input type="checkbox" style="width: 18px; height: 18px">Read-only (block form submits)</label>
+<label style="display: flex; align-items: center; gap: 8px"><input type="checkbox" checked style="width: 18px; height: 18px">Approve payments, deletes, sends</label>
+<label style="display: flex; align-items: center; gap: 8px"><input type="checkbox" checked style="width: 18px; height: 18px">Block navigation outside allowed domains</label>
+</section>
+</aside>
+</div>
+</main>
+</div>
+</body>
+</html>
