@@ -1,8 +1,13 @@
 import { getVersion } from '../version.js';
 
+import { casesRouter } from './routers/cases.js';
 import { environmentsRouter } from './routers/environments.js';
 import { modelsRouter } from './routers/models.js';
 import { projectsRouter } from './routers/projects.js';
+import { requirementsRouter } from './routers/requirements.js';
+import { sharedStepsRouter } from './routers/shared-steps.js';
+import { suitesRouter } from './routers/suites.js';
+import { syncStatusProcedure } from './routers/sync-status.js';
 import { createCallerFactory, publicProcedure, router, trpcCodeFor } from './trpc.js';
 
 export { createCallerFactory, publicProcedure, router, trpcCodeFor };
@@ -17,6 +22,11 @@ export const appRouter = router({
   projects: projectsRouter,
   environments: environmentsRouter,
   models: modelsRouter,
+  suites: suitesRouter,
+  cases: casesRouter,
+  sharedSteps: sharedStepsRouter,
+  requirements: requirementsRouter,
+  syncStatus: syncStatusProcedure,
 });
 
 export type AppRouter = typeof appRouter;

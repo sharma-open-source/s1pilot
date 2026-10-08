@@ -30,6 +30,7 @@
     "@s1pilot/db": "workspace:^",
     "@s1pilot/domain": "workspace:^",
     "@s1pilot/providers": "workspace:^",
+    "@s1pilot/sync": "workspace:^",
     "@trpc/server": "^11",
     "fastify": "^5",
     "zod": "^3.23.8"

@@ -125,9 +125,15 @@ export const cases = {
 
   /**
    * Applies `patch`, bumps `version` and stores a snapshot of the new version.
-   * The key, project and version cannot be patched.
+   * The key, project and version cannot be patched. With `expectedVersion`, throws `CONFLICT` (checked
+   * inside the write transaction) when the stored version differs.
    */
-  async update(db: Db, id: string, patch: Partial<z.input<typeof NewTestCaseSchema>>): Promise<TestCase> {
+  async update(
+    db: Db,
+    id: string,
+    patch: Partial<z.input<typeof NewTestCaseSchema>>,
+    opts: { expectedVersion?: number } = {},
+  ): Promise<TestCase> {
     const existing = await this.get(db, id);
     if (!existing) return notFound('TestCase', id);
     const merged = TestCaseSchema.parse({
@@ -139,6 +145,14 @@ export const cases = {
       version: existing.version + 1,
     });
     atomic(db, () => {
+      const current = db.orm.select({ v: t.version }).from(t).where(eq(t.id, id)).get();
+      if (current?.v !== existing.version || (opts.expectedVersion !== undefined && current.v !== opts.expectedVersion)) {
+        throw new S1PilotError('CONFLICT', `Case ${existing.key} was changed by someone else (now v${current?.v ?? '?'})`, {
+          key: existing.key,
+          expectedVersion: opts.expectedVersion,
+          currentVersion: current?.v,
+        });
+      }
       db.orm
         .update(t)
         .set({ ...merged, suiteId: merged.suiteId ?? null, owner: merged.owner ?? null, updatedAt: nowIso() })

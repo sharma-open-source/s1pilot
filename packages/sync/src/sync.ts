@@ -17,6 +17,8 @@ import {
   type Precondition,
   type Priority,
   type Step,
+  type TestCase,
+  type TestCaseFile,
   type TestCaseStatus,
   type TestCaseType,
   type TestPlan,
@@ -974,4 +976,69 @@ export async function syncStatus(db: Db, projectId: string, dir: string): Promis
   }
   if (changed.size === 0 && conflicts.length === 0) return 'clean';
   return { changedFiles: [...changed].sort(), conflicts };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Single-case YAML (used by the server API: `cases.yaml` / `cases.updateFromYaml`)
+// ---------------------------------------------------------------------------------------------
+
+/** Options for {@link caseToYaml}. */
+export interface CaseYamlOptions {
+  /** Shared step id → flow name, for `flow:` steps (ids are used as-is when missing). */
+  flowNameById?: ReadonlyMap<string, string>;
+  /** Include the `version:` line (default true). */
+  withVersion?: boolean;
+}
+
+/** Renders one case exactly as `exportProject` writes its file (deterministic key order). */
+export function caseToYaml(c: TestCase, opts: CaseYamlOptions = {}): string {
+  const names = opts.flowNameById;
+  return renderCase(
+    {
+      key: c.key,
+      version: c.version,
+      suitePath: [],
+      title: c.title,
+      priority: c.priority,
+      type: c.type,
+      status: c.status,
+      tags: c.tags,
+      requirements: c.requirements,
+      ...(c.owner !== undefined ? { owner: c.owner } : {}),
+      preconditions: c.preconditions,
+      parameters: c.parameters,
+      steps: c.steps.map((s) =>
+        s.sharedStepId !== undefined ? { ...s, sharedStepId: names?.get(s.sharedStepId) ?? s.sharedStepId } : s,
+      ),
+    },
+    opts.withVersion ?? true,
+  );
+}
+
+/** A case parsed from YAML by {@link parseCaseYaml}. */
+export interface ParsedCaseYaml {
+  /** Optional `version:` the file is based on. */
+  version?: number;
+  file: TestCaseFile;
+}
+
+/**
+ * Parses and validates one case YAML document (`flow:` steps resolved through `flowIdByName`).
+ * @throws S1PilotError `YAML_INVALID`, `SYNC_FILE_INVALID` or `SYNC_REFERENCE` (unknown flow).
+ */
+export function parseCaseYaml(text: string, flowIdByName: ReadonlyMap<string, string>): ParsedCaseYaml {
+  const doc = parseDoc('case', text);
+  const parsed = TestCaseFileSchema.safeParse({ ...doc, steps: normalizeFlowSteps(doc['steps']) });
+  if (!parsed.success) throw fileInvalid('case', parsed.error);
+  const extra = CaseFileExtraSchema.safeParse(doc);
+  if (!extra.success) throw fileInvalid('case', extra.error);
+  const steps = parsed.data.steps.map((s) => {
+    if (s.sharedStepId === undefined) return s;
+    const id = flowIdByName.get(s.sharedStepId);
+    if (id === undefined) {
+      throw new S1PilotError('SYNC_REFERENCE', `unknown flow "${s.sharedStepId}"`, { flow: s.sharedStepId });
+    }
+    return { ...s, sharedStepId: id };
+  });
+  return { ...(extra.data.version !== undefined ? { version: extra.data.version } : {}), file: { ...parsed.data, steps } };
 }

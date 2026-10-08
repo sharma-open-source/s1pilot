@@ -5,6 +5,7 @@ import { healProposals } from './heal-proposals.js';
 import { learnedScripts } from './learned-scripts.js';
 import { plans } from './plans.js';
 import { projects } from './projects.js';
+import { requirements } from './requirements.js';
 import { results } from './results.js';
 import { reviews } from './reviews.js';
 import { runs } from './runs.js';
@@ -23,6 +24,7 @@ export const repos = {
   plans,
   runs,
   results,
+  requirements,
   defects,
   reviews,
   healProposals,
@@ -37,6 +39,7 @@ export type { HealApplyScope, HealProposalFilter, HealProposalsRepo } from './he
 export type { LearnedScriptsRepo } from './learned-scripts.js';
 export type { PlansRepo } from './plans.js';
 export type { ProjectsRepo } from './projects.js';
+export type { RequirementsRepo } from './requirements.js';
 export type { ResultsRepo } from './results.js';
 export type { ReviewsRepo } from './reviews.js';
 export type { RunsRepo } from './runs.js';

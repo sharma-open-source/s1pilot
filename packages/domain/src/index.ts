@@ -12,6 +12,7 @@ export * from './plan.js';
 export * from './probe.js';
 export * from './profile.js';
 export * from './project.js';
+export * from './query.js';
 export * from './redact.js';
 export * from './requirement.js';
 export * from './review.js';

@@ -7,12 +7,13 @@ import {
   type CaseResult,
   type StepResult,
 } from '@s1pilot/domain';
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq, inArray } from 'drizzle-orm';
 import type { z } from 'zod';
 
 import { atomic, type Db } from '../db.js';
 import {
   caseResults as cr,
+  testRuns as tr,
   decisionRecords as dr,
   evidence as ev,
   stepResults as sr,
@@ -61,6 +62,27 @@ export const results = {
       .where(eq(cr.runId, runId))
       .all()
       .map((row) => fromRow(CaseResultSchema, row));
+  },
+
+  /**
+   * Most recent result per case (by run start time, then attempt) for the given case ids.
+   * Cases without results are absent from the map.
+   */
+  async lastByCases(db: Db, caseIds: string[]): Promise<Map<string, CaseResult & { startedAt?: string }>> {
+    const out = new Map<string, CaseResult & { startedAt?: string }>();
+    if (caseIds.length === 0) return out;
+    const rows = db.orm
+      .select({ r: cr, startedAt: tr.startedAt })
+      .from(cr)
+      .innerJoin(tr, eq(cr.runId, tr.id))
+      .where(inArray(cr.caseId, caseIds))
+      .orderBy(desc(tr.startedAt), desc(cr.attempt))
+      .all();
+    for (const { r, startedAt } of rows) {
+      if (out.has(r.caseId)) continue;
+      out.set(r.caseId, { ...fromRow(CaseResultSchema, r), ...(startedAt ? { startedAt } : {}) });
+    }
+    return out;
   },
 
   async updateCase(db: Db, id: string, patch: Partial<Omit<CaseResultInput, 'id' | 'runId' | 'caseId'>>): Promise<CaseResult> {
