@@ -50,6 +50,8 @@ export const TraceLineSchema = z.discriminatedUnion('kind', [
     kind: z.literal('step.started'),
     text: z.string(),
     inputs: z.array(z.string()),
+    /** Shared step / flow the step was inlined from. */
+    sharedStepId: z.string().optional(),
   }),
   z.object({
     ...base,

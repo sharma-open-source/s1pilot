@@ -165,7 +165,12 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
   };
 
   emit({ type: 'step.started', caseResultId: ctx.caseResultId, stepIndex, action: safeText });
-  await writeTrace({ kind: 'step.started', text: safeText, inputs: step.inputs ?? [] });
+  await writeTrace({
+    kind: 'step.started',
+    text: safeText,
+    inputs: step.inputs ?? [],
+    ...(step.sharedStepId ? { sharedStepId: step.sharedStepId } : {}),
+  });
 
   const finish = async (
     status: StepExecution['status'],

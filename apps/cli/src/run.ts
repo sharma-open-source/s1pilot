@@ -26,9 +26,11 @@ import {
   createJsonlTraceWriter,
   createReadlineHumanHook,
   exploreStep,
+  expandCase,
   installDomainGuard,
   installReadOnlyGuard,
   verifyStep,
+  type CaseInstance,
   type EngineContext,
   type InstalledGuard,
 } from '@s1pilot/engine';
@@ -43,6 +45,8 @@ import {
   PROJECT_DIR,
   PROJECT_FILE,
   findProjectRoot,
+  flowLookup,
+  loadDataset,
   listYamlFiles,
   loadCaseFile,
   loadProjectDir,
@@ -122,6 +126,8 @@ function resolveEnvRef(ref: string, env: NodeJS.ProcessEnv, what: string): strin
 interface Resolved {
   environment: Environment;
   cases: TestCase[];
+  /** Project root (directory holding `.s1pilot/`), when found. */
+  root?: string;
   project?: LoadedProject | Omit<LoadedProject, 'cases'>;
 }
 
@@ -173,7 +179,7 @@ function resolveProjectAndCases(target: string, opts: RunOptions): Resolved {
   } catch {
     throw new ConfigError(`Environment "${environment.name}" has an invalid base URL: ${environment.baseUrl}`);
   }
-  return { environment, cases, ...(loaded ? { project: loaded } : {}) };
+  return { environment, cases, ...(root ? { root } : {}), ...(loaded ? { project: loaded } : {}) };
 }
 
 interface Vars {
@@ -351,18 +357,20 @@ export async function executeRun(target: string, opts: RunOptions, deps: RunDeps
     say(`s1pilot run  env ${environment.name} (${redactor.redact(environment.baseUrl)})  browser ${opts.browser}  model ${models.modelName}`);
     const runId = newId();
     const outcomes: CaseOutcome[] = [];
-    const summaryCases: { key: string; row: number; verdict: Verdict; dir: string }[] = [];
+    const summaryCases: { key: string; row: number; label: string; verdict: Verdict; dir: string }[] = [];
 
+    const root = resolved.root;
+    const flows = root ? flowLookup(root, resolved.project?.project.id) : () => undefined;
+    const datasets = (name: string) => (root ? loadDataset(root, name, environment.name) : undefined);
     for (const testCase of cases) {
-      const rows = testCase.parameters.length > 0 ? testCase.parameters : [{}];
-      for (const [rowIndex, row] of rows.entries()) {
-        const params = Object.fromEntries(Object.entries(row).map(([k, v]) => [k, String(v)]));
-        const dirName = `${testCase.key.replace(/[^\w.-]+/g, '_')}${rows.length > 1 ? `-${rowIndex + 1}` : ''}`;
+      const instances = expandCase(testCase, { flows, datasets });
+      for (const instance of instances) {
+        const rowIndex = instance.index;
+        const dirName = `${testCase.key.replace(/[^\w.-]+/g, '_')}${instance.count > 1 ? `-${rowIndex + 1}` : ''}`;
         const caseDir = join(outDir, dirName);
         const outcome = await runCase({
-          testCase,
-          params,
-          rowLabel: rows.length > 1 ? ` [row ${rowIndex + 1}/${rows.length}]` : '',
+          instance,
+          rowLabel: instance.label ? ` [${instance.label}]` : '',
           caseDir,
           browser,
           environment,
@@ -375,7 +383,7 @@ export async function executeRun(target: string, opts: RunOptions, deps: RunDeps
           say,
         });
         outcomes.push(outcome);
-        summaryCases.push({ key: testCase.key, row: rowIndex + 1, verdict: outcome.verdict, dir: dirName });
+        summaryCases.push({ key: testCase.key, row: rowIndex + 1, label: instance.label, verdict: outcome.verdict, dir: dirName });
       }
     }
 
@@ -407,8 +415,7 @@ export async function executeRun(target: string, opts: RunOptions, deps: RunDeps
 }
 
 interface CaseRun {
-  testCase: TestCase;
-  params: Record<string, string>;
+  instance: CaseInstance;
   rowLabel: string;
   caseDir: string;
   browser: Browser;
@@ -424,6 +431,8 @@ interface CaseRun {
 
 interface StepRecord {
   index: number;
+  phase?: 'precondition';
+  sharedStepId?: string;
   action: string;
   verdict: Verdict;
   ended?: string;
@@ -437,7 +446,8 @@ interface StepRecord {
 }
 
 async function runCase(run: CaseRun): Promise<CaseOutcome> {
-  const { testCase, params, environment, redactor, say } = run;
+  const { instance, environment, redactor, say } = run;
+  const { testCase, params } = instance;
   const r = (s: string): string => redactor.redact(s);
   const startedAt = new Date();
   const caseResultId = newId();
@@ -448,9 +458,9 @@ async function runCase(run: CaseRun): Promise<CaseOutcome> {
 
   say('');
   say(`${testCase.key} · ${r(testCase.title)}${run.rowLabel}`);
-  if (testCase.preconditions.length > 0) {
-    // TODO(S-026): preconditions (flows, auth) are applied by the case runner.
-    say('  ! preconditions are not applied in explore mode yet');
+  if (testCase.preconditions.some((p) => 'auth' in p)) {
+    // TODO(S-038): auth setup flows restore a saved login state.
+    say('  ! auth preconditions are not applied yet');
   }
 
   const context = await run.browser.newContext({ locale: environment.locale, timezoneId: environment.timezone });
@@ -484,6 +494,7 @@ async function runCase(run: CaseRun): Promise<CaseOutcome> {
   };
 
   let stop: Verdict | undefined;
+  let preconditionBroken = false;
   try {
     try {
       await page.goto(environment.baseUrl);
@@ -503,10 +514,18 @@ async function runCase(run: CaseRun): Promise<CaseOutcome> {
       say(`  ${ICONS.blocked} could not open ${r(environment.baseUrl)}`);
     }
 
-    for (const [index, step] of testCase.steps.entries()) {
+    const queue = [
+      ...instance.preconditionSteps.map((step) => ({ step, pre: true })),
+      ...testCase.steps.map((step) => ({ step, pre: false })),
+    ];
+    for (const [index, { step, pre }] of queue.entries()) {
       const action = bind(step.action, params);
+      const tag = {
+        ...(pre ? { phase: 'precondition' as const } : {}),
+        ...(step.sharedStepId ? { sharedStepId: step.sharedStepId } : {}),
+      };
       if (stop !== undefined) {
-        steps.push({ index, action: r(action), verdict: 'skipped', actions: 0, iterations: 0, durationMs: 0, assertions: [], decisions: [] });
+        steps.push({ index, ...tag, action: r(action), verdict: 'skipped', actions: 0, iterations: 0, durationMs: 0, assertions: [], decisions: [] });
         outcomeSteps.push({ verdict: 'skipped', executed: false });
         say(`  ${ICONS.skipped} ${index + 1} · ${shorten(r(action))} (skipped)`);
         continue;
@@ -514,7 +533,7 @@ async function runCase(run: CaseRun): Promise<CaseOutcome> {
       const capture = StepCapture.start(ctx.page);
       let record: StepRecord;
       try {
-        const exec = await exploreStep(ctx, { index, action: step.action, inputs: step.inputs });
+        const exec = await exploreStep(ctx, { index, action: step.action, inputs: step.inputs, ...(step.sharedStepId ? { sharedStepId: step.sharedStepId } : {}) });
         const verification = await verifyStep(
           { page: ctx.page, s1: ctx.s1, thresholds: ctx.thresholds, redactor, modelName: run.models.modelName },
           {
@@ -527,6 +546,7 @@ async function runCase(run: CaseRun): Promise<CaseOutcome> {
         );
         record = {
           index,
+          ...tag,
           action: r(action),
           verdict: verification.verdict,
           ended: exec.ended,
@@ -541,6 +561,7 @@ async function runCase(run: CaseRun): Promise<CaseOutcome> {
       } catch (error) {
         record = {
           index,
+          ...tag,
           action: r(action),
           verdict: 'failed',
           ended: 'error',
@@ -556,12 +577,16 @@ async function runCase(run: CaseRun): Promise<CaseOutcome> {
       }
       steps.push(record);
       outcomeSteps.push({ verdict: record.verdict, executed: true });
-      say(`  ${ICONS[record.verdict]} ${index + 1} · ${shorten(r(action))} (explore, ${record.actions} action${record.actions === 1 ? '' : 's'}, ${seconds(record.durationMs)})`);
+      say(`  ${ICONS[record.verdict]} ${index + 1} · ${pre ? '[precondition] ' : ''}${shorten(r(action))} (explore, ${record.actions} action${record.actions === 1 ? '' : 's'}, ${seconds(record.durationMs)})`);
       if (record.verdict !== 'passed') {
         if (record.reason) say(`      ${r(record.reason)}`);
         for (const a of record.assertions.filter((x) => x.verdict !== 'pass')) say(`      ${a.verdict}: ${r(a.message ?? a.assertion)}`);
       }
-      if (record.verdict === 'failed' || record.verdict === 'blocked') stop = record.verdict;
+      if (record.verdict === 'failed' || record.verdict === 'blocked') {
+        // A broken precondition means the case never really ran: blocked, not failed.
+        if (pre) preconditionBroken = true;
+        stop = pre ? 'blocked' : record.verdict;
+      }
     }
   } finally {
     for (const g of guards) await g.dispose();
@@ -569,7 +594,7 @@ async function runCase(run: CaseRun): Promise<CaseOutcome> {
     await context.close();
   }
 
-  const verdict = caseVerdict(steps.map((s) => s.verdict));
+  const verdict = preconditionBroken ? 'blocked' : caseVerdict(steps.map((s) => s.verdict));
   const durationMs = Date.now() - startedAt.getTime();
   const result = {
     runId: run.runId,
@@ -582,6 +607,8 @@ async function runCase(run: CaseRun): Promise<CaseOutcome> {
     environment: environment.name,
     browser: run.browserName,
     params,
+    ...(instance.label ? { label: instance.label } : {}),
+    scriptKey: instance.scriptKey,
     startedAt: startedAt.toISOString(),
     durationMs,
     steps,

@@ -60,6 +60,8 @@ export interface ExploreStepInput {
   inputs?: string[];
   /** Step `guard` rules such as `block submit_payment`. */
   guards?: string[];
+  /** Shared step / flow this step was inlined from; recorded in the trace for heal impact. */
+  sharedStepId?: string;
 }
 
 /** An action the loop took (no resolved values, only refs). */
