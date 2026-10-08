@@ -1,0 +1,25 @@
+# Eval suite over the fixture sites (S-030). Paths are relative to this file.
+# Run: s1pilot eval --suite fixtures-all --oracle   (CI wiring check, mock model)
+#      s1pilot eval --suite fixtures-all --model-url <url> --models clef-flash,jev-9b --repeat 3
+name: fixtures-all
+description: Checkout flow on the shop fixture site with seeded bugs and UI variants (ground truth from fixtures/sites/ground-truth.json).
+# Origin of the running fixture server (`pnpm --filter @s1pilot/fixture-sites dev`); override with --base-url.
+baseUrl: http://127.0.0.1:4400
+variables:
+  search_term: t-shirt
+  shipping_name: Alex Doe
+  shipping_zip: "94105"
+  email: demo@example.com
+cases:
+  - key: SHOP-TC-42
+    file: ../../fixtures/sites/cases/shop/tc-042.yaml
+    # Site path below baseUrl.
+    site: /shop
+    # Scripted answers for --oracle (a mock model that always picks the right option).
+    mockScript: ../../fixtures/sites/cases/shop/tc-042.mock.json
+    # Same flow as SHOP-TC-1 in ground-truth.json.
+    groundTruth: SHOP-TC-1
+# One entry per (case, bug set, variant set) with the correct verdict.
+runs:
+  - { case: SHOP-TC-42, bugs: [], variants: [], verdict: passed }
+  - { case: SHOP-TC-42, bugs: [shop.badge-wrong-count], variants: [], verdict: failed }
