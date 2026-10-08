@@ -14,6 +14,7 @@ import type { ServerConfig } from './config.js';
 import { createContext } from './trpc/context.js';
 import { appRouter } from './trpc/router.js';
 import { getVersion } from './version.js';
+import { createRuntime, type RuntimeOptions } from './worker/runtime.js';
 
 export interface BuildAppOptions {
   /** Use an already-open database (tests). Otherwise one is opened from `config.dbUrl`. */
@@ -22,6 +23,10 @@ export interface BuildAppOptions {
   webDist?: string;
   /** Enables dev-only behaviour (CORS). Default: `NODE_ENV !== 'production'`. */
   dev?: boolean;
+  /** Worker pool overrides (model factory, browser launcher, timings); tests inject mocks here. */
+  workerOptions?: RuntimeOptions['workerOptions'];
+  /** Number of in-process workers. Default `config.workers`. */
+  workers?: number;
 }
 
 /**
@@ -40,18 +45,24 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
     openDb({ url: config.dbUrl, crypto: await createVault({ keyFile: join(config.dataDir, 'master.key') }) });
 
   const app: FastifyInstance = Fastify({ loggerInstance: log });
-  if (ownsDb) app.addHook('onClose', async () => db.close());
 
   if (dev) await app.register(cors, { origin: true });
   await app.register(websocket);
 
   app.get('/api/health', async () => ({ ok: true, version: getVersion(), mode: config.mode }));
 
+  const runtime = createRuntime({ db, config, log, ...(opts.workerOptions ? { workerOptions: opts.workerOptions } : {}) });
+  runtime.workers.start(opts.workers ?? config.workers);
+  app.addHook('onClose', async () => {
+    await runtime.workers.stop(); // before the db closes
+    if (ownsDb) db.close();
+  });
+
   await app.register(fastifyTRPCPlugin, {
     prefix: '/trpc',
     trpcOptions: {
       router: appRouter,
-      createContext: () => createContext({ db, config, log }),
+      createContext: () => createContext({ db, config, log, runtime }),
     },
   });
 

@@ -1,6 +1,7 @@
-export { caseDirName, runCases } from './run-cases.js';
+export { caseDirName, launchBrowser, runCases } from './run-cases.js';
 export type {
   AuthStateProvider,
+  LaunchBrowserOptions,
   RunCasesInput,
   RunSummary,
   RunnerEvent,

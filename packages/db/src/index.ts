@@ -7,3 +7,6 @@ export { resolveVariables } from './variables.js';
 export type { ResolveOptions, ResolvedVars } from './variables.js';
 export { createVault, generateMasterKey, rotateDbSecrets, rotateKey } from './vault.js';
 export type { Vault, VaultOptions } from './vault.js';
+export { createSqliteJobQueue } from './queue.js';
+export type { ClaimOptions, Job, JobQueue, JobStatus, NewJob } from './queue.js';
+export { createDbLearnedScriptStore } from './repos/index.js';

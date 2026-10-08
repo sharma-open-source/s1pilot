@@ -42,7 +42,7 @@ export const testRuns = sqliteTable(
     trigger: text('trigger', { enum: ['manual', 'schedule', 'ci', 'webhook'] }).notNull(),
     buildRef: text('build_ref'),
     status: text('status', {
-      enum: ['queued', 'running', 'paused', 'finished', 'aborted'],
+      enum: ['queued', 'running', 'paused', 'finished', 'aborted', 'passed', 'failed', 'needs-review', 'cancelled', 'error'],
     }).notNull(),
     startedAt: text('started_at'),
     finishedAt: text('finished_at'),
@@ -180,3 +180,25 @@ export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
   value: text('value', { mode: 'json' }).$type<unknown>().notNull(),
 });
+
+/** Durable job queue (S-034). Rows are managed through `createSqliteJobQueue`, not a repo. */
+export const jobs = sqliteTable(
+  'jobs',
+  {
+    id: text('id').primaryKey(),
+    type: text('type').notNull(),
+    /** Run the job belongs to, when any (no FK: queue rows may outlive or precede run rows). */
+    runId: text('run_id'),
+    payload: text('payload', { mode: 'json' }).$type<unknown>().notNull(),
+    status: text('status', { enum: ['queued', 'running', 'completed', 'failed', 'cancelled'] }).notNull(),
+    attempts: integer('attempts').notNull(),
+    maxAttempts: integer('max_attempts').notNull(),
+    workerId: text('worker_id'),
+    leaseExpiresAt: text('lease_expires_at'),
+    result: text('result', { mode: 'json' }).$type<unknown>(),
+    error: text('error'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => [index('jobs_status_idx').on(t.status, t.type), index('jobs_run_idx').on(t.runId)],
+);
