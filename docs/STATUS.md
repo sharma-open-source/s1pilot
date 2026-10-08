@@ -13,6 +13,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | 2026-10-08 | S-024, S-029 | todo → done | Replay mode and tests-as-code sync (parallel sub-agents, merged). |
 | 2026-10-08 | S-025 | todo → done | Heal mode & heal proposals (sub-agent, merged). |
 | 2026-10-08 | S-027 | todo → done | Case runner & JUnit/JSON reporters (sub-agent, merged). Replay/heal wired into CLI. |
+| 2026-10-08 | S-031 | todo → done | API server scaffold (merged). |
 | 2026-10-08 | S-028, S-030 | todo → done | HTML report and eval harness (parallel sub-agents, merged). **P2 complete (S-023–S-030).** |
 | 2026-10-08 | S-020 | todo → done | `verifyStep`, `judgeExpected`, `verdictFor`/`caseVerdict` (sub-agent, merged). |
 | 2026-10-08 | S-019 | todo → done | `exploreStep`, `EngineContext`, JSONL trace writer + `TraceLineSchema` (sub-agent, merged). |
@@ -71,7 +72,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-028 | HTML report | P2 | done | Sub-agent, merged. `renderHtml` + `--reporter html` (self-contained, no network by default, redacted, screenshots inlined up to 15 MB). Screenshots found by convention `<case.dir>/step-<n>*.png` — verify against runner naming; report has no "Expected" field yet. |
 | S-029 | Tests-as-code sync | P2 | done | Sub-agent, merged. `exportProject`/`importProject`/`syncStatus` (sync), `s1pilot sync` CLI (`--db --dry-run --prune --json`), `cases.createWithKey` (db). Secrets never exported; plaintext secret in file ⇒ `SECRET_IN_FILE`. `data/*` not synced; conflicts detected for cases only. sync and cli now depend on db. |
 | S-030 | Eval harness & seeded bugs | P2 | done | Sub-agent, merged. `s1pilot eval --suite … [--models --oracle --repeat --out]`; metrics + leaderboard + engine sha; `--oracle` uses mock scripts (100% detection, 0 false-pass in test). Suite `suites/fixtures-all` has only SHOP-TC-42 (clean + `badge-wrong-count`); other fixture cases need YAML + mock scripts. Fixture server must be running (not auto-started). Added `yaml` dep to cli. **P2 complete.** |
-| S-031 | API server scaffold | P3 | todo | |
+| S-031 | API server scaffold | P3 | done | Sub-agent, merged. `buildApp(config)` (Fastify, pino redaction, CORS dev-only, ws plugin registered w/o routes, static SPA), `/api/health`, tRPC `/trpc` + `health`, `AppRouter` from `@s1pilot/server/router`, S1PilotError→tRPC code mapping. Data dir `./.s1pilot` if present else `~/.s1pilot`; vault key at `dataDir/master.key`. Extra deps: fastify plugins, `@trpc/server`/`client`, `tsx`. |
 | S-032 | API: projects, environments, model settings | P3 | todo | |
 | S-033 | API: suites, cases, versions | P3 | todo | |
 | S-034 | Job queue, worker & run lifecycle | P3 | todo | |
