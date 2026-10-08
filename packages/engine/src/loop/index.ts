@@ -1,5 +1,15 @@
 export { exploreStep } from './explore-step.js';
 export {
+  healStep,
+  replayWithHeal,
+  type HealProposalDraft,
+  type HealResult,
+  type HealStepOptions,
+  type HealedStepResult,
+  type ReplayWithHealInput,
+  type ReplayWithHealResult,
+} from './heal.js';
+export {
   REPLAY_STABLE,
   actionsForStep,
   chooseMode,

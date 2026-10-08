@@ -19,6 +19,8 @@ export const ProjectSchema = z.object({
   /** Project override; absent means inherit the workspace default. */
   modelSettings: ModelSettingsSchema.optional(),
   retentionDays: z.number().int().positive().default(30),
+  /** Apply heal proposals to learned scripts immediately instead of waiting for review (S-025). */
+  autoApplyHeals: z.boolean().default(false),
   dataPolicy: DataPolicySchema.default({}),
   createdAt: IsoTimestampSchema.optional(),
   updatedAt: IsoTimestampSchema.optional(),

@@ -194,6 +194,7 @@ export function loadProjectFile(root: string): Omit<LoadedProject, 'cases'> {
     ...(defaultEnvironmentId ? { defaultEnvironmentId } : {}),
     ...(data.model?.thresholds ? { modelSettings: { ...data.model, thresholds: data.model.thresholds } } : {}),
     retentionDays: data.retentionDays,
+    autoApplyHeals: false,
     dataPolicy: data.dataPolicy,
   };
   return { root: resolve(root), project, environments, ...(data.model ? { model: data.model } : {}) };

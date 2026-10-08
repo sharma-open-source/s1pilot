@@ -153,8 +153,8 @@ describe('defects repo', () => {
 });
 
 describe('reviews repo', () => {
-  it('manages review items and heal proposals', async () => {
-    const { db, project, env, testCase } = await setup();
+  it('manages review items', async () => {
+    const { db, project } = await setup();
     const item = await repos.reviews.create(db, { id: newId(), projectId: project.id, kind: 'verdict', refId: 'cr1' });
     expect(item.status).toBe('pending');
     expect(await repos.reviews.list(db, { projectId: project.id, status: 'pending' })).toHaveLength(1);
@@ -163,16 +163,6 @@ describe('reviews repo', () => {
     expect(resolved.resolvedAt).toBeDefined();
     expect(await repos.reviews.list(db, { projectId: project.id, status: 'pending' })).toHaveLength(0);
 
-    const script = await repos.learnedScripts.upsert(db, {
-      id: newId(), caseId: testCase.id, caseVersion: 1, environmentId: env.id, createdFromRunId: 'r1', actions: [],
-    });
-    const proposal = await repos.reviews.createHealProposal(db, {
-      id: newId(), learnedScriptId: script.id, runId: 'r2', stepIndex: 0,
-      actions: [{ stepIndex: 0, subIndex: 0, action: 'click', fingerprint: 'f', fromRunId: 'r2', locators: [{ kind: 'text', value: 'Buy now' }] }],
-    });
-    expect(await repos.reviews.listHealProposals(db, script.id, 'pending')).toHaveLength(1);
-    await repos.reviews.resolveHealProposal(db, proposal.id, 'rejected');
-    expect(await repos.reviews.listHealProposals(db, script.id, 'pending')).toHaveLength(0);
     await expect(repos.reviews.resolve(db, 'nope', 'approved')).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });

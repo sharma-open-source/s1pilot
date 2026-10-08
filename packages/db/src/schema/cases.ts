@@ -6,7 +6,7 @@ import type {
   TestCase,
   LearnedScriptHealth,
 } from '@s1pilot/domain';
-import { index, integer, primaryKey, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
 
 import { environments, projects, suites } from './core.js';
 
@@ -115,12 +115,21 @@ export const learnedScripts = sqliteTable(
 
 export const healProposals = sqliteTable('heal_proposals', {
   id: text('id').primaryKey(),
-  learnedScriptId: text('learned_script_id')
+  caseId: text('case_id')
     .notNull()
-    .references(() => learnedScripts.id, { onDelete: 'cascade' }),
+    .references(() => testCases.id, { onDelete: 'cascade' }),
+  environmentId: text('environment_id')
+    .notNull()
+    .references(() => environments.id, { onDelete: 'cascade' }),
   runId: text('run_id').notNull(),
   stepIndex: integer('step_index').notNull(),
-  actions: text('actions', { mode: 'json' }).$type<ResolvedAction[]>().notNull(),
+  before: text('before', { mode: 'json' }).$type<ResolvedAction[]>().notNull(),
+  after: text('after', { mode: 'json' }).$type<ResolvedAction[]>().notNull(),
+  confidence: real('confidence').notNull(),
+  s2Agreed: integer('s2_agreed', { mode: 'boolean' }),
+  approvedLive: text('approved_live'),
+  sharedStepId: text('shared_step_id'),
+  impactCaseIds: text('impact_case_ids', { mode: 'json' }).$type<string[]>().notNull(),
   status: text('status', { enum: ['pending', 'approved', 'rejected'] }).notNull(),
   createdAt: text('created_at'),
 });

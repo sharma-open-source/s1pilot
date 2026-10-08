@@ -1,7 +1,5 @@
 import {
-  HealProposalSchema,
   ReviewItemSchema,
-  type HealProposal,
   type ReviewItem,
   type ReviewStatus,
 } from '@s1pilot/domain';
@@ -9,14 +7,13 @@ import { and, desc, eq, type SQL } from 'drizzle-orm';
 import type { z } from 'zod';
 
 import type { Db } from '../db.js';
-import { healProposals as hp, reviewItems as ri } from '../schema/index.js';
+import { reviewItems as ri } from '../schema/index.js';
 
 import { fromRow, notFound, nowIso } from './util.js';
 
 export type ReviewItemInput = z.input<typeof ReviewItemSchema>;
-export type HealProposalInput = z.input<typeof HealProposalSchema>;
 
-/** Review queue items and heal proposals. */
+/** Review queue items (heal proposals live in `healProposals`). */
 export const reviews = {
   async create(db: Db, input: ReviewItemInput): Promise<ReviewItem> {
     const item = ReviewItemSchema.parse(input);
@@ -51,36 +48,6 @@ export const reviews = {
       .where(eq(ri.id, id))
       .run();
     return (await this.get(db, id)) as ReviewItem;
-  },
-
-  async createHealProposal(db: Db, input: HealProposalInput): Promise<HealProposal> {
-    const proposal = HealProposalSchema.parse(input);
-    db.orm.insert(hp).values({ ...proposal, createdAt: proposal.createdAt ?? nowIso() }).run();
-    return (await this.getHealProposal(db, proposal.id)) as HealProposal;
-  },
-
-  async getHealProposal(db: Db, id: string): Promise<HealProposal | undefined> {
-    const row = db.orm.select().from(hp).where(eq(hp.id, id)).get();
-    return row && fromRow(HealProposalSchema, row);
-  },
-
-  async listHealProposals(db: Db, learnedScriptId: string, status?: ReviewStatus): Promise<HealProposal[]> {
-    const where = status
-      ? and(eq(hp.learnedScriptId, learnedScriptId), eq(hp.status, status))
-      : eq(hp.learnedScriptId, learnedScriptId);
-    return db.orm
-      .select()
-      .from(hp)
-      .where(where)
-      .orderBy(desc(hp.createdAt))
-      .all()
-      .map((row) => fromRow(HealProposalSchema, row));
-  },
-
-  async resolveHealProposal(db: Db, id: string, status: Exclude<ReviewStatus, 'pending'>): Promise<HealProposal> {
-    if (!(await this.getHealProposal(db, id))) return notFound('HealProposal', id);
-    db.orm.update(hp).set({ status }).where(eq(hp.id, id)).run();
-    return (await this.getHealProposal(db, id)) as HealProposal;
   },
 };
 export type ReviewsRepo = typeof reviews;

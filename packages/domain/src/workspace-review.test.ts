@@ -18,7 +18,7 @@ describe('workspace, suite and data set', () => {
 describe('review items and heal proposals', () => {
   it('parses with pending status by default', () => {
     expect(ReviewItemSchema.parse({ id: 'r1', projectId: 'p1', kind: 'heal', refId: 'h1' }).status).toBe('pending');
-    expect(HealProposalSchema.parse({ id: 'h1', learnedScriptId: 'l1', runId: 'r1', stepIndex: 0, actions: [] }).status).toBe('pending');
+    expect(HealProposalSchema.parse({ id: 'h1', caseId: 'c1', environmentId: 'e1', runId: 'r1', stepIndex: 0, before: [], after: [], confidence: 0.9 }).status).toBe('pending');
   });
 
   it('rejects unknown kinds and statuses', () => {

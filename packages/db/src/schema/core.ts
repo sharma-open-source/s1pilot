@@ -21,6 +21,7 @@ export const projects = sqliteTable('projects', {
   defaultEnvironmentId: text('default_environment_id'),
   modelSettings: text('model_settings', { mode: 'json' }).$type<ModelSettings>(),
   retentionDays: integer('retention_days').notNull().default(30),
+  autoApplyHeals: integer('auto_apply_heals', { mode: 'boolean' }).notNull().default(false),
   dataPolicy: text('data_policy', { mode: 'json' }).$type<DataPolicy>().notNull(),
   /** Next human case number for this project (`KEY-TC-n`). */
   nextCaseNumber: integer('next_case_number').notNull().default(1),
