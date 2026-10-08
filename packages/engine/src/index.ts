@@ -3,6 +3,7 @@ import { VerdictSchema } from '@s1pilot/domain';
 export * from './decide/index.js';
 export * from './executor/index.js';
 export * from './observer/index.js';
+export * from './verify/index.js';
 
 /** Package name; placeholder export until the engine lands (S-012+). */
 export const ENGINE_PACKAGE = '@s1pilot/engine';
