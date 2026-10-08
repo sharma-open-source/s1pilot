@@ -3,6 +3,7 @@ import { VerdictSchema } from '@s1pilot/domain';
 export * from './decide/index.js';
 export * from './executor/index.js';
 export * from './guards/index.js';
+export * from './narrow/index.js';
 export * from './observer/index.js';
 export * from './verify/index.js';
 
