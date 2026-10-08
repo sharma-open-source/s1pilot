@@ -62,8 +62,8 @@ describe('sqlite job queue', () => {
     const { queue } = setup();
     const a = await queue.enqueue({ type: 't', runId: 'r1', payload: {} });
     const b = await queue.enqueue({ type: 't', runId: 'r1', payload: {} });
-    const other = await queue.enqueue({ type: 't', runId: 'r2', payload: {} });
     await queue.claim('w');
+    const other = await queue.enqueue({ type: 't', runId: 'r2', payload: {} });
     const affected = await queue.cancelByRun('r1');
     expect(affected.map((j) => j.status).sort()).toEqual(['queued', 'running']);
     expect((await queue.listByRun('r1')).map((j) => j.status)).toEqual(['cancelled', 'cancelled']);
