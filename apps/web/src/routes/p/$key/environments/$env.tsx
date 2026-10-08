@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { PlaceholderPage } from '@/components/app/PageHeader';
+import { EnvironmentsPage } from '@/features/environments/EnvironmentsPage';
 
 export const Route = createFileRoute('/p/$key/environments/$env')({
-  component: () => <PlaceholderPage title="Environments" spec="S-042" />,
+  component: () => {
+    const { key, env } = Route.useParams();
+    return <EnvironmentsPage projectKey={key} envName={env} />;
+  },
 });
