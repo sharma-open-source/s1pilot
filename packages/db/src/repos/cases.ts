@@ -1,9 +1,11 @@
 import {
   IdSchema,
+  S1PilotError,
   TestCaseFileSchema,
   TestCaseSchema,
   caseKey,
   newId,
+  parseCaseKey,
   type Priority,
   type TestCase,
   type TestCaseStatus,
@@ -55,6 +57,32 @@ export const cases = {
         .insert(t)
         .values({ ...data, id, projectId, key: caseKey(project.key, number), number, version: 1, createdAt: ts, updatedAt: ts })
         .run();
+      snapshot(db, id);
+    });
+    return (await this.get(db, id)) as TestCase;
+  },
+
+  /**
+   * Creates a case with a given key and version (tests-as-code import, S-029). The key must be
+   * `<projectKey>-TC-<n>` for this project; the project's counter advances past `n`.
+   */
+  async createWithKey(db: Db, projectId: string, key: string, input: NewTestCase, version = 1): Promise<TestCase> {
+    const data = NewTestCaseSchema.parse(input);
+    const { projectKey, number } = parseCaseKey(key);
+    const id = newId();
+    atomic(db, () => {
+      const project = db.orm.select().from(projects).where(eq(projects.id, projectId)).get();
+      if (!project) return notFound('Project', projectId);
+      if (project.key !== projectKey) {
+        throw new S1PilotError('INVALID_CASE_KEY', `Case key ${key} does not belong to project ${project.key}`, { key });
+      }
+      const ts = nowIso();
+      db.orm
+        .update(projects)
+        .set({ nextCaseNumber: Math.max(project.nextCaseNumber, number + 1) })
+        .where(eq(projects.id, projectId))
+        .run();
+      db.orm.insert(t).values({ ...data, id, projectId, key, number, version, createdAt: ts, updatedAt: ts }).run();
       snapshot(db, id);
     });
     return (await this.get(db, id)) as TestCase;

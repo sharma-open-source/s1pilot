@@ -41,6 +41,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@s1pilot/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@s1pilot/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -166,6 +169,9 @@ importers:
 
   packages/sync:
     dependencies:
+      '@s1pilot/db':
+        specifier: workspace:*
+        version: link:../db
       '@s1pilot/domain':
         specifier: workspace:^
         version: link:../domain

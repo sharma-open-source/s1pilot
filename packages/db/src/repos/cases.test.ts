@@ -28,6 +28,15 @@ describe('cases repo', () => {
     expect(await cases.nextCaseNumber(db, shop.id)).toBe(26);
   });
 
+  it('creates a case with a given key and version and advances the counter', async () => {
+    const db = memoryDb();
+    const shop = await makeProject(db);
+    const c = await cases.createWithKey(db, shop.id, 'SHOP-TC-7', caseInput('imported'), 4);
+    expect(c).toMatchObject({ key: 'SHOP-TC-7', version: 4 });
+    expect(await cases.nextCaseNumber(db, shop.id)).toBe(8);
+    await expect(cases.createWithKey(db, shop.id, 'WEB-TC-1', caseInput())).rejects.toMatchObject({ code: 'INVALID_CASE_KEY' });
+  });
+
   it('applies defaults and finds cases by key', async () => {
     const db = memoryDb();
     const shop = await makeProject(db);
