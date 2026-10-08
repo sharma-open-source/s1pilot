@@ -35,6 +35,12 @@ export const ResolvedActionSchema = z.object({
   valueRef: z.string().optional(),
   /** Hash of the page state this action was resolved against. */
   fingerprint: z.string().min(1),
+  /** Hash of the page state after the action (S-023). */
+  postFingerprint: z.string().min(1).optional(),
+  /** What the replayer should wait for after the action (S-023). */
+  waitHint: z.enum(['none', 'navigation']).optional(),
+  /** Hash of the step text this action was learned for; a mismatch invalidates the action (S-023). */
+  stepHash: z.string().min(1).optional(),
   fromRunId: IdSchema,
 });
 export type ResolvedAction = z.infer<typeof ResolvedActionSchema>;

@@ -5,6 +5,7 @@ import type { Page } from 'playwright';
 import type { HumanHook } from '../decide/human.js';
 import type { ExecutorContext } from '../executor/types.js';
 import type { LoopGuard, LoopLimits } from '../guards/loop.js';
+import type { ActionRecorder } from '../learned/recorder.js';
 import type { ActionHistory } from '../observer/history.js';
 import type { InputVars, LiteralStore, VarLookup } from '../text-input/index.js';
 import type { StepEnd, TraceWriter } from '../trace/index.js';
@@ -48,6 +49,8 @@ export interface EngineContext {
   history?: ActionHistory;
   guard?: LoopGuard;
   literals?: LiteralStore;
+  /** Optional learned-script recorder (S-023); receives every successfully executed action. */
+  recorder?: ActionRecorder;
 }
 
 /** One natural-language step handed to {@link exploreStep}. */

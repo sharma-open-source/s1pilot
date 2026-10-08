@@ -150,6 +150,16 @@ describe('s1pilot run (in-process)', () => {
     expect(r.code).toBe(0);
     const all = [r.stdout, readFileSync(join(root, 'res', 'SHOP-TC-42', 'trace.jsonl'), 'utf8'), readFileSync(join(root, 'res', 'SHOP-TC-42', 'result.json'), 'utf8')].join('\n');
     expect(all).not.toContain('Sup3rSecretPw!');
+
+    // S-023: the passing explore run left a learned script behind: 4 steps, valueRefs only.
+    const learnedFile = join(root, '.s1pilot', 'learned', 'SHOP-TC-42', 'ci.json');
+    const learnedText = readFileSync(learnedFile, 'utf8');
+    expect(learnedText).not.toContain('Sup3rSecretPw!');
+    expect(learnedText).not.toContain('Alex Doe');
+    const learned = JSON.parse(learnedText) as { actions: { stepIndex: number; action: string; valueRef?: string }[] };
+    const perStep = [0, 1, 2, 3].map((i) => learned.actions.filter((a) => a.stepIndex === i).length);
+    expect(perStep.every((n) => n >= 1)).toBe(true);
+    expect(learned.actions.filter((a) => a.valueRef).every((a) => /^(secret|var|input):/.test(a.valueRef ?? ''))).toBe(true);
   });
 
   it('reports unknown environments and missing targets as config errors', async () => {

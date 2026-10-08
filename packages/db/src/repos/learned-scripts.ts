@@ -61,3 +61,23 @@ export const learnedScripts = {
   },
 };
 export type LearnedScriptsRepo = typeof learnedScripts;
+
+/** Identifies a learned script by case and environment (a subset of sync's `LearnedScriptRef`). */
+export interface LearnedScriptKey {
+  caseId: string;
+  environmentId: string;
+}
+
+/** A `LearnedScriptStore` (see `@s1pilot/sync`) backed by the learned-scripts repo. */
+export function createDbLearnedScriptStore(db: Db) {
+  return {
+    get: (ref: LearnedScriptKey) => learnedScripts.getFor(db, ref.caseId, ref.environmentId),
+    async put(_ref: LearnedScriptKey, script: LearnedScript): Promise<void> {
+      await learnedScripts.upsert(db, script);
+    },
+    async delete(ref: LearnedScriptKey): Promise<void> {
+      const existing = await learnedScripts.getFor(db, ref.caseId, ref.environmentId);
+      if (existing) await learnedScripts.delete(db, existing.id);
+    },
+  };
+}

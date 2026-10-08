@@ -21,7 +21,9 @@ import {
   type Verdict,
 } from '@s1pilot/domain';
 import {
+  LearnedRecorder,
   StepCapture,
+  buildLearnedScript,
   caseVerdict,
   createJsonlTraceWriter,
   createReadlineHumanHook,
@@ -40,6 +42,7 @@ import {
   type ChatModel,
 } from '@s1pilot/providers';
 import {
+  FsLearnedScriptStore,
   PROJECT_DIR,
   PROJECT_FILE,
   findProjectRoot,
@@ -371,6 +374,7 @@ export async function executeRun(target: string, opts: RunOptions, deps: RunDeps
           models,
           human,
           runId,
+          ...(resolved.project ? { projectRoot: resolved.project.root } : {}),
           browserName: opts.browser,
           say,
         });
@@ -418,6 +422,8 @@ interface CaseRun {
   models: Models;
   human: ReturnType<typeof createReadlineHumanHook> | undefined;
   runId: string;
+  /** Project root; learned scripts are saved below it when set. */
+  projectRoot?: string;
   browserName: BrowserName;
   say: (line: string) => void;
 }
@@ -462,6 +468,7 @@ async function runCase(run: CaseRun): Promise<CaseOutcome> {
   if (environment.readOnly) guards.push(await installReadOnlyGuard(context, { onEvent }));
   const page = await context.newPage();
 
+  const recorder = new LearnedRecorder(run.runId, testCase.steps);
   const steps: StepRecord[] = [];
   const outcomeSteps: CaseOutcome['steps'] = [];
   const ctx: EngineContext = {
@@ -481,6 +488,7 @@ async function runCase(run: CaseRun): Promise<CaseOutcome> {
     runId: run.runId,
     caseResultId,
     modelName: run.models.modelName,
+    recorder,
   };
 
   let stop: Verdict | undefined;
@@ -588,5 +596,23 @@ async function runCase(run: CaseRun): Promise<CaseOutcome> {
   };
   await writeFile(join(run.caseDir, 'result.json'), `${JSON.stringify(redactor.redactDeep(result), null, 2)}\n`);
   say(`  ${ICONS[verdict]} ${verdict} in ${seconds(durationMs)}`);
+  // Data-driven cases (several rows) are not learned yet; each row binds different step text.
+  if (run.projectRoot !== undefined && testCase.parameters.length <= 1) {
+    const script = buildLearnedScript({
+      caseId: testCase.id,
+      caseVersion: testCase.version,
+      environmentId: environment.id,
+      runId: run.runId,
+      verdict,
+      recorder,
+    });
+    if (script) {
+      await new FsLearnedScriptStore(run.projectRoot).put(
+        { caseKey: testCase.key, caseId: testCase.id, environmentName: environment.name, environmentId: environment.id },
+        script,
+      );
+      say(`  learned script saved (${script.actions.length} actions)`);
+    }
+  }
   return { verdict, steps: outcomeSteps };
 }

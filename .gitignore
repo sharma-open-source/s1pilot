@@ -9,6 +9,7 @@ coverage/
 .s1pilot/
 # the fixture sites' project config holds no secrets and is tracked
 !fixtures/sites/.s1pilot/
+fixtures/sites/.s1pilot/learned/
 .env
 .env.*
 !.env.example

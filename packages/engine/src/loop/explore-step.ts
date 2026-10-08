@@ -468,6 +468,22 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
       ok: outcome.ok,
       ...(errorMessage ? { error: errorMessage } : {}),
     });
+    if (ctx.recorder && outcome.ok) {
+      let postFingerprint = fingerprint;
+      try {
+        postFingerprint = pageFingerprint(await observer.capture(ctx.page, {}));
+      } catch {
+        // Page closed or mid-navigation: fall back to the pre fingerprint.
+      }
+      ctx.recorder.record({
+        stepIndex,
+        action: action as EngineAction,
+        ...(outcome.usedLocator ? { usedLocator: outcome.usedLocator } : {}),
+        preFingerprint: fingerprint,
+        postFingerprint,
+        navigated: outcome.navigated,
+      });
+    }
     await iterationLine(
       {
         ...gateTrace,
