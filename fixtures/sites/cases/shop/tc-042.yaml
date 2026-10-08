@@ -16,7 +16,7 @@ steps:
       - type: elementText
         role: status
         contains: "1"
-  - action: Go to checkout as guest and fill the shipping form
+  - action: Go to checkout as guest and fill the shipping form, then continue to the payment step
     inputs: [shipping_name, shipping_zip]
     expected: The payment step is displayed
     assert:

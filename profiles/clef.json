@@ -2,8 +2,19 @@
   "id": "clef",
   "name": "Clef",
   "description": "Cloudflare/clef served through /v1/systemone.",
-  "capabilities": { "maxOptions": 64, "multiQuestionPerCall": true, "supportsImages": false, "maxContextTokens": 8192, "orderSensitive": false },
-  "thresholds": { "act": 0.85, "pass": 0.8, "fail": 0.2, "escalate": 0.5 },
+  "capabilities": {
+    "maxOptions": 64,
+    "multiQuestionPerCall": true,
+    "supportsImages": true,
+    "maxContextTokens": 65536,
+    "orderSensitive": false
+  },
+  "thresholds": {
+    "act": 0.85,
+    "pass": 0.8,
+    "fail": 0.2,
+    "escalate": 0.5
+  },
   "recommendedAdapter": "systemone",
-  "notes": "Placeholder capabilities (maxOptions 64); confirm with the provider probe (S-011)."
+  "notes": "maxOptions 64 is from the spec; images and the 65,536-token context are from Cloudflare's published Clef description. Thresholds are placeholders (a real run picked the right element at 0.84 against act 0.85) - calibrate with S-058."
 }

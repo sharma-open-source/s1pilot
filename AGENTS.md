@@ -89,6 +89,32 @@ pnpm --filter @s1pilot/<pkg> test   # one package
 - Production environments are read-only by default; sensitive actions (pay, delete, send) require approval.
 - Don't commit `.s1pilot/` data directories, master keys, `.env` files, or recorded storage states.
 
+## Real-model smoke test (manual, never in CI)
+
+Unit tests use the mock adapter and local fake servers. To check the engine against a real System 1 model:
+
+1. Put the key in `.env` at the repo root (git-ignored): `S1PILOT_API_KEY=...`. Never paste keys into chat, flags, YAML, logs or commits.
+2. Create `.s1pilot/project.yaml` (git-ignored) with `key`, `name`, an environment (`baseUrl: http://127.0.0.1:4400/shop`) and a `model:` block, for example:
+   ```yaml
+   model:
+     system1: { adapter: systemone, baseUrl: https://openrouter.ai/api/alpha/decisions, model: cloudflare/clef, apiKeyRef: env:S1PILOT_API_KEY, profileId: clef }
+     thresholds: { act: 0.8, pass: 0.8, fail: 0.2, escalate: 0.5 }
+   ```
+   A base URL ending in `/decisions` or `/systemone` is used as the endpoint; otherwise `/v1/systemone` is appended. Secrets are `env:NAME` references only.
+3. Run (load `.env` into the shell first, without echoing it):
+   ```bash
+   set -a; . ./.env; set +a
+   pnpm build
+   pnpm --filter @s1pilot/fixture-sites dev &            # fixture sites on :4400 (stop it afterwards)
+   node apps/cli/dist/index.js probe --url https://openrouter.ai/api/alpha/decisions --model cloudflare/clef --adapter systemone --timeout 30000
+   node apps/cli/dist/index.js run fixtures/sites/cases/shop/tc-042.yaml --project . --out /tmp/s1res
+   node apps/cli/dist/index.js run fixtures/sites/cases/shop/tc-042.yaml --project . --base-url "http://127.0.0.1:4400/shop?bugs=shop.badge-wrong-count" --out /tmp/s1res-bug
+   ```
+4. Expect `probe` ok, the clean run passing 4/4 and the seeded-bug run failing at step 2 (`expected text(status) ⊇ "1", got "2"`). Inspect `trace.jsonl` (per-step probabilities and gate outcomes) when a step is blocked or fails.
+5. Afterwards check no key leaked: `grep -rlF "$S1PILOT_API_KEY" /tmp/s1res*` must print nothing.
+
+Notes from the first real run (Clef via OpenRouter): cloud latency is ~0.7-1.5 s per call (probe default timeout is 5 s; use `--timeout`); a correct pick can score just under a placeholder `act` threshold (0.84 vs 0.85), so tune thresholds per model; step text is followed literally ("fill the shipping form" stops before submitting), so write steps that include the action that moves the flow on.
+
 ## Definition of done
 
 - [ ] All acceptance criteria met
