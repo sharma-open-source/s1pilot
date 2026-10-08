@@ -10,3 +10,4 @@ export const ENGINE_PACKAGE = '@s1pilot/engine';
 
 /** Verdicts the engine can produce; proves workspace linking to `@s1pilot/domain` works. */
 export const ENGINE_VERDICTS = VerdictSchema.options;
+export * from './text-input/index.js';
