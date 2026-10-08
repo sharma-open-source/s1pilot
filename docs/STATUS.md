@@ -13,6 +13,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | 2026-10-08 | S-024, S-029 | todo → done | Replay mode and tests-as-code sync (parallel sub-agents, merged). |
 | 2026-10-08 | S-025 | todo → done | Heal mode & heal proposals (sub-agent, merged). |
 | 2026-10-08 | S-027 | todo → done | Case runner & JUnit/JSON reporters (sub-agent, merged). Replay/heal wired into CLI. |
+| 2026-10-08 | S-046 | todo → done | Run report & result detail (merged). |
 | 2026-10-08 | S-045 | todo → done | Run launcher & live run UI (merged). |
 | 2026-10-08 | S-042 | todo → done | Environments & secrets UI (merged). |
 | 2026-10-08 | S-038, S-044 | todo → done | Auth setup flows and case editor UI (parallel, merged). |
@@ -99,7 +100,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-043 | UI: test cases list & suites | P3 | done | Sub-agent, merged. `features/cases/*`, QueryInput, dropdown (Radix), library pages (shared steps/requirements/test data stub). Last-result filter client-side only; owners from loaded page; `s2-generated` tag marks S2 cases. Orchestrator then switched wizard + run launcher to typed `runs.create` (replaces guessed `runs.start`). Auth procedures in wizard login step still untyped (`TODO(S-038)`). |
 | S-044 | UI: test case editor | P3 | done | Sub-agent, merged. `features/case-editor/*` (steps grid, assertion builder, params, learned tab, Monaco YAML tab w/ client validation, history diff, conflict dialog, nav guard). `summarizeAssertion` moved to `@s1pilot/domain/assertion-summary` (engine re-exports). Gaps: learned tab lacks resolved-actions list + working Forget script (no server procs; needs future spec), no guard tags (StepSchema has no field), dataset link disabled, Results tab composes `runs.list`+`runs.get`. Extra deps: `yaml`, `monaco-editor` (plan), domain. |
 | S-045 | UI: run launcher & live run | P3 | done | Sub-agent, merged. `features/live-run/*` (reducer, `useRunSocket` w/ backoff reconnect, LiveRunPage, decision panel, element overlay, event log), `components/app/live.tsx`, launcher dialog extended (case list, mode, attended, build ref). Gaps: URL bar only from `log` events (no URL event), step mode inferred, no worker x/n, no network event type, takeover sends only takeover/release (no input forwarding), editor/dashboard "Run now" not rewired to the new launcher. |
-| S-046 | UI: run report & result detail | P3 | todo | |
+| S-046 | UI: run report & result detail | P3 | done | Sub-agent, merged. `runs.report`, `results.get`/`overrideVerdict` (creates an already-`approved` `verdict` review item; recomputes summary counts but not run status), `GET /api/runs/:id/export/{junit|html|json}` (PDF disabled), `features/run-report/*`, `components/app/report.tsx`. Trace tab shows a visible not-masked warning (S-035 gap). Placeholders: accessibility tab, exit-criteria tile, create defect (disabled), `/p/:key/reports`. Server now depends on `@s1pilot/reporters`. |
 | S-047 | Review queue (API + UI) | P3 | todo | |
 | S-048 | `s1pilot ui` & first-test E2E | P3 | todo | |
 | S-049 | Test plans API & query language | P4 | todo | |
