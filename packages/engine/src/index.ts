@@ -1,6 +1,7 @@
 import { VerdictSchema } from '@s1pilot/domain';
 
 export * from './decide/index.js';
+export * from './executor/index.js';
 export * from './observer/index.js';
 
 /** Package name; placeholder export until the engine lands (S-012+). */
