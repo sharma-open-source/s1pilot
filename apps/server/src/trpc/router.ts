@@ -1,6 +1,7 @@
 import { getVersion } from '../version.js';
 
 import { casesRouter } from './routers/cases.js';
+import { dashboardRouter } from './routers/dashboard.js';
 import { environmentsRouter } from './routers/environments.js';
 import { modelsRouter } from './routers/models.js';
 import { projectsRouter } from './routers/projects.js';
@@ -29,6 +30,7 @@ export const appRouter = router({
   requirements: requirementsRouter,
   runs: runsRouter,
   syncStatus: syncStatusProcedure,
+  dashboard: dashboardRouter,
 });
 
 export type AppRouter = typeof appRouter;

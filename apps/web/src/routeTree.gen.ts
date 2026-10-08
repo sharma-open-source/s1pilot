@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as DevComponentsRouteImport } from './routes/[_]dev.components'
 import { Route as ProjectsNewRouteImport } from './routes/projects/new'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
@@ -39,6 +40,11 @@ import { Route as PKeyRunsRunIdLiveRouteImport } from './routes/p/$key/runs/$run
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DevComponentsRoute = DevComponentsRouteImport.update({
@@ -169,6 +175,7 @@ const PKeyRunsRunIdLiveRoute = PKeyRunsRunIdLiveRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/search': typeof SearchRoute
   '/_dev/components': typeof DevComponentsRoute
   '/projects/new': typeof ProjectsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
@@ -197,6 +204,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/search': typeof SearchRoute
   '/_dev/components': typeof DevComponentsRoute
   '/projects/new': typeof ProjectsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
@@ -226,6 +234,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/search': typeof SearchRoute
   '/_dev/components': typeof DevComponentsRoute
   '/projects/new': typeof ProjectsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
@@ -256,6 +265,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/search'
     | '/_dev/components'
     | '/projects/new'
     | '/settings/$section'
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/search'
     | '/_dev/components'
     | '/projects/new'
     | '/settings/$section'
@@ -312,6 +323,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/search'
     | '/_dev/components'
     | '/projects/new'
     | '/settings/$section'
@@ -341,6 +353,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SearchRoute: typeof SearchRoute
   DevComponentsRoute: typeof DevComponentsRoute
   ProjectsNewRoute: typeof ProjectsNewRoute
   SettingsSectionRoute: typeof SettingsSectionRoute
@@ -375,6 +388,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_dev/components': {
@@ -557,6 +577,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SearchRoute: SearchRoute,
   DevComponentsRoute: DevComponentsRoute,
   ProjectsNewRoute: ProjectsNewRoute,
   SettingsSectionRoute: SettingsSectionRoute,

@@ -78,6 +78,17 @@ export function parseBadges(raw: unknown): Partial<WorkspaceBadges> {
   return out;
 }
 
+const workspaceListeners = new Set<(message: unknown) => void>();
+
+/**
+ * Subscribes to every parsed `/ws/workspace` message (`workspace` counts and `run.status` changes) received by
+ * `useWorkspaceBadges`. Returns the unsubscribe function.
+ */
+export function subscribeWorkspace(listener: (message: unknown) => void): () => void {
+  workspaceListeners.add(listener);
+  return () => void workspaceListeners.delete(listener);
+}
+
 /** Projects for the switcher; `data` is an empty list while `projects.list` is failing. */
 export function useProjects() {
   const q = trpc.projects.list.useQuery(undefined, { select: parseProjects });
@@ -113,8 +124,10 @@ export function useWorkspaceBadges(enabled = true): WorkspaceBadges {
       };
       ws.onmessage = (ev: MessageEvent) => {
         try {
-          const patch = parseBadges(JSON.parse(String(ev.data)));
+          const message: unknown = JSON.parse(String(ev.data));
+          const patch = parseBadges(message);
           setBadges((b) => ({ ...b, ...patch }));
+          workspaceListeners.forEach((l) => l(message));
         } catch {
           /* ignore malformed frames */
         }

@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react';
 
 import { CapabilityGrid } from './CapabilityGrid';
+import { ModeMixBar } from './ModeMixBar';
 import { PageHeader } from './PageHeader';
+import { Sparkline, StatTile } from './StatTile';
 import { WizardStepper } from './WizardStepper';
 
 import {
@@ -205,6 +207,19 @@ export function ComponentsDemo() {
           className="w-full"
         />
         <CapabilityGrid className="w-full" />
+      </Demo>
+
+      <Demo title="StatTile, Sparkline">
+        <StatTile label="Pass rate · last 7 days" value="92%" className="w-56">
+          <Sparkline values={[80, 85, null, 90, 88, 95, 92]} label="Daily pass rate" />
+        </StatTile>
+        <StatTile label="Needs review" value={4} tone="warning" className="w-56">
+          <div className="text-[13px] text-strong-2">AI verdicts + heal proposals</div>
+        </StatTile>
+      </Demo>
+
+      <Demo title="ModeMixBar">
+        <ModeMixBar mix={{ replay: 60, heal: 15, explore: 25 }} className="w-full" />
       </Demo>
 
       <Demo title="Skeleton">

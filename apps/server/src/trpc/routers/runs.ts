@@ -15,6 +15,7 @@ import { isTerminalRunStatus, RUN_CASE_JOB, RunCaseJobPayloadSchema, type RunCas
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
 
+import { RecentInput, recentRuns } from './dashboard.js';
 import { requireCase, requireProject } from './helpers.js';
 
 async function requireRun(ctx: Context, runId: string): Promise<TestRun> {
@@ -132,6 +133,9 @@ export const runsRouter = router({
       input.buildRef,
     );
   }),
+
+  /** Newest runs across all projects (dashboard). */
+  recent: publicProcedure.input(RecentInput).query(({ ctx, input }) => recentRuns(ctx, input.limit)),
 
   /** Runs of a project, newest first, with their summary counts. */
   list: publicProcedure
