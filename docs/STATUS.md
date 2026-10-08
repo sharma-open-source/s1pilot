@@ -13,6 +13,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | 2026-10-08 | S-024, S-029 | todo → done | Replay mode and tests-as-code sync (parallel sub-agents, merged). |
 | 2026-10-08 | S-025 | todo → done | Heal mode & heal proposals (sub-agent, merged). |
 | 2026-10-08 | S-027 | todo → done | Case runner & JUnit/JSON reporters (sub-agent, merged). Replay/heal wired into CLI. |
+| 2026-10-08 | S-041 | todo → done | New project wizard UI (merged). |
 | 2026-10-08 | S-033 | todo → done | Suites/cases/versions API (merged). |
 | 2026-10-08 | S-039 | todo → done | Web scaffold & shell (merged). |
 | 2026-10-08 | S-032 | todo → done | Projects/environments/models API (merged). |
@@ -85,7 +86,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-038 | Auth setup flows (login state) | P3 | todo | |
 | S-039 | Web scaffold, tokens & app shell | P3 | done | Sub-agent, merged. Vite 5 + React 18 + TanStack Router (generated `routeTree.gen.ts` committed) + Tailwind 3.4; tokens.css, hand-built primitives on Radix, AppShell/Nav, 21 route skeletons, `/_dev/components`. Nav hooks in `src/lib/nav-data.ts` use an untyped tRPC client with fallbacks — `// TODO(S-032)` to switch to typed `projects.list`/`models.status` now that S-032 exists; `/ws/workspace` badge shape is a guess (`TODO(S-036)`). Smoke test = vitest + Playwright against Vite dev. Extra deps: radix dialog/popover, cva, clsx, tailwind-merge, RTL, jsdom, router-plugin. |
 | S-040 | UI: workspace dashboard | P3 | todo | |
-| S-041 | UI: new project wizard | P3 | todo | |
+| S-041 | UI: new project wizard | P3 | done | Sub-agent, merged. 5-step wizard (`apps/web/src/features/wizard`), react-hook-form + zod, draft in sessionStorage, API key never stored (only `env:`/`secret:` refs). Steps 4/5 call `auth.record`/`auth.finishRecording`, `cases.create`, `runs.start` via untyped client with guessed shapes (`TODO(S-038)`/`TODO(S-034)`) — verify when those land (cases.create now exists with S-033: check shape). Redaction checkbox fixed-on. nav-data now typed. Web smoke test (Chromium vs Vite dev) can time out under heavy parallel load; passes alone. |
 | S-042 | UI: environments & secrets | P3 | todo | |
 | S-043 | UI: test cases list & suites | P3 | todo | |
 | S-044 | UI: test case editor | P3 | todo | |
