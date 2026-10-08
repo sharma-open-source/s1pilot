@@ -128,7 +128,7 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
     if (!inner) return undefined;
     return {
       async ask(req) {
-        const escalationId = newId();
+        const escalationId = req.escalationId ?? newId();
         const reason = sensitive
           ? 'sensitive-action'
           : /"stuck"/.test(req.reason)
@@ -145,15 +145,21 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
           reason,
           to,
           options: Object.keys(req.options),
+          question: r(req.question),
+          detail: r(req.reason),
+          probabilities: req.probabilities,
+          optionLabels: Object.fromEntries(Object.entries(req.options).map(([id, label]) => [id, r(label)])),
+          ...(req.s2Choice === undefined ? {} : { s2Choice: req.s2Choice }),
+          ...(req.thresholds ? { thresholds: req.thresholds } : {}),
         });
-        const response = await inner.ask(req);
+        const response = await inner.ask({ ...req, escalationId });
         emit({
           type: 'escalation.resolved',
           escalationId,
           by: to,
           resolution:
             'choice' in response
-              ? 'picked-other'
+              ? (response.resolution ?? 'picked-other')
               : 'skip' in response
                 ? 'skipped'
                 : 'abort' in response
@@ -380,7 +386,11 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
       await iterationLine(gateTrace, offered);
       if (verdict.outcome === 'skip') return finish('skipped', 'skipped', verdict.reason);
       if (verdict.outcome === 'abort') return finish('failed', 'aborted', verdict.reason);
-      if (verdict.outcome === 'takeover') return finish('blocked', 'takeover', verdict.reason);
+      if (verdict.outcome === 'takeover') {
+        // The human handed the browser back: look at the page again instead of ending the step.
+        if (verdict.resume) continue;
+        return finish('blocked', 'takeover', verdict.reason);
+      }
       return finish('blocked', sensitivity?.gate && sensitivity.gate.allowed !== true ? 'sensitive' : 'blocked', verdict.reason);
     }
     const choice = verdict.choice;

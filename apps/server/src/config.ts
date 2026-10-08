@@ -15,6 +15,8 @@ export const ConfigSchema = z.object({
   mode: z.enum(['local', 'team']),
   /** In-process workers executing queued runs (0 disables execution). */
   workers: z.number().int().min(0).max(32),
+  /** Minutes an attended run waits for a human to answer an escalation before the step is `blocked` (S-037). */
+  escalationTimeoutMin: z.number().positive(),
   logLevel: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
 });
 export type ServerConfig = z.infer<typeof ConfigSchema>;
@@ -36,6 +38,7 @@ const ENV_KEYS: Record<string, keyof ServerConfig> = {
   S1PILOT_MODE: 'mode',
   S1PILOT_LOG_LEVEL: 'logLevel',
   S1PILOT_WORKERS: 'workers',
+  S1PILOT_ESCALATION_TIMEOUT_MIN: 'escalationTimeoutMin',
 };
 
 /**
@@ -50,7 +53,7 @@ export function loadConfig(
   const merged: Raw = {};
   for (const [name, key] of Object.entries(ENV_KEYS)) {
     const v = env[name];
-    if (v !== undefined) merged[key] = key === 'port' || key === 'workers' ? Number(v) : v;
+    if (v !== undefined) merged[key] = key === 'port' || key === 'workers' || key === 'escalationTimeoutMin' ? Number(v) : v;
   }
   for (const [k, v] of Object.entries(overrides)) {
     if (v !== undefined) merged[k as keyof ServerConfig] = v;
@@ -63,6 +66,7 @@ export function loadConfig(
     mode: 'local',
     logLevel: 'info',
     workers: 1,
+    escalationTimeoutMin: 30,
     dbUrl: `file:${join(dataDir, 'data.db')}`,
     artifactsDir: join(dataDir, 'artifacts'),
     ...merged,
@@ -85,6 +89,7 @@ const FLAGS: Record<string, keyof ServerConfig> = {
   '--mode': 'mode',
   '--log-level': 'logLevel',
   '--workers': 'workers',
+  '--escalation-timeout-min': 'escalationTimeoutMin',
 };
 
 /** Parses `--port --host --data-dir --db-url --artifacts-dir --mode --log-level --workers` flags into config overrides. */
@@ -96,7 +101,7 @@ export function parseServerArgs(argv: readonly string[]): Raw {
     if (key === undefined) continue;
     const value = argv[++i];
     if (value === undefined) throw new S1PilotError('CONFIG_ERROR', `Missing value for ${flag}`);
-    out[key] = key === 'port' || key === 'workers' ? Number(value) : value;
+    out[key] = key === 'port' || key === 'workers' || key === 'escalationTimeoutMin' ? Number(value) : value;
   }
   return out;
 }

@@ -110,6 +110,8 @@ export const decisionRecords = sqliteTable(
     model: text('model').notNull(),
     latencyMs: real('latency_ms').notNull(),
     escalatedTo: text('escalated_to', { enum: ['system2', 'human'] }),
+    decidedBy: text('decided_by'),
+    via: text('via', { enum: ['live', 'cli', 'api'] }),
   },
   (t) => [index('decision_records_step_idx').on(t.stepResultId)],
 );
@@ -166,7 +168,7 @@ export const reviewItems = sqliteTable(
     projectId: text('project_id')
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
-    kind: text('kind', { enum: ['verdict', 'heal'] }).notNull(),
+    kind: text('kind', { enum: ['verdict', 'heal', 'decision'] }).notNull(),
     refId: text('ref_id').notNull(),
     status: text('status', { enum: ['pending', 'approved', 'rejected'] }).notNull(),
     note: text('note'),

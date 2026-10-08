@@ -28,6 +28,10 @@ export const DecisionRecordSchema = z.object({
   model: z.string().min(1),
   latencyMs: z.number().min(0),
   escalatedTo: EscalationTargetSchema.optional(),
+  /** User id of the human who made the decision (human escalations only, S-037). */
+  decidedBy: z.string().min(1).optional(),
+  /** Channel the human decided through: the live run view, the CLI prompt or the API. */
+  via: z.enum(['live', 'cli', 'api']).optional(),
 });
 export type DecisionRecord = z.infer<typeof DecisionRecordSchema>;
 

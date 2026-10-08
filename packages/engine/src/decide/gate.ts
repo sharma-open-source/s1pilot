@@ -1,7 +1,7 @@
 import { S1PilotError, type DecideAnswer, type DecisionRecord, type Thresholds } from '@s1pilot/domain';
 import type { ChatModel } from '@s1pilot/providers';
 
-import { HUMAN_UNAVAILABLE, type HumanHook, type HumanResponse } from './human.js';
+import { HUMAN_UNAVAILABLE, type HumanDecider, type HumanHook, type HumanResponse } from './human.js';
 
 /** Meta options that always mean "the model cannot proceed". */
 export const META_OPTIONS: readonly string[] = ['stuck', 'blocked'];
@@ -55,7 +55,7 @@ export type GateResult =
   | (Base & { outcome: 'blocked' })
   | (Base & { outcome: 'skip' })
   | (Base & { outcome: 'abort' })
-  | (Base & { outcome: 'takeover' });
+  | (Base & { outcome: 'takeover'; resume?: boolean });
 
 type Band = 'act' | 'middle' | 'low';
 
@@ -74,7 +74,11 @@ export async function gate(answer: DecideAnswer, opts: GateOptions): Promise<Gat
   const meta = choice !== undefined && META_OPTIONS.includes(choice);
   const sensitive = opts.sensitive !== undefined && opts.sensitive.allowed !== true;
 
-  const record = (chosen: string | undefined, escalatedTo?: DecisionRecord['escalatedTo']): DecisionRecord => ({
+  const record = (
+    chosen: string | undefined,
+    escalatedTo?: DecisionRecord['escalatedTo'],
+    decider?: HumanDecider,
+  ): DecisionRecord => ({
     questionId: opts.questionId,
     options: Object.keys(options),
     probabilities: answer.probabilities,
@@ -83,6 +87,8 @@ export async function gate(answer: DecideAnswer, opts: GateOptions): Promise<Gat
     model: opts.model,
     latencyMs: opts.latencyMs ?? 0,
     ...(escalatedTo === undefined ? {} : { escalatedTo }),
+    ...(decider?.decidedBy === undefined ? {} : { decidedBy: decider.decidedBy }),
+    ...(decider?.via === undefined ? {} : { via: decider.via }),
   });
 
   const band: Band =
@@ -98,7 +104,7 @@ export async function gate(answer: DecideAnswer, opts: GateOptions): Promise<Gat
     record: record(undefined, s2Tried ? 'system2' : undefined),
   });
 
-  const askHuman = async (reason: string, s2Tried: boolean): Promise<GateResult> => {
+  const askHuman = async (reason: string, s2Tried: boolean, s2Choice?: string): Promise<GateResult> => {
     if (!opts.attended) return blocked(`${reason}; unattended run, not asking a human`, s2Tried);
     if (opts.human === undefined) return blocked(`${reason}; no human hook configured`, s2Tried);
     let response: HumanResponse;
@@ -109,6 +115,9 @@ export async function gate(answer: DecideAnswer, opts: GateOptions): Promise<Gat
         probabilities: answer.probabilities,
         ...(opts.screenshot === undefined ? {} : { screenshot: opts.screenshot }),
         reason,
+        confidence: answer.confidence,
+        thresholds: { act: thresholds.act, escalate: thresholds.escalate },
+        ...(s2Choice === undefined ? {} : { s2Choice }),
       });
     } catch (error) {
       if (error instanceof S1PilotError && error.code === HUMAN_UNAVAILABLE) {
@@ -126,11 +135,12 @@ export async function gate(answer: DecideAnswer, opts: GateOptions): Promise<Gat
         outcome: 'act',
         choice: response.choice,
         reason: `${reason}; human chose ${response.choice}`,
-        record: record(response.choice, 'human'),
+        record: record(response.choice, 'human', response),
       };
     }
     const outcome = 'skip' in response ? 'skip' : 'abort' in response ? 'abort' : 'takeover';
-    return { outcome, reason: `${reason}; human responded: ${outcome}`, record: record(undefined, 'human') };
+    const result = { outcome, reason: `${reason}; human responded: ${outcome}`, record: record(undefined, 'human', response) } as const;
+    return 'takeover' in response && response.resume === true ? { ...result, outcome: 'takeover', resume: true } : result;
   };
 
   if (sensitive) {
@@ -173,5 +183,5 @@ export async function gate(answer: DecideAnswer, opts: GateOptions): Promise<Gat
       record: record(second, 'system2'),
     };
   }
-  return askHuman(`${why}; System 2 chose ${second} but System 1 chose ${choice}`, true);
+  return askHuman(`${why}; System 2 chose ${second} but System 1 chose ${choice}`, true, second);
 }

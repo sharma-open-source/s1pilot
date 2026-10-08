@@ -13,6 +13,7 @@ import { launchBrowser, runCases, type RunCasesInput, type RunnerEvent } from '@
 import type { FastifyBaseLogger } from 'fastify';
 
 import type { ServerConfig } from '../config.js';
+import type { HumanControl } from '../live/control.js';
 import { WORKSPACE_MODEL_KEY } from '../trpc/routers/helpers.js';
 
 import type { RunEventBus } from './event-bus.js';
@@ -39,6 +40,8 @@ export interface WorkerPoolOptions {
   leaseMs?: number;
   /** Heartbeat interval. Default `min(leaseMs / 3, 1000)`. */
   heartbeatMs?: number;
+  /** Human-in-the-loop control (S-037): escalation hook, pause points and takeover pages for attended runs. */
+  human?: HumanControl;
   /** Live view hook (S-036): receives the page of every running case; returns a release function. */
   onPage?: (runId: string, caseResultId: string, page: Parameters<NonNullable<RunCasesInput['onPage']>>[0]) => (() => unknown) | undefined;
 }
@@ -278,6 +281,8 @@ export class WorkerPool {
       }
     };
 
+    const session = this.opts.human?.openSession({ runId, projectId: project.id, signal });
+    const scripts = createDbLearnedScriptStore(db);
     await runCases({
       cases: [testCase],
       environment: environment as Environment,
@@ -286,19 +291,33 @@ export class WorkerPool {
       mode: payload.mode,
       models,
       stores: {
-        scripts: createDbLearnedScriptStore(db),
+        // A human who approved a step with "don't save" keeps the explored path out of the learned script.
+        scripts: session ? { ...scripts, put: async (ref, script) => (session.skipLearning ? undefined : scripts.put(ref, script)) } : scripts,
         healProposals: { create: (draft) => repos.healProposals.create(db, draft) },
       },
       emit: handle,
-      attended: false, // TODO(S-037): attended runs wire a human hook that waits for a person.
+      attended: payload.attended,
+      ...(session && payload.attended ? { human: session.hook } : {}),
+      ...(session ? { beforeStep: session.beforeStep } : {}),
       out: join(config.artifactsDir, 'runs', runId, job.id),
       vars,
       redactor,
       flows: (idOrName) => flowMap.get(idOrName),
       suiteOf: (c) => c.suiteId ?? project.key,
       signal,
-      ...(this.opts.onPage ? { onPage: (page, info) => this.opts.onPage?.(runId, info.caseResultId, page) } : {}),
-    });
+      ...(this.opts.onPage || session
+        ? {
+            onPage: (page, info) => {
+              const releaseSession = session?.addPage(page);
+              const releaseLive = this.opts.onPage?.(runId, info.caseResultId, page);
+              return () => {
+                releaseSession?.();
+                return releaseLive?.();
+              };
+            },
+          }
+        : {}),
+    }).finally(() => session?.close());
     await chain;
   }
 }
