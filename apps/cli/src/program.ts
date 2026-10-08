@@ -5,6 +5,7 @@ import { probe as defaultProbe, type ProbeOptions, type ProbeTarget } from '@s1p
 import { Command, Option } from 'commander';
 
 import { executeRun, type RunOptions } from './run.js';
+import { registerSyncCommands } from './sync.js';
 
 /** Reads the version from the root package.json (three levels above `dist/` or `src/`). */
 export function getVersion(): string {
@@ -149,6 +150,8 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
     .action(async (target: string, opts: RunOptions) => {
       deps.setExitCode(await executeRun(target, opts, deps));
     });
+
+  registerSyncCommands(program, deps);
 
   return program;
 }

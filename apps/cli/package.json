@@ -22,6 +22,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@s1pilot/db": "workspace:*",
     "@s1pilot/domain": "workspace:*",
     "@s1pilot/engine": "workspace:^",
     "@s1pilot/providers": "workspace:*",

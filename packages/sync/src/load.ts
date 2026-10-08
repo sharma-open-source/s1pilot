@@ -92,7 +92,7 @@ const VariableFileSchema = z
     return { ...v, source: v.source ?? ('inline' as const) };
   });
 
-const EnvironmentFileSchema = EnvironmentSchema.omit({ id: true, projectId: true, variables: true, readOnly: true }).extend({
+export const EnvironmentFileSchema = EnvironmentSchema.omit({ id: true, projectId: true, variables: true, readOnly: true }).extend({
   variables: z.array(VariableFileSchema).default([]),
   /** Defaults to true for environments named `production` / `prod`. */
   readOnly: z.boolean().optional(),

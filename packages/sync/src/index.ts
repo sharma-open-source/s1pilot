@@ -2,5 +2,7 @@
 export const SYNC_PACKAGE = '@s1pilot/sync';
 
 export * from './flows.js';
+export * from './diff.js';
 export * from './learned-store.js';
 export * from './load.js';
+export * from './sync.js';
