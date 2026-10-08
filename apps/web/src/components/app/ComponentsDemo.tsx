@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 
 import { CapabilityGrid } from './CapabilityGrid';
+import { DecisionPanel, EventLog, ProbabilityBar, RunProgressBar, StepStatusList } from './live';
 import { ModeMixBar } from './ModeMixBar';
 import { PageHeader } from './PageHeader';
 import { Sparkline, StatTile } from './StatTile';
@@ -226,6 +227,36 @@ export function ComponentsDemo() {
         <Skeleton className="h-4 w-48" />
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-10 w-full" />
+      </Demo>
+
+      <Demo title="Live run: ProbabilityBar, RunProgressBar, StepStatusList, DecisionPanel, EventLog">
+        <div className="flex w-full flex-wrap gap-4">
+          <div className="flex w-64 flex-col gap-3">
+            <ProbabilityBar label="e3 · Checkout as guest" value={0.62} top />
+            <ProbabilityBar label="e7 · Sign in" value={0.21} />
+            <RunProgressBar counts={{ passed: 5, failed: 1, review: 1, queued: 3 }} />
+            <StepStatusList
+              steps={[
+                { index: 0, title: 'Open Classic Tee', status: 'passed', suffix: 'replay' },
+                { index: 1, title: 'Checkout as guest', status: 'running', suffix: 'heal · locator changed' },
+                { index: 2, title: 'Stop before payment', status: 'pending' },
+              ]}
+            />
+          </div>
+          <div className="w-80">
+            <DecisionPanel
+              step={2}
+              model="clef-flash"
+              latencyMs={84}
+              question="which element performs the step?"
+              rows={[{ id: 'e3', label: 'e3 · Checkout as guest', p: 0.62 }]}
+              allOptions={[{ id: 'e3', label: 'e3 · Checkout as guest', p: 0.62 }]}
+              callout={{ title: 'Below act threshold (0.80)', body: 'Waiting for your approval.' }}
+              actions={{ approveId: 'e3', onApprove: () => undefined, onPick: () => undefined, onSkip: () => undefined }}
+            />
+          </div>
+          <EventLog className="w-full" lines={[{ id: 1, time: '10:00:01', text: 'step 3 replay failed → heal', warn: false }, { id: 2, time: '10:00:02', text: 'S1 conf=0.62 awaiting approval', warn: true }]} />
+        </div>
       </Demo>
 
       <Demo title="Dialog, ConfirmDialog">

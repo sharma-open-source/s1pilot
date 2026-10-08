@@ -1,7 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { PlaceholderPage } from '@/components/app/PageHeader';
+import { LiveRunPage } from '@/features/live-run/LiveRunPage';
 
 export const Route = createFileRoute('/p/$key/runs/$runId/live')({
-  component: () => <PlaceholderPage title="Live run" spec="S-045" />,
+  component: LiveRoute,
 });
+
+function LiveRoute() {
+  const { key, runId } = Route.useParams();
+  return <LiveRunPage key={runId} projectKey={key} runId={runId} />;
+}

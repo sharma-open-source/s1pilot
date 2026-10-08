@@ -20,7 +20,7 @@ const ROUTES: Array<[path: string, h1: string]> = [
   ['/p/shop/plans/pl1', 'Test plan'],
   ['/p/shop/runs', 'Runs'],
   ['/p/shop/runs/r1', 'Run report'],
-  ['/p/shop/runs/r1/live', 'Live run'],
+  ['/p/shop/runs/r1/live', 'Run #r1'],
   ['/p/shop/manual', 'Manual testing'],
   ['/p/shop/manual/s1', 'Manual run'],
   ['/p/shop/reports', 'Reports'],
