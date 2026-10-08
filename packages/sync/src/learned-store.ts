@@ -33,7 +33,9 @@ export class FsLearnedScriptStore implements LearnedScriptStore {
   async get(ref: LearnedScriptRef): Promise<LearnedScript | undefined> {
     const path = this.pathFor(ref);
     if (!existsSync(path)) return undefined;
-    return LearnedScriptSchema.parse(JSON.parse(readFileSync(path, 'utf8')));
+    // Files are keyed by environment *name*; environment ids are minted per load from YAML, so the
+    // script is re-bound to the current environment id (otherwise replay never finds its script).
+    return { ...LearnedScriptSchema.parse(JSON.parse(readFileSync(path, 'utf8'))), environmentId: ref.environmentId };
   }
 
   async put(ref: LearnedScriptRef, script: LearnedScript): Promise<void> {

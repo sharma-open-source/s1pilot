@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="s1pilot local" tests="4" failures="1" errors="1" skipped="1" time="5.000">
+  <testsuite name="SHOP" tests="2" failures="1" errors="0" skipped="0" time="3.000" timestamp="2026-01-01T00:00:00">
+    <testcase classname="SHOP" name="SHOP-TC-1 Add to cart" time="1.500">
+      <system-out>passed       1. Step 1 [replay]
+passed       2. Step 2 [replay]</system-out>
+    </testcase>
+    <testcase classname="SHOP" name="SHOP-TC-2 Badge &lt;count&gt; &amp; &quot;quotes&quot;" time="1.500">
+      <failure message="step 2 (Step 2): expected text(status) ⊇ &quot;1&quot;, got &quot;2&quot;" type="failed">passed       1. Step 1 [explore]
+failed       2. Step 2 [explore]
+    fail: expected text(status) ⊇ "1", got "2"
+skipped      3. Step 3</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="PAY" tests="2" failures="0" errors="1" skipped="1" time="3.000" timestamp="2026-01-01T00:00:00">
+    <testcase classname="PAY" name="SHOP-TC-3 Checkout" time="1.500">
+      <error message="step 1 (Step 1): Could not open http://x" type="blocked">blocked      1. Step 1 [replay]
+    Could not open http://x</error>
+    </testcase>
+    <testcase classname="PAY" name="SHOP-TC-4 Search [blue / M]" time="1.500">
+      <skipped message="needs-review"/>
+      <system-out>needs-review 1. Step 1 [replay]
+    needs-review: ai</system-out>
+    </testcase>
+  </testsuite>
+</testsuites>

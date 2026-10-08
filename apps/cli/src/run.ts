@@ -1,48 +1,38 @@
 import { statSync } from 'node:fs';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
+import { openDb, repos, type Db } from '@s1pilot/db';
 import {
   EnvironmentSchema,
+  ExecutionModeSchema,
   ModelEndpointSchema,
   S1PilotError,
   ThresholdsSchema,
   createRedactor,
   newId,
-  type AssertionVerdict,
   type BrowserName,
   type DecisionModel,
-  type DecisionRecord,
   type Environment,
+  type ExecutionMode,
   type ModelEndpoint,
   type Redactor,
   type TestCase,
   type Thresholds,
   type Verdict,
 } from '@s1pilot/domain';
-import {
-  LearnedRecorder,
-  StepCapture,
-  buildLearnedScript,
-  caseVerdict,
-  createJsonlTraceWriter,
-  createReadlineHumanHook,
-  exploreStep,
-  expandCase,
-  installDomainGuard,
-  installReadOnlyGuard,
-  verifyStep,
-  type CaseInstance,
-  type EngineContext,
-  type InstalledGuard,
-} from '@s1pilot/engine';
+import { createReadlineHumanHook, type HealProposalDraft } from '@s1pilot/engine';
 import {
   MockDecisionModel,
   createChatModel,
   createDecisionModel,
+  loadMockScript,
   loadProfile,
+  mockResolver,
   type ChatModel,
 } from '@s1pilot/providers';
+import { parseReporterList, writeReports, type ReporterName } from '@s1pilot/reporters';
+import { runCases, type RunnerEvent } from '@s1pilot/runner';
 import {
   FsLearnedScriptStore,
   PROJECT_DIR,
@@ -59,7 +49,6 @@ import {
 } from '@s1pilot/sync';
 import { chromium, firefox, webkit, type Browser } from 'playwright';
 
-import { loadMockScript, mockResolver } from './mock-script.js';
 
 /** Exit codes of `s1pilot run`. */
 export const EXIT_PASSED = 0;
@@ -84,6 +73,12 @@ export interface RunOptions {
   project?: string;
   baseUrl?: string;
   mockScript?: string;
+  /** `replay-heal` (default), `explore` or `replay-only`. */
+  mode?: ExecutionMode;
+  /** Comma-separated reporters: `junit`, `json`. */
+  reporter?: string;
+  /** Cases to run at the same time (default 1). */
+  parallel?: number;
 }
 
 /** The slice of `CliDeps` that `run` needs. */
@@ -294,12 +289,6 @@ function resolveModels(opts: RunOptions, file: ProjectModelFile | undefined, env
   return { s1, ...(s2 ? { s2 } : {}), thresholds, modelName: endpoint.model };
 }
 
-/** Result of one case row. */
-interface CaseOutcome {
-  verdict: Verdict;
-  steps: { verdict: Verdict; executed: boolean }[];
-}
-
 const ICONS: Record<Verdict, string> = {
   passed: '✓',
   failed: '✗',
@@ -308,10 +297,6 @@ const ICONS: Record<Verdict, string> = {
   flaky: '~',
   'needs-review': '!',
 };
-
-function bind(text: string, params: Record<string, string>): string {
-  return text.replace(/\{([\w.-]+)\}/g, (whole, name: string) => params[name] ?? whole);
-}
 
 function shorten(text: string, max = 44): string {
   const flat = text.replace(/\s+/g, ' ').trim();
@@ -331,14 +316,108 @@ function exitCodeFor(verdicts: Verdict[]): number {
 const LAUNCHERS = { chromium, firefox, webkit } as const;
 
 /**
- * Runs YAML test cases in Explore mode and returns the process exit code:
+ * Heal proposals go to the project database (`.s1pilot/data.db`) when it exists and knows the
+ * case; otherwise they are written as JSON below `.s1pilot/heal-proposals/` so nothing is lost.
+ */
+function createHealProposalStore(root: string): { create(draft: HealProposalDraft): Promise<unknown>; close(): void } {
+  let db: Db | undefined;
+  const dbPath = join(root, PROJECT_DIR, 'data.db');
+  return {
+    async create(draft) {
+      if (exists(dbPath)) {
+        try {
+          db ??= openDb({ url: dbPath });
+          return await repos.healProposals.create(db, draft);
+        } catch {
+          // The case is not synced into the database (yet): keep the proposal as a file.
+        }
+      }
+      const dir = join(root, PROJECT_DIR, 'heal-proposals');
+      await mkdir(dir, { recursive: true });
+      await writeFile(join(dir, `${draft.id}.json`), `${JSON.stringify({ ...draft, status: 'pending' }, null, 2)}\n`);
+      return undefined;
+    },
+    close: () => db?.close(),
+  };
+}
+
+/** Formats runner events as the terminal output of `s1pilot run`; buffers per case when cases run in parallel. */
+function createPrinter(say: (line: string) => void, redact: (s: string) => string, parallel: boolean): (event: RunnerEvent) => void {
+  const buffers = new Map<string, string[]>();
+  const rowLabels = new Map<string, string>();
+  const out = (id: string, line: string): void => {
+    if (!parallel) say(line);
+    else buffers.set(id, [...(buffers.get(id) ?? []), line]);
+  };
+  return (event) => {
+    switch (event.type) {
+      case 'case.started':
+        rowLabels.set(event.caseResultId, event.label ? ` [${event.label}]` : '');
+        out(event.caseResultId, '');
+        out(event.caseResultId, `${event.key} · ${event.title}${rowLabels.get(event.caseResultId) ?? ''}`);
+        break;
+      case 'note':
+        out(event.caseResultId, `  ${event.text}`);
+        break;
+      case 'step.finished': {
+        const s = event.step;
+        const id = event.caseResultId;
+        if (s.verdict === 'skipped') {
+          out(id, `  ${ICONS.skipped} ${s.index + 1} · ${shorten(s.action)} (skipped)`);
+          break;
+        }
+        out(
+          id,
+          `  ${ICONS[s.verdict]} ${s.index + 1} · ${s.phase === 'precondition' ? '[precondition] ' : ''}${shorten(s.action)} (${s.mode ?? 'explore'}, ${s.actions} action${s.actions === 1 ? '' : 's'}, ${seconds(s.durationMs)})`,
+        );
+        if (s.verdict !== 'passed') {
+          if (s.reason) out(id, `      ${redact(s.reason)}`);
+          for (const a of s.assertions.filter((x) => x.verdict !== 'pass')) out(id, `      ${a.verdict}: ${redact(a.message ?? a.assertion)}`);
+        }
+        break;
+      }
+      case 'case.finished': {
+        out(event.caseResultId, `  ${ICONS[event.result.verdict]} ${event.result.verdict} in ${seconds(event.result.durationMs)}`);
+        if (event.result.healProposals > 0) {
+          out(event.caseResultId, `  ${event.result.healProposals} heal proposal${event.result.healProposals === 1 ? '' : 's'} pending review`);
+        }
+        const lines = buffers.get(event.caseResultId);
+        if (lines) {
+          for (const line of lines) say(line);
+          buffers.delete(event.caseResultId);
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  };
+}
+
+/**
+ * Runs YAML test cases via `runCases` and returns the process exit code:
  * 0 all passed, 1 a case failed or was blocked, 2 only needs-review, 3 configuration error.
- * Writes `<out>/<case>/trace.jsonl` + `result.json` per case row and `<out>/summary.json`.
+ * Writes `<out>/<case>/trace.jsonl` + `result.json` per case row, `<out>/summary.json` and the
+ * `--reporter` files (`junit.xml`, `report.json`).
  */
 export async function executeRun(target: string, opts: RunOptions, deps: RunDeps): Promise<number> {
   const say = (line: string): void => deps.stdout(`${line}\n`);
   let browser: Browser | undefined;
+  let healStore: ReturnType<typeof createHealProposalStore> | undefined;
   try {
+    const mode = opts.mode ?? 'replay-heal';
+    if (!ExecutionModeSchema.safeParse(mode).success) {
+      throw new ConfigError(`Unknown --mode "${mode}"; use replay-heal, explore or replay-only`);
+    }
+    const parallel = opts.parallel ?? 1;
+    if (!Number.isInteger(parallel) || parallel < 1) throw new ConfigError('--parallel must be a whole number of at least 1');
+    let reporters: ReporterName[] = [];
+    try {
+      reporters = opts.reporter ? parseReporterList(opts.reporter) : [];
+    } catch (error) {
+      throw new ConfigError(error instanceof Error ? error.message : String(error));
+    }
+
     const resolved = resolveProjectAndCases(target, opts);
     const { environment, cases } = resolved;
     const vars = resolveVars(environment, deps.env);
@@ -357,56 +436,57 @@ export async function executeRun(target: string, opts: RunOptions, deps: RunDeps
     }
     const human = opts.attended ? createReadlineHumanHook() : undefined;
 
-    say(`s1pilot run  env ${environment.name} (${redactor.redact(environment.baseUrl)})  browser ${opts.browser}  model ${models.modelName}`);
-    const runId = newId();
-    const outcomes: CaseOutcome[] = [];
-    const summaryCases: { key: string; row: number; label: string; verdict: Verdict; dir: string }[] = [];
-
+    say(`s1pilot run  env ${environment.name} (${redactor.redact(environment.baseUrl)})  browser ${opts.browser}  model ${models.modelName}  mode ${mode}`);
     const root = resolved.root;
     const flows = root ? flowLookup(root, resolved.project?.project.id) : () => undefined;
     const datasets = (name: string) => (root ? loadDataset(root, name, environment.name) : undefined);
-    for (const testCase of cases) {
-      const instances = expandCase(testCase, { flows, datasets });
-      for (const instance of instances) {
-        const rowIndex = instance.index;
-        const dirName = `${testCase.key.replace(/[^\w.-]+/g, '_')}${instance.count > 1 ? `-${rowIndex + 1}` : ''}`;
-        const caseDir = join(outDir, dirName);
-        const outcome = await runCase({
-          instance,
-          rowLabel: instance.label ? ` [${instance.label}]` : '',
-          caseDir,
-          browser,
-          environment,
-          vars,
-          redactor,
-          models,
-          human,
-          runId,
-          ...(resolved.project ? { projectRoot: resolved.project.root } : {}),
-          browserName: opts.browser,
-          say,
-        });
-        outcomes.push(outcome);
-        summaryCases.push({ key: testCase.key, row: rowIndex + 1, label: instance.label, verdict: outcome.verdict, dir: dirName });
-      }
-    }
+    const projectRoot = resolved.project?.root;
+    if (projectRoot !== undefined) healStore = createHealProposalStore(projectRoot);
+    const projectKey = resolved.project?.project.key;
 
-    const executed = outcomes.flatMap((o) => o.steps).filter((s) => s.executed);
-    const okSteps = executed.filter((s) => s.verdict === 'passed').length;
-    const rate = executed.length === 0 ? 0 : okSteps / executed.length;
-    const counts = (v: Verdict): number => outcomes.filter((o) => o.verdict === v).length;
+    const report = await runCases({
+      cases,
+      environment,
+      browser,
+      browserName: opts.browser,
+      mode,
+      models,
+      stores: {
+        ...(projectRoot !== undefined ? { scripts: new FsLearnedScriptStore(projectRoot) } : {}),
+        ...(healStore ? { healProposals: healStore } : {}),
+      },
+      emit: createPrinter(say, (s) => redactor.redact(s), parallel > 1),
+      ...(human ? { human, attended: true } : {}),
+      out: outDir,
+      parallelism: parallel,
+      vars,
+      redactor,
+      flows,
+      datasets,
+      ...(projectKey ? { suiteOf: (c) => c.suiteId ?? projectKey } : {}),
+    });
+
+    const counts = report.totals;
     say('');
-    say(
-      `Cases: ${counts('passed')} passed, ${counts('failed')} failed, ${counts('blocked')} blocked, ${counts('needs-review')} needs review (${outcomes.length} total)`,
-    );
-    say(`Step success rate: ${okSteps}/${executed.length} (${(rate * 100).toFixed(0)}%)`);
+    say(`Cases: ${counts.passed} passed, ${counts.failed} failed, ${counts.blocked} blocked, ${counts.needsReview} needs review (${report.cases.length} total)`);
+    say(`Step success rate: ${report.steps.passed}/${report.steps.executed} (${(report.steps.successRate * 100).toFixed(0)}%)`);
     say(`Results: ${outDir}`);
     await mkdir(outDir, { recursive: true });
     await writeFile(
       join(outDir, 'summary.json'),
-      `${JSON.stringify({ runId, environment: environment.name, cases: summaryCases, steps: { executed: executed.length, passed: okSteps, successRate: rate } }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          runId: report.runId,
+          environment: environment.name,
+          cases: report.cases.map((c) => ({ key: c.key, row: c.row, label: c.label ?? '', verdict: c.verdict, mode: c.mode, dir: c.dir })),
+          steps: report.steps,
+        },
+        null,
+        2,
+      )}\n`,
     );
-    return exitCodeFor(outcomes.map((o) => o.verdict));
+    for (const file of await writeReports(report, outDir, reporters)) say(`Report: ${file}`);
+    return exitCodeFor(report.cases.map((c) => c.verdict));
   } catch (error) {
     if (error instanceof ConfigError || error instanceof S1PilotError) {
       deps.stderr(`error: ${error.message}\n`);
@@ -414,232 +494,7 @@ export async function executeRun(target: string, opts: RunOptions, deps: RunDeps
     }
     throw error;
   } finally {
+    healStore?.close();
     await browser?.close();
   }
-}
-
-interface CaseRun {
-  instance: CaseInstance;
-  rowLabel: string;
-  caseDir: string;
-  browser: Browser;
-  environment: Environment;
-  vars: Vars;
-  redactor: Redactor;
-  models: Models;
-  human: ReturnType<typeof createReadlineHumanHook> | undefined;
-  runId: string;
-  /** Project root; learned scripts are saved below it when set. */
-  projectRoot?: string;
-  browserName: BrowserName;
-  say: (line: string) => void;
-}
-
-interface StepRecord {
-  index: number;
-  phase?: 'precondition';
-  sharedStepId?: string;
-  action: string;
-  verdict: Verdict;
-  ended?: string;
-  reason?: string;
-  actionTaken?: string;
-  actions: number;
-  iterations: number;
-  durationMs: number;
-  assertions: AssertionVerdict[];
-  decisions: DecisionRecord[];
-}
-
-async function runCase(run: CaseRun): Promise<CaseOutcome> {
-  const { instance, environment, redactor, say } = run;
-  const { testCase, params } = instance;
-  const r = (s: string): string => redactor.redact(s);
-  const startedAt = new Date();
-  const caseResultId = newId();
-  const tracePath = join(run.caseDir, 'trace.jsonl');
-  await mkdir(run.caseDir, { recursive: true });
-  await rm(tracePath, { force: true });
-  const trace = createJsonlTraceWriter(tracePath);
-
-  say('');
-  say(`${testCase.key} · ${r(testCase.title)}${run.rowLabel}`);
-  if (testCase.preconditions.some((p) => 'auth' in p)) {
-    // TODO(S-038): auth setup flows restore a saved login state.
-    say('  ! auth preconditions are not applied yet');
-  }
-
-  const context = await run.browser.newContext({ locale: environment.locale, timezoneId: environment.timezone });
-  const guards: InstalledGuard[] = [];
-  const onEvent = (e: { method?: string; url?: string; reason: string }): void => {
-    say(`  ! blocked ${e.method ?? ''} ${r(e.url ?? '')}: ${e.reason}`.replace(/\s+/g, ' '));
-  };
-  guards.push(await installDomainGuard(context, { baseUrl: environment.baseUrl, allowDomains: environment.allowDomains, onEvent }));
-  if (environment.readOnly) guards.push(await installReadOnlyGuard(context, { onEvent }));
-  const page = await context.newPage();
-
-  const recorder = new LearnedRecorder(run.runId, testCase.steps);
-  const steps: StepRecord[] = [];
-  const outcomeSteps: CaseOutcome['steps'] = [];
-  const ctx: EngineContext = {
-    page,
-    s1: run.models.s1,
-    ...(run.models.s2 ? { s2: run.models.s2 } : {}),
-    ...(run.human ? { human: run.human, attended: true } : {}),
-    vars: run.vars,
-    params,
-    environment,
-    thresholds: run.models.thresholds,
-    caps: run.models.s1.capabilities,
-    redactor,
-    emit: () => undefined,
-    trace,
-    budgets: {},
-    runId: run.runId,
-    caseResultId,
-    modelName: run.models.modelName,
-    recorder,
-  };
-
-  let stop: Verdict | undefined;
-  let preconditionBroken = false;
-  try {
-    try {
-      await page.goto(environment.baseUrl);
-    } catch (error) {
-      stop = 'blocked';
-      steps.push({
-        index: 0,
-        action: `Open ${environment.baseUrl}`,
-        verdict: 'blocked',
-        reason: r(`Could not open ${environment.baseUrl}: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`),
-        actions: 0,
-        iterations: 0,
-        durationMs: 0,
-        assertions: [],
-        decisions: [],
-      });
-      say(`  ${ICONS.blocked} could not open ${r(environment.baseUrl)}`);
-    }
-
-    const queue = [
-      ...instance.preconditionSteps.map((step) => ({ step, pre: true })),
-      ...testCase.steps.map((step) => ({ step, pre: false })),
-    ];
-    for (const [index, { step, pre }] of queue.entries()) {
-      const action = bind(step.action, params);
-      const tag = {
-        ...(pre ? { phase: 'precondition' as const } : {}),
-        ...(step.sharedStepId ? { sharedStepId: step.sharedStepId } : {}),
-      };
-      if (stop !== undefined) {
-        steps.push({ index, ...tag, action: r(action), verdict: 'skipped', actions: 0, iterations: 0, durationMs: 0, assertions: [], decisions: [] });
-        outcomeSteps.push({ verdict: 'skipped', executed: false });
-        say(`  ${ICONS.skipped} ${index + 1} · ${shorten(r(action))} (skipped)`);
-        continue;
-      }
-      const capture = StepCapture.start(ctx.page);
-      let record: StepRecord;
-      try {
-        const exec = await exploreStep(ctx, { index, action: step.action, inputs: step.inputs, ...(step.sharedStepId ? { sharedStepId: step.sharedStepId } : {}) });
-        const verification = await verifyStep(
-          { page: ctx.page, s1: ctx.s1, thresholds: ctx.thresholds, redactor, modelName: run.models.modelName },
-          {
-            ...(step.expected ? { expected: bind(step.expected, params) } : {}),
-            assertions: step.assert,
-            priority: testCase.priority,
-            capture,
-            executionStatus: exec.status,
-          },
-        );
-        record = {
-          index,
-          ...tag,
-          action: r(action),
-          verdict: verification.verdict,
-          ended: exec.ended,
-          ...(exec.reason ? { reason: exec.reason } : {}),
-          ...(exec.actionTaken ? { actionTaken: r(exec.actionTaken) } : {}),
-          actions: exec.actions.length,
-          iterations: exec.iterations,
-          durationMs: exec.durationMs,
-          assertions: verification.stepAssertions,
-          decisions: [...exec.decisions, ...verification.decisions],
-        };
-      } catch (error) {
-        record = {
-          index,
-          ...tag,
-          action: r(action),
-          verdict: 'failed',
-          ended: 'error',
-          reason: r(error instanceof Error ? error.message : String(error)),
-          actions: 0,
-          iterations: 0,
-          durationMs: 0,
-          assertions: [],
-          decisions: [],
-        };
-      } finally {
-        capture.dispose();
-      }
-      steps.push(record);
-      outcomeSteps.push({ verdict: record.verdict, executed: true });
-      say(`  ${ICONS[record.verdict]} ${index + 1} · ${pre ? '[precondition] ' : ''}${shorten(r(action))} (explore, ${record.actions} action${record.actions === 1 ? '' : 's'}, ${seconds(record.durationMs)})`);
-      if (record.verdict !== 'passed') {
-        if (record.reason) say(`      ${r(record.reason)}`);
-        for (const a of record.assertions.filter((x) => x.verdict !== 'pass')) say(`      ${a.verdict}: ${r(a.message ?? a.assertion)}`);
-      }
-      if (record.verdict === 'failed' || record.verdict === 'blocked') {
-        // A broken precondition means the case never really ran: blocked, not failed.
-        if (pre) preconditionBroken = true;
-        stop = pre ? 'blocked' : record.verdict;
-      }
-    }
-  } finally {
-    for (const g of guards) await g.dispose();
-    await trace.close?.();
-    await context.close();
-  }
-
-  const verdict = preconditionBroken ? 'blocked' : caseVerdict(steps.map((s) => s.verdict));
-  const durationMs = Date.now() - startedAt.getTime();
-  const result = {
-    runId: run.runId,
-    caseResultId,
-    key: testCase.key,
-    title: testCase.title,
-    priority: testCase.priority,
-    mode: 'explore',
-    verdict,
-    environment: environment.name,
-    browser: run.browserName,
-    params,
-    ...(instance.label ? { label: instance.label } : {}),
-    scriptKey: instance.scriptKey,
-    startedAt: startedAt.toISOString(),
-    durationMs,
-    steps,
-  };
-  await writeFile(join(run.caseDir, 'result.json'), `${JSON.stringify(redactor.redactDeep(result), null, 2)}\n`);
-  say(`  ${ICONS[verdict]} ${verdict} in ${seconds(durationMs)}`);
-  // Data-driven cases (several rows) are not learned yet; each row binds different step text.
-  if (run.projectRoot !== undefined && testCase.parameters.length <= 1) {
-    const script = buildLearnedScript({
-      caseId: testCase.id,
-      caseVersion: testCase.version,
-      environmentId: environment.id,
-      runId: run.runId,
-      verdict,
-      recorder,
-    });
-    if (script) {
-      await new FsLearnedScriptStore(run.projectRoot).put(
-        { caseKey: testCase.key, caseId: testCase.id, environmentName: environment.name, environmentId: environment.id },
-        script,
-      );
-      say(`  learned script saved (${script.actions.length} actions)`);
-    }
-  }
-  return { verdict, steps: outcomeSteps };
 }

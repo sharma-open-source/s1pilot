@@ -15,5 +15,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@s1pilot/domain": "workspace:*"
   }
 }

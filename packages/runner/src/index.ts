@@ -1,2 +1,10 @@
-/** Package name; placeholder export until the case runner lands (S-027). */
-export const RUNNER_PACKAGE = '@s1pilot/runner';
+export { caseDirName, runCases } from './run-cases.js';
+export type {
+  AuthStateProvider,
+  RunCasesInput,
+  RunSummary,
+  RunnerEvent,
+  RunnerModels,
+  RunnerStores,
+  RunnerVars,
+} from './run-cases.js';

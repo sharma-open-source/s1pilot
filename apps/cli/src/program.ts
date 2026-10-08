@@ -117,7 +117,7 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
   program
     .command('run')
     .description(
-      'Run YAML test cases in explore mode (exit codes: 0 passed, 1 failed, 2 needs review, 3 config error)',
+      'Run YAML test cases: replay learned scripts (healing broken steps) or explore with AI (exit codes: 0 passed, 1 failed, 2 needs review, 3 config error)',
     )
     .argument('<file-or-dir>', 'a test case YAML file or a directory of them')
     .option('--env <name>', 'environment from .s1pilot/project.yaml (default: the project default)')
@@ -146,6 +146,13 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
       '--base-url <url>',
       'override the environment base URL (or define an ad-hoc environment)',
     )
+    .addOption(
+      new Option('--mode <mode>', 'replay-heal: replay learned scripts and heal broken steps; explore: always use AI; replay-only: never call a model')
+        .choices(['replay-heal', 'explore', 'replay-only'])
+        .default('replay-heal'),
+    )
+    .option('--reporter <names>', 'comma-separated reports to write into --out: junit (junit.xml), json (report.json)')
+    .option('--parallel <n>', 'cases to run at the same time, each in its own browser context', (v) => Number.parseInt(v, 10), 1)
     .option('--mock-script <file>', 'JSON script for --adapter mock (steps, inputs, expected)')
     .action(async (target: string, opts: RunOptions) => {
       deps.setExitCode(await executeRun(target, opts, deps));

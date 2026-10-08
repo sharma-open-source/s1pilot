@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 
 import { S1PilotError } from '@s1pilot/domain';
-import type { MockResolver } from '@s1pilot/providers';
 import { z } from 'zod';
+
+import type { MockResolver } from './adapters/mock.js';
 
 /**
  * `--mock-script` file (JSON) driving the `mock` adapter, so cases run end to end without a model:

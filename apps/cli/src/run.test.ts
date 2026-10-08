@@ -5,7 +5,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+import { RunReportSchema } from '@s1pilot/domain';
 import { startFixtureServer, type FixtureServer } from '@s1pilot/fixture-sites';
+import { validateJunit } from '@s1pilot/reporters';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { buildProgram } from './program.js';
@@ -44,7 +46,8 @@ async function spawnCli(args: string[], env: Record<string, string> = {}): Promi
 }
 
 function mockArgs(baseUrl: string, dir: string, script = SCRIPT): string[] {
-  return ['run', CASE, '--env', 'local', '--adapter', 'mock', '--mock-script', script, '--base-url', baseUrl, '--out', dir];
+  // explore: a learned script from an earlier run in the fixture project must not turn these into replays.
+  return ['run', CASE, '--env', 'local', '--adapter', 'mock', '--mock-script', script, '--base-url', baseUrl, '--mode', 'explore', '--out', dir];
 }
 
 interface Result {
@@ -160,6 +163,47 @@ describe('s1pilot run (in-process)', () => {
     const perStep = [0, 1, 2, 3].map((i) => learned.actions.filter((a) => a.stepIndex === i).length);
     expect(perStep.every((n) => n >= 1)).toBe(true);
     expect(learned.actions.filter((a) => a.valueRef).every((a) => /^(secret|var|input):/.test(a.valueRef ?? ''))).toBe(true);
+  });
+
+  it('writes valid JUnit XML and JSON reports, and the second run replays the learned script', async () => {
+    const root = out();
+    mkdirSync(join(root, '.s1pilot'), { recursive: true });
+    writeFileSync(
+      join(root, '.s1pilot', 'project.yaml'),
+      `key: SHOP\nname: Shop\nenvironments:\n  - name: ci\n    baseUrl: ${server.url}/shop\n    variables:\n      - { key: search_term, value: t-shirt }\n      - { key: shipping_name, value: Alex Doe }\n      - { key: shipping_zip, value: "94105" }\n`,
+    );
+    const args = (dir: string): string[] => [CASE, '--project', root, '--env', 'ci', '--adapter', 'mock', '--mock-script', SCRIPT, '--reporter', 'junit,json', '--out', dir];
+
+    const first = await run(args(join(root, 'res1')));
+    expect(first.code).toBe(0);
+    expect(first.stdout).toContain('(explore, ');
+    expect(first.stdout).toContain('learned script saved');
+
+    const dir = join(root, 'res2');
+    const second = await run(args(dir));
+    expect(second.code).toBe(0);
+    expect(second.stdout).not.toContain('(explore, ');
+    expect(second.stdout).toMatch(/✓ 2 · .*\(replay, /);
+
+    for (const d of [join(root, 'res1'), dir]) {
+      expect(validateJunit(readFileSync(join(d, 'junit.xml'), 'utf8'))).toEqual([]);
+      const report = RunReportSchema.parse(JSON.parse(readFileSync(join(d, 'report.json'), 'utf8')));
+      expect(report.totals.passed).toBe(1);
+    }
+    const report = RunReportSchema.parse(JSON.parse(readFileSync(join(dir, 'report.json'), 'utf8')));
+    expect(report.cases[0]?.mode).toBe('replay');
+    expect(report.cases[0]?.steps.every((s) => s.mode === 'replay')).toBe(true);
+    expect(readFileSync(join(dir, 'junit.xml'), 'utf8')).toContain('<testcase ');
+  });
+
+  it('rejects bad --reporter, --parallel and --mode values', async () => {
+    const base = [CASE, '--env', 'local', '--adapter', 'mock', '--mock-script', SCRIPT, '--base-url', `${server.url}/shop`, '--out', out()];
+    let r = await run([...base, '--reporter', 'html']);
+    expect(r.code).toBe(3);
+    expect(r.stderr).toContain('Unknown reporter "html"');
+    r = await run([...base, '--parallel', '0']);
+    expect(r.code).toBe(3);
+    expect(r.stderr).toContain('--parallel');
   });
 
   it('reports unknown environments and missing targets as config errors', async () => {

@@ -16,6 +16,7 @@ export * from './redact.js';
 export * from './requirement.js';
 export * from './review.js';
 export * from './run.js';
+export * from './run-report.js';
 export * from './shared-step.js';
 export * from './test-case.js';
 export * from './workspace.js';

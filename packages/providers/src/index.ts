@@ -1,5 +1,7 @@
 export { MOCK_CAPABILITIES, MockChatModel, MockDecisionModel, fallbacks } from './adapters/mock.js';
 export type { MockAnswer, MockCall, MockChatOptions, MockOptions, MockResolver, MockRule } from './adapters/mock.js';
+export { MockScriptSchema, loadMockScript, mockResolver } from './mock-script.js';
+export type { MockScript } from './mock-script.js';
 export { createOpenAiChatModel } from './adapters/openai-chat.js';
 export { DECIDE_DEFAULT_CAPABILITIES, createDecideModel, toDecideQuestion } from './adapters/decide.js';
 export {

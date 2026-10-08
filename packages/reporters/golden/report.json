@@ -1,0 +1,198 @@
+{
+  "runId": "run1",
+  "environment": "local",
+  "browser": "chromium",
+  "mode": "replay-heal",
+  "startedAt": "2026-01-01T00:00:00.000Z",
+  "finishedAt": "2026-01-01T00:00:05.000Z",
+  "durationMs": 5000,
+  "totals": {
+    "passed": 1,
+    "failed": 1,
+    "blocked": 1,
+    "skipped": 0,
+    "flaky": 0,
+    "needsReview": 1
+  },
+  "steps": {
+    "executed": 6,
+    "passed": 4,
+    "successRate": 0.6666666666666666
+  },
+  "cases": [
+    {
+      "runId": "run1",
+      "caseResultId": "cr1",
+      "key": "SHOP-TC-1",
+      "title": "Add to cart",
+      "suite": "SHOP",
+      "priority": "P1",
+      "row": 1,
+      "mode": "replay",
+      "verdict": "passed",
+      "environment": "local",
+      "browser": "chromium",
+      "params": {},
+      "scriptKey": "SHOP-TC-1#abc",
+      "dir": "SHOP-TC-1",
+      "startedAt": "2026-01-01T00:00:00.000Z",
+      "durationMs": 1500,
+      "healProposals": 0,
+      "steps": [
+        {
+          "index": 0,
+          "action": "Step 1",
+          "verdict": "passed",
+          "mode": "replay",
+          "actions": 1,
+          "iterations": 1,
+          "durationMs": 100,
+          "assertions": [],
+          "decisions": []
+        },
+        {
+          "index": 1,
+          "action": "Step 2",
+          "verdict": "passed",
+          "mode": "replay",
+          "actions": 1,
+          "iterations": 1,
+          "durationMs": 100,
+          "assertions": [],
+          "decisions": []
+        }
+      ]
+    },
+    {
+      "runId": "run1",
+      "caseResultId": "cr2",
+      "key": "SHOP-TC-2",
+      "title": "Badge <count> & \"quotes\"",
+      "suite": "SHOP",
+      "priority": "P1",
+      "row": 1,
+      "mode": "explore",
+      "verdict": "failed",
+      "environment": "local",
+      "browser": "chromium",
+      "params": {},
+      "scriptKey": "SHOP-TC-1#abc",
+      "dir": "SHOP-TC-1",
+      "startedAt": "2026-01-01T00:00:00.000Z",
+      "durationMs": 1500,
+      "healProposals": 0,
+      "steps": [
+        {
+          "index": 0,
+          "action": "Step 1",
+          "verdict": "passed",
+          "mode": "explore",
+          "actions": 1,
+          "iterations": 1,
+          "durationMs": 100,
+          "assertions": [],
+          "decisions": []
+        },
+        {
+          "index": 1,
+          "action": "Step 2",
+          "verdict": "failed",
+          "mode": "explore",
+          "actions": 1,
+          "iterations": 1,
+          "durationMs": 100,
+          "assertions": [
+            {
+              "assertion": "elementText",
+              "verdict": "fail",
+              "message": "expected text(status) ⊇ \"1\", got \"2\""
+            }
+          ],
+          "decisions": []
+        },
+        {
+          "index": 2,
+          "action": "Step 3",
+          "verdict": "skipped",
+          "actions": 1,
+          "iterations": 1,
+          "durationMs": 100,
+          "assertions": [],
+          "decisions": []
+        }
+      ]
+    },
+    {
+      "runId": "run1",
+      "caseResultId": "cr3",
+      "key": "SHOP-TC-3",
+      "title": "Checkout",
+      "suite": "PAY",
+      "priority": "P1",
+      "row": 1,
+      "mode": "replay",
+      "verdict": "blocked",
+      "environment": "local",
+      "browser": "chromium",
+      "params": {},
+      "scriptKey": "SHOP-TC-1#abc",
+      "dir": "SHOP-TC-1",
+      "startedAt": "2026-01-01T00:00:00.000Z",
+      "durationMs": 1500,
+      "healProposals": 0,
+      "steps": [
+        {
+          "index": 0,
+          "action": "Step 1",
+          "verdict": "blocked",
+          "mode": "replay",
+          "reason": "Could not open http://x",
+          "actions": 1,
+          "iterations": 1,
+          "durationMs": 100,
+          "assertions": [],
+          "decisions": []
+        }
+      ]
+    },
+    {
+      "runId": "run1",
+      "caseResultId": "cr4",
+      "key": "SHOP-TC-4",
+      "title": "Search",
+      "suite": "PAY",
+      "priority": "P1",
+      "row": 2,
+      "label": "blue / M",
+      "mode": "replay",
+      "verdict": "needs-review",
+      "environment": "local",
+      "browser": "chromium",
+      "params": {},
+      "scriptKey": "SHOP-TC-1#abc",
+      "dir": "SHOP-TC-1",
+      "startedAt": "2026-01-01T00:00:00.000Z",
+      "durationMs": 1500,
+      "healProposals": 0,
+      "steps": [
+        {
+          "index": 0,
+          "action": "Step 1",
+          "verdict": "needs-review",
+          "mode": "replay",
+          "actions": 1,
+          "iterations": 1,
+          "durationMs": 100,
+          "assertions": [
+            {
+              "assertion": "ai",
+              "verdict": "needs-review",
+              "probability": 0.5
+            }
+          ],
+          "decisions": []
+        }
+      ]
+    }
+  ]
+}

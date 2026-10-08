@@ -15,5 +15,15 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@s1pilot/domain": "workspace:*",
+    "@s1pilot/engine": "workspace:*",
+    "@s1pilot/sync": "workspace:*",
+    "playwright": "^1.63.0"
+  },
+  "devDependencies": {
+    "@s1pilot/fixture-sites": "workspace:*",
+    "@s1pilot/providers": "workspace:*"
   }
 }

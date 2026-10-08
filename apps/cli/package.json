@@ -26,6 +26,8 @@
     "@s1pilot/domain": "workspace:*",
     "@s1pilot/engine": "workspace:^",
     "@s1pilot/providers": "workspace:*",
+    "@s1pilot/reporters": "workspace:*",
+    "@s1pilot/runner": "workspace:*",
     "@s1pilot/sync": "workspace:^",
     "commander": "^12.1.0",
     "playwright": "^1.63.0",
