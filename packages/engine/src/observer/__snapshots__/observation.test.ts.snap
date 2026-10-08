@@ -1,0 +1,17 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`observer.capture + serializeObservation > serialises the /shop cart in < 4 KB with every interactive element line 1`] = `
+"url: http://HOST/shop/cart
+title: Cart · Shop
+headings: "Your cart"
+alert: "1"
+recent actions:
+  #1 click "Add to cart" -> ok
+elements:
+e1 [link] "Home" @Main
+e2 [link] "Cart 1" @Main
+e3 [link] "Log in" @Main
+e4 [textbox] "Promo code" @main
+e5 [button] "Apply code" @main
+e6 [link] "Checkout" @main"
+`;
