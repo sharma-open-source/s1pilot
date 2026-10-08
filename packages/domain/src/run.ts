@@ -52,6 +52,8 @@ export const StepResultSchema = z.object({
   caseResultId: IdSchema,
   stepIndex: z.number().int().min(0),
   status: z.enum(['passed', 'failed', 'blocked', 'skipped']),
+  /** How the step was performed: learned script (`replay`), re-resolved (`healed`) or AI-driven (`explore`). */
+  mode: z.enum(['replay', 'healed', 'explore']).optional(),
   /** Description of the action actually taken. */
   actionTaken: z.string().optional(),
   decisions: z.array(DecisionRecordSchema).default([]),

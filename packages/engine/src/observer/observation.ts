@@ -121,10 +121,16 @@ function pathPattern(url: string): string {
     .join('/');
 }
 
+function shortHash(material: string, len: number): string {
+  return createHash('sha256').update(material).digest('hex').slice(0, len);
+}
+
 /**
- * Stable hash of the page's structure: URL path pattern, headings, and sorted role/name pairs of
- * landmarks and interactive elements. Equal across reloads of the same page; changes when a
- * control is renamed or removed (used to detect that a learned script no longer matches).
+ * Stable structural fingerprint of the page: `<path>.<controls>.<tokens>` where `path` hashes the
+ * URL path pattern, `controls` hashes the sorted role/name pairs of interactive elements, and
+ * `tokens` lists short hashes of the landmarks and headings (comma separated). Equal across
+ * reloads of the same page; changes when a control is renamed or removed. Replay compares
+ * fingerprints tolerantly with `fingerprintsMatch` (same path and at least 80% token overlap).
  */
 export function pageFingerprint(obs: Observation): string {
   const landmarks = new Set<string>();
@@ -133,11 +139,34 @@ export function pageFingerprint(obs: Observation): string {
     if (e.landmark) landmarks.add(e.landmark);
     controls.add(`${e.role}:${e.name}`);
   }
-  const material = JSON.stringify({
-    path: pathPattern(obs.context.url),
-    landmarks: [...landmarks].sort(),
-    headings: [...obs.context.headings].sort(),
-    controls: [...controls].sort(),
-  });
-  return createHash('sha256').update(material).digest('hex').slice(0, 16);
+  const tokens = new Set<string>();
+  for (const l of landmarks) tokens.add(shortHash(`L:${l}`, 6));
+  for (const h of obs.context.headings) tokens.add(shortHash(`H:${h}`, 6));
+  return [
+    shortHash(pathPattern(obs.context.url), 8),
+    shortHash(JSON.stringify([...controls].sort()), 8),
+    [...tokens].sort().join(','),
+  ].join('.');
+}
+
+/** Minimum landmark/heading overlap for {@link fingerprintsMatch}. */
+export const FINGERPRINT_OVERLAP = 0.8;
+
+/**
+ * Tolerant comparison of two {@link pageFingerprint}s: identical, or the same URL pattern with at
+ * least 80% landmark/heading overlap (intersection over the larger set; two empty sets match).
+ * Fingerprints in another format (older scripts) only match when equal.
+ */
+export function fingerprintsMatch(a: string, b: string): boolean {
+  if (a === b) return true;
+  const pa = a.split('.');
+  const pb = b.split('.');
+  if (pa.length !== 3 || pb.length !== 3 || pa[0] !== pb[0]) return false;
+  const ta = new Set((pa[2] ?? '').split(',').filter(Boolean));
+  const tb = new Set((pb[2] ?? '').split(',').filter(Boolean));
+  const larger = Math.max(ta.size, tb.size);
+  if (larger === 0) return true;
+  let shared = 0;
+  for (const t of ta) if (tb.has(t)) shared += 1;
+  return shared / larger >= FINGERPRINT_OVERLAP;
 }

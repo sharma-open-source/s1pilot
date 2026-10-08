@@ -227,7 +227,7 @@ export async function execute(page: Page, action: EngineAction, ctx: ExecutorCon
         });
         break;
     }
-    await waitForStable(page);
+    await waitForStable(page, ctx.stable);
     if (newPage) {
       await newPage.page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => undefined);
       newPage = { page: newPage.page, url: newPage.page.url() };

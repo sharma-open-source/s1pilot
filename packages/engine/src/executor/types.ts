@@ -1,6 +1,8 @@
 import type { LocatorCandidate } from '@s1pilot/domain';
 import type { Page } from 'playwright';
 
+import type { StableWaitOptions } from './waits.js';
+
 /** Where an element-targeting action is aimed: ordered locator candidates (most robust first). */
 export interface ActionTarget {
   locators: readonly LocatorCandidate[];
@@ -37,6 +39,8 @@ export interface ExecutorContext {
   downloadDir?: string;
   /** Per-attempt action timeout in ms (default 5000). */
   actionTimeoutMs?: number;
+  /** Settle-wait options applied after the action (replay uses a shorter quiet period). */
+  stable?: StableWaitOptions;
 }
 
 export interface DialogRecord {
