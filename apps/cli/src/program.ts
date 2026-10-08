@@ -4,6 +4,7 @@ import { AdapterKindSchema, type ProbeResult } from '@s1pilot/domain';
 import { probe as defaultProbe, type ProbeOptions, type ProbeTarget } from '@s1pilot/providers';
 import { Command, Option } from 'commander';
 
+import { registerEvalCommand } from './eval.js';
 import { executeRun, type RunOptions } from './run.js';
 import { registerSyncCommands } from './sync.js';
 
@@ -159,6 +160,7 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
     });
 
   registerSyncCommands(program, deps);
+  registerEvalCommand(program, deps);
 
   return program;
 }
