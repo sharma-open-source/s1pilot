@@ -9,7 +9,7 @@ import {
   type RunEvent,
   type SharedStep,
 } from '@s1pilot/domain';
-import { launchBrowser, runCases, type RunnerEvent } from '@s1pilot/runner';
+import { launchBrowser, runCases, type RunCasesInput, type RunnerEvent } from '@s1pilot/runner';
 import type { FastifyBaseLogger } from 'fastify';
 
 import type { ServerConfig } from '../config.js';
@@ -39,6 +39,8 @@ export interface WorkerPoolOptions {
   leaseMs?: number;
   /** Heartbeat interval. Default `min(leaseMs / 3, 1000)`. */
   heartbeatMs?: number;
+  /** Live view hook (S-036): receives the page of every running case; returns a release function. */
+  onPage?: (runId: string, caseResultId: string, page: Parameters<NonNullable<RunCasesInput['onPage']>>[0]) => (() => unknown) | undefined;
 }
 
 interface WorkerState {
@@ -239,6 +241,8 @@ export class WorkerPool {
       if (signal.aborted) return;
       switch (event.type) {
         case 'engine':
+          // The runner's own `step.finished` (below) is authoritative: it follows verification and covers replay.
+          if (event.event.type === 'step.finished') break;
           bus.emit({ ...event.event, runId } as RunEvent);
           break;
         case 'case.started':
@@ -293,6 +297,7 @@ export class WorkerPool {
       flows: (idOrName) => flowMap.get(idOrName),
       suiteOf: (c) => c.suiteId ?? project.key,
       signal,
+      ...(this.opts.onPage ? { onPage: (page, info) => this.opts.onPage?.(runId, info.caseResultId, page) } : {}),
     });
     await chain;
   }

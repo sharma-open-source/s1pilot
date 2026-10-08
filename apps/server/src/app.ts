@@ -11,6 +11,7 @@ import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 
 import type { ServerConfig } from './config.js';
+import { registerLiveRoutes } from './live/routes.js';
 import { createContext } from './trpc/context.js';
 import { appRouter } from './trpc/router.js';
 import { getVersion } from './version.js';
@@ -57,6 +58,8 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
     await runtime.workers.stop(); // before the db closes
     if (ownsDb) db.close();
   });
+
+  registerLiveRoutes(app, runtime.live);
 
   await app.register(fastifyTRPCPlugin, {
     prefix: '/trpc',

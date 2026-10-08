@@ -33,6 +33,8 @@ const META_DESCRIPTIONS: Record<string, string> = {
   stuck: 'None of the options can make progress on this step',
 };
 
+/** Upper bound of elements sent in one `observation.elements` event. */
+const MAX_OVERLAY_ELEMENTS = 300;
 const STEP_DONE_QUESTION = "Has this test step's action been fully performed?";
 const BLOCKED_QUESTION = 'Is progress blocked (error, login wall, captcha)?';
 
@@ -310,6 +312,18 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
 
     // 4b. Pre-gate sensitivity check on the most likely element.
     const next = answers.next_action ?? { probabilities: {}, confidence: 0 };
+    emit({
+      type: 'observation.elements',
+      caseResultId: ctx.caseResultId,
+      stepIndex,
+      elements: obs.elements.slice(0, MAX_OVERLAY_ELEMENTS).map((e) => ({
+        id: e.id,
+        role: e.role,
+        label: r((e.name || e.text || e.placeholder || '').slice(0, 80)),
+        box: e.box,
+      })),
+      ...(next.choice !== undefined && obs.elementMap.has(next.choice) ? { chosenId: next.choice } : {}),
+    });
     const byId = new Map(candidates.map((e) => [e.id, e]));
     const sensitivityOf = (element: ObservedElement): SensitiveCheck =>
       checkSensitive(element, { kind: inferAction(element, true) }, {

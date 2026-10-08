@@ -30,6 +30,21 @@ export const RunEventSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('step.started'), ...stepRef, action: z.string() }),
   z.object({ type: z.literal('decision.made'), ...stepRef, decision: DecisionRecordSchema }),
+  z.object({
+    type: z.literal('observation.elements'),
+    ...stepRef,
+    /** Interactive elements of the page as observed (viewport-relative CSS pixel boxes) for the element box overlay. */
+    elements: z.array(
+      z.object({
+        id: z.string(),
+        role: z.string(),
+        label: z.string(),
+        box: z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() }),
+      }),
+    ),
+    /** Id of the element System 1 picked for the next action, when it picked one. */
+    chosenId: z.string().optional(),
+  }),
   z.object({ type: z.literal('assertion.verdict'), ...stepRef, verdict: AssertionVerdictSchema }),
   z.object({
     type: z.literal('escalation.needed'),

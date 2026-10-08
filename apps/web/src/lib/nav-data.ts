@@ -66,13 +66,15 @@ export function parseModelsStatus(raw: unknown): ModelsStatus {
   return { s1: parseModelRow(raw['s1'] ?? raw['system1']), s2: parseModelRow(raw['s2'] ?? raw['system2']) };
 }
 
-/** Tolerant parser for `/ws/workspace` badge messages. */
+/**
+ * Parses a `/ws/workspace` message. The server (S-036) sends `{ type: 'workspace', liveRuns, reviewCount }` on connect
+ * and whenever a count changes; other message types (`run.status`) and malformed input yield no patch.
+ */
 export function parseBadges(raw: unknown): Partial<WorkspaceBadges> {
-  if (!isRecord(raw)) return {};
-  const src = isRecord(raw['badges']) ? raw['badges'] : raw;
+  if (!isRecord(raw) || raw['type'] !== 'workspace') return {};
   const out: Partial<WorkspaceBadges> = {};
-  if (typeof src['liveRuns'] === 'number') out.liveRuns = src['liveRuns'];
-  if (typeof src['reviewCount'] === 'number') out.reviewCount = src['reviewCount'];
+  if (typeof raw['liveRuns'] === 'number') out.liveRuns = raw['liveRuns'];
+  if (typeof raw['reviewCount'] === 'number') out.reviewCount = raw['reviewCount'];
   return out;
 }
 
@@ -90,7 +92,6 @@ export function useModelsStatus() {
 
 /**
  * Live-run and review counts from `/ws/workspace`. Stays at 0 when the socket is absent; reconnects with backoff.
- * TODO(S-036): confirm the message shape once the workspace websocket exists.
  */
 export function useWorkspaceBadges(enabled = true): WorkspaceBadges {
   const [badges, setBadges] = useState<WorkspaceBadges>(EMPTY_BADGES);

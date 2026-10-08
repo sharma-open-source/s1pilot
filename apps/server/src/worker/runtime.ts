@@ -2,6 +2,7 @@ import { createSqliteJobQueue, type Db, type JobQueue } from '@s1pilot/db';
 import type { FastifyBaseLogger } from 'fastify';
 
 import type { ServerConfig } from '../config.js';
+import { LiveHub } from '../live/hub.js';
 
 import { RunEventBus } from './event-bus.js';
 import { createRunLifecycle, type RunLifecycle } from './run-lifecycle.js';
@@ -13,12 +14,16 @@ export interface ServerRuntime {
   bus: RunEventBus;
   lifecycle: RunLifecycle;
   workers: WorkerPool;
+  /** WebSocket fan-out of run events and screencast frames (S-036). */
+  live: LiveHub;
 }
 
 export interface RuntimeOptions {
   db: Db;
   config: ServerConfig;
   log: FastifyBaseLogger;
+  /** Screencast tuning (tests). */
+  screencast?: ConstructorParameters<typeof LiveHub>[0]['screencast'];
   /** Overrides of the worker pool (model factory, browser launcher, timings). Tests use these. */
   workerOptions?: Partial<Omit<WorkerPoolOptions, 'db' | 'config' | 'log' | 'queue' | 'bus' | 'lifecycle'>>;
 }
@@ -30,8 +35,9 @@ export function createRuntime(opts: RuntimeOptions): ServerRuntime {
   const queue = createSqliteJobQueue(opts.db);
   const bus = new RunEventBus();
   const lifecycle = createRunLifecycle({ db: opts.db, queue, bus });
-  const workers = new WorkerPool({ ...opts.workerOptions, db: opts.db, config: opts.config, log: opts.log, queue, bus, lifecycle });
-  const runtime: ServerRuntime = { queue, bus, lifecycle, workers };
+  const live = new LiveHub({ db: opts.db, bus, ...(opts.screencast ? { screencast: opts.screencast } : {}) });
+  const workers = new WorkerPool({ onPage: (runId, resultId, page) => live.screencast.attach(runId, resultId, page), ...opts.workerOptions, db: opts.db, config: opts.config, log: opts.log, queue, bus, lifecycle });
+  const runtime: ServerRuntime = { queue, bus, lifecycle, workers, live };
   runtimes.set(opts.db, runtime);
   return runtime;
 }

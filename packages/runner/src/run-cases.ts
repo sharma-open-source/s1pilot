@@ -39,7 +39,7 @@ import {
 } from '@s1pilot/engine';
 import type { ChatModel } from '@s1pilot/providers';
 import type { LearnedScriptRef, LearnedScriptStore } from '@s1pilot/sync';
-import { chromium, firefox, webkit, type Browser, type BrowserContextOptions } from 'playwright';
+import { chromium, firefox, webkit, type Browser, type BrowserContextOptions, type Page } from 'playwright';
 
 /** Full result of a run; the reporters render exactly this. */
 export type RunSummary = RunReport;
@@ -117,6 +117,11 @@ export interface RunCasesInput {
    * the report. Used by the server's `runs.cancel`.
    */
   signal?: AbortSignal;
+  /**
+   * Called with the case instance's page right after it is created (live view / screencast, S-036). The returned
+   * function (if any) is called when the instance ends, before its context closes. Errors are ignored.
+   */
+  onPage?: (page: Page, info: { runId: string; caseResultId: string }) => (() => unknown) | undefined;
 }
 
 const bind = (text: string, params: Record<string, string>): string => text.replace(/\{([\w.-]+)\}/g, (whole, name: string) => params[name] ?? whole);
@@ -331,6 +336,7 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
   const onAbort = (): void => void context.close().catch(() => undefined);
   input.signal?.addEventListener('abort', onAbort, { once: true });
   if (input.signal?.aborted) onAbort();
+  let releasePage: (() => unknown) | undefined;
   let stop: Verdict | undefined;
   let preconditionBroken = false;
   let anyHealed = false;
@@ -338,6 +344,12 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
     guards.push(await installDomainGuard(context, { baseUrl: environment.baseUrl, allowDomains: environment.allowDomains, onEvent }));
     if (environment.readOnly) guards.push(await installReadOnlyGuard(context, { onEvent }));
     const page = await context.newPage();
+    try {
+      const release = input.onPage?.(page, { runId, caseResultId });
+      if (release) releasePage = release;
+    } catch {
+      // A faulty live-view hook must not break the run.
+    }
     const ctx: EngineContext = {
       page,
       s1: models.s1,
@@ -480,6 +492,11 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
     input.signal?.removeEventListener('abort', onAbort);
     for (const g of guards) await g.dispose().catch(() => undefined);
     await trace.close?.();
+    try {
+      await releasePage?.();
+    } catch {
+      // ignore
+    }
     await context.close();
   }
 

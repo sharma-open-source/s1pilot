@@ -114,7 +114,7 @@ describe('exploreStep: plan 1.2 case on /shop', () => {
       expect(types[0]).toBe('step.started');
       expect(types[types.length - 1]).toBe('step.finished');
       expect(types.filter((t) => t === 'decision.made').length).toBeGreaterThan(0);
-      expect(types.slice(1, -1).every((t) => t === 'decision.made')).toBe(true);
+      expect(types.slice(1, -1).every((t) => t === 'decision.made' || t === 'observation.elements')).toBe(true);
     }
     // No action failed along the way.
     expect(results[2]?.actions.map((a) => a.ok)).not.toContain(false);
@@ -139,7 +139,7 @@ describe('exploreStep: guards and gating', () => {
     expect(result).toMatchObject({ status: 'blocked', ended: 'guard', actions: [] });
     expect(posts).toEqual([]);
     expect(page.url()).toContain('/checkout/payment');
-    expect(events.map((e) => e.type)).toEqual(['step.started', 'decision.made', 'decision.made', 'decision.made', 'log', 'step.finished']);
+    expect(events.map((e) => e.type)).toEqual(['step.started', 'decision.made', 'decision.made', 'observation.elements', 'decision.made', 'log', 'step.finished']);
     const iteration = trace.lines.find((l) => l.kind === 'iteration');
     expect(iteration).toMatchObject({ sensitive: { classification: 'pay', blocked: true } });
   });
