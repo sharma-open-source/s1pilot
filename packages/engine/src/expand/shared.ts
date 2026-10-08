@@ -86,7 +86,7 @@ export function resolvePreconditions(testCase: Pick<TestCase, 'preconditions'>, 
     if ('flow' in pre) {
       steps.push(...inlineSharedSteps([flowReference(pre.flow)], lookup));
     } else {
-      // TODO(S-038): auth setup flows restore a saved login state.
+      // Applied by the runner's auth provider (storage state), not by inlined steps.
       auth.push(pre.auth);
     }
   }

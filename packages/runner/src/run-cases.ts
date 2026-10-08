@@ -65,8 +65,8 @@ export interface RunnerStores {
 }
 
 /**
- * Auth setup hook (S-038 fills it): returns the Playwright storage state to start a case's context
- * with, or `undefined` for a fresh anonymous context.
+ * Auth setup hook (see `createAuthStateProvider`): returns the Playwright storage state to start a case's context
+ * with, or `undefined` for a fresh anonymous context. Throwing makes the case `blocked` with the error message as reason.
  */
 export interface AuthStateProvider {
   storageState(testCase: TestCase, environment: Environment): Promise<BrowserContextOptions['storageState'] | undefined>;
@@ -331,10 +331,26 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
   const trace = createJsonlTraceWriter(tracePath);
 
   if (testCase.preconditions.some((p) => 'auth' in p) && !input.auth) {
-    // TODO(S-038): auth setup flows restore a saved login state.
-    note('! auth preconditions are not applied yet');
+    note('! auth precondition ignored: no auth store is available in this run (use the server to manage logins)');
   }
-  const storageState = await input.auth?.storageState(testCase, environment);
+  let storageState: Awaited<ReturnType<AuthStateProvider['storageState']>>;
+  try {
+    storageState = await input.auth?.storageState(testCase, environment);
+  } catch (error) {
+    // A login that cannot be restored means the case never really ran: blocked, not failed.
+    await trace.close?.();
+    const reason = r(error instanceof Error ? error.message : String(error));
+    queue.forEach(({ step, pre }, index) => {
+      const action = r(bind(step.action, params));
+      finishStep(
+        emptyStep(index, action, {
+          ...(index === 0 ? { verdict: 'blocked' as const, reason: `auth: ${reason}` } : {}),
+          ...(pre ? { phase: 'precondition' as const } : {}),
+        }),
+      );
+    });
+    return finishCase('blocked', replaying ? 'replay' : 'explore');
+  }
   const evidence = new CaseCapture(caseDir, CaseCapture.options(input.capture), redactor, input.vars.secretValues());
   const context = await input.browser.newContext({
     locale: environment.locale,

@@ -1,6 +1,7 @@
 import { createSqliteJobQueue, type Db, type JobQueue } from '@s1pilot/db';
 import type { FastifyBaseLogger } from 'fastify';
 
+import { AuthService } from '../auth/service.js';
 import type { ServerConfig } from '../config.js';
 import { HumanControl, type HumanControlOptions } from '../live/control.js';
 import { LiveHub } from '../live/hub.js';
@@ -19,6 +20,8 @@ export interface ServerRuntime {
   live: LiveHub;
   /** Escalations, pause/resume, abort and takeover of attended runs (S-037). */
   human: HumanControl;
+  /** Saved logins: recording, refresh, validation and the provider workers hand to the runner (S-038). */
+  auth: AuthService;
 }
 
 export interface RuntimeOptions {
@@ -54,8 +57,15 @@ export function createRuntime(opts: RuntimeOptions): ServerRuntime {
     onStatus: (runId, status) => live.announceStatus(runId, status),
     ...(opts.launchHeaded ? { launchHeaded: opts.launchHeaded } : {}),
   });
-  const workers: WorkerPool = new WorkerPool({ human, onPage: (runId, resultId, page) => live.screencast.attach(runId, resultId, page), ...opts.workerOptions, db: opts.db, config: opts.config, log: opts.log, queue, bus, lifecycle });
-  const runtime: ServerRuntime = { queue, bus, lifecycle, workers, live, human };
+  const auth = new AuthService({
+    db: opts.db,
+    config: opts.config,
+    ...(opts.workerOptions?.launch ? { launch: opts.workerOptions.launch } : {}),
+    ...(opts.launchHeaded ? { launchHeaded: opts.launchHeaded } : {}),
+    ...(opts.workerOptions?.createModels ? { createModels: opts.workerOptions.createModels } : {}),
+  });
+  const workers: WorkerPool = new WorkerPool({ human, auth, onPage: (runId, resultId, page) => live.screencast.attach(runId, resultId, page), ...opts.workerOptions, db: opts.db, config: opts.config, log: opts.log, queue, bus, lifecycle });
+  const runtime: ServerRuntime = { queue, bus, lifecycle, workers, live, human, auth };
   runtimes.set(opts.db, runtime);
   return runtime;
 }

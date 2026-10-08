@@ -267,12 +267,28 @@ describe('Login step', () => {
   it('records, then saves on Done', async () => {
     seedDraft();
     const user = userEvent.setup();
-    const fake = createFakeTrpc({ ...baseHandlers(), 'auth.record': () => ({}), 'auth.finishRecording': () => ({}) });
+    const fake = createFakeTrpc({ ...baseHandlers(), 'auth.record': () => ({ id: 'auth00000000000000001', recording: true }), 'auth.finishRecording': () => ({ id: 'auth00000000000000001', status: 'valid' }) });
     vi.stubGlobal('fetch', fake.fetch);
     render(<Host fake={fake} initial="login" />);
     await user.click(screen.getByRole('button', { name: 'Record a login' }));
     await user.click(await screen.findByRole('button', { name: 'Done' }));
     expect(await screen.findByText('Login saved for the dev environment')).toBeInTheDocument();
+    const [record] = callsTo(fake, 'auth.record');
+    expect(record?.input).toMatchObject({ projectKey: 'SHOP', name: 'login-as-customer' });
+    expect(callsTo(fake, 'auth.finishRecording')[0]?.input).toMatchObject({ projectKey: 'SHOP', name: 'login-as-customer' });
+  });
+
+  it('registers a flow login under the login name when continuing', async () => {
+    seedDraft();
+    const user = userEvent.setup();
+    const fake = createFakeTrpc({ ...baseHandlers(), 'auth.saveFlow': () => ({ id: 'auth00000000000000002', kind: 'flow' }) });
+    vi.stubGlobal('fetch', fake.fetch);
+    render(<Host fake={fake} initial="login" />);
+    await user.click(screen.getByRole('button', { name: 'Use a flow' }));
+    await user.type(screen.getByLabelText('Shared step or flow name'), 'login-flow');
+    await user.click(screen.getByRole('button', { name: 'Continue to first tests' }));
+    expect(await screen.findByLabelText('Describe a test in plain language')).toBeInTheDocument();
+    expect(callsTo(fake, 'auth.saveFlow')[0]?.input).toMatchObject({ projectKey: 'SHOP', name: 'login-as-customer', flowId: 'login-flow' });
   });
 });
 

@@ -1,5 +1,6 @@
 import { getVersion } from '../version.js';
 
+import { authRouter } from './routers/auth.js';
 import { casesRouter } from './routers/cases.js';
 import { dashboardRouter } from './routers/dashboard.js';
 import { environmentsRouter } from './routers/environments.js';
@@ -31,6 +32,7 @@ export const appRouter = router({
   runs: runsRouter,
   syncStatus: syncStatusProcedure,
   dashboard: dashboardRouter,
+  auth: authRouter,
 });
 
 export type AppRouter = typeof appRouter;
