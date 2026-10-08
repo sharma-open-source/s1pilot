@@ -214,6 +214,7 @@ describe('CasesPage', () => {
       environment: 'e1',
       browser: 'chromium',
       mode: 'explore',
+      attended: false,
     });
   });
 
