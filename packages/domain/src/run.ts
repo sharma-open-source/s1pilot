@@ -82,7 +82,22 @@ export type CaseResult = z.infer<typeof CaseResultSchema>;
 export const RunTriggerSchema = z.enum(['manual', 'schedule', 'ci', 'webhook']);
 export type RunTrigger = z.infer<typeof RunTriggerSchema>;
 
-export const RunStatusSchema = z.enum(['queued', 'running', 'paused', 'finished', 'aborted']);
+/**
+ * Run lifecycle. `finished` / `aborted` are the legacy terminal values; server-executed runs (S-034) end in
+ * `passed`, `failed`, `needs-review`, `cancelled` or `error`.
+ */
+export const RunStatusSchema = z.enum([
+  'queued',
+  'running',
+  'paused',
+  'finished',
+  'aborted',
+  'passed',
+  'failed',
+  'needs-review',
+  'cancelled',
+  'error',
+]);
 export type RunStatus = z.infer<typeof RunStatusSchema>;
 
 export const RunSummarySchema = z.object({

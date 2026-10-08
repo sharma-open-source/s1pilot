@@ -5,6 +5,7 @@ import { environmentsRouter } from './routers/environments.js';
 import { modelsRouter } from './routers/models.js';
 import { projectsRouter } from './routers/projects.js';
 import { requirementsRouter } from './routers/requirements.js';
+import { runsRouter } from './routers/runs.js';
 import { sharedStepsRouter } from './routers/shared-steps.js';
 import { suitesRouter } from './routers/suites.js';
 import { syncStatusProcedure } from './routers/sync-status.js';
@@ -26,6 +27,7 @@ export const appRouter = router({
   cases: casesRouter,
   sharedSteps: sharedStepsRouter,
   requirements: requirementsRouter,
+  runs: runsRouter,
   syncStatus: syncStatusProcedure,
 });
 

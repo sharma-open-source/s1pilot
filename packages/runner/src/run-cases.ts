@@ -39,7 +39,7 @@ import {
 } from '@s1pilot/engine';
 import type { ChatModel } from '@s1pilot/providers';
 import type { LearnedScriptRef, LearnedScriptStore } from '@s1pilot/sync';
-import type { Browser, BrowserContextOptions } from 'playwright';
+import { chromium, firefox, webkit, type Browser, type BrowserContextOptions } from 'playwright';
 
 /** Full result of a run; the reporters render exactly this. */
 export type RunSummary = RunReport;
@@ -111,6 +111,12 @@ export interface RunCasesInput {
   auth?: AuthStateProvider;
   /** Suite name of a case (reporters group by it). Default: the case's `suiteId`, else `default`. */
   suiteOf?: (testCase: TestCase) => string;
+  /**
+   * Cancels the run: no further case instances start, and running ones are stopped by closing their
+   * browser context (in-flight actions fail immediately). Instances stopped this way are left out of
+   * the report. Used by the server's `runs.cancel`.
+   */
+  signal?: AbortSignal;
 }
 
 const bind = (text: string, params: Record<string, string>): string => text.replace(/\{([\w.-]+)\}/g, (whole, name: string) => params[name] ?? whole);
@@ -121,6 +127,9 @@ const safeName = (s: string): string => s.replace(/[^\w.-]+/g, '_');
 export function caseDirName(key: string, row: number, count: number): string {
   return `${safeName(key)}${count > 1 ? `-${row + 1}` : ''}`;
 }
+
+/** Results of instances that finished while the run's abort signal was set. */
+const cancelledResults = new WeakSet<CaseRunResult>();
 
 interface Job {
   instance: CaseInstance;
@@ -157,6 +166,7 @@ export async function runCases(input: RunCasesInput): Promise<RunSummary> {
   let next = 0;
   const workers = Array.from({ length: Math.max(1, Math.min(input.parallelism ?? 1, jobs.length)) }, async () => {
     while (next < jobs.length) {
+      if (input.signal?.aborted) return;
       const i = next++;
       const job = jobs[i] as Job;
       results[i] = await runInstance(input, runId, job, emit);
@@ -165,6 +175,11 @@ export async function runCases(input: RunCasesInput): Promise<RunSummary> {
   await Promise.all(workers);
 
   const finishedAt = new Date();
+  // Aborted runs leave holes (never started) and drop instances stopped midway.
+  const aborted = input.signal?.aborted === true;
+  const finished = results.filter((r): r is CaseRunResult => r !== undefined && !(aborted && cancelledResults.has(r)));
+  results.length = 0;
+  results.push(...finished);
   const count = (v: Verdict): number => results.filter((r) => r.verdict === v).length;
   const executed = results.flatMap((r) => r.steps).filter((s) => s.verdict !== 'skipped');
   const passedSteps = executed.filter((s) => s.verdict === 'passed').length;
@@ -269,6 +284,7 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
       steps,
     };
     const safe = redactor.redactDeep(result);
+    if (input.signal?.aborted) cancelledResults.add(safe);
     await mkdir(caseDir, { recursive: true });
     await writeFile(join(caseDir, 'result.json'), `${JSON.stringify(safe, null, 2)}\n`);
     emit({ type: 'case.finished', caseResultId, result: safe });
@@ -312,6 +328,9 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
     note(`! blocked ${e.method ?? ''} ${r(e.url ?? '')}: ${e.reason}`.replace(/\s+/g, ' '));
   };
   const recorder = new LearnedRecorder(runId, hashable);
+  const onAbort = (): void => void context.close().catch(() => undefined);
+  input.signal?.addEventListener('abort', onAbort, { once: true });
+  if (input.signal?.aborted) onAbort();
   let stop: Verdict | undefined;
   let preconditionBroken = false;
   let anyHealed = false;
@@ -358,6 +377,7 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
         ...(pre ? { phase: 'precondition' as const } : {}),
         ...(step.sharedStepId ? { sharedStepId: step.sharedStepId } : {}),
       };
+      if (stop === undefined && input.signal?.aborted) stop = 'failed';
       if (stop !== undefined) {
         finishStep(emptyStep(index, r(action), tag));
         continue;
@@ -457,7 +477,8 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
       }
     }
   } finally {
-    for (const g of guards) await g.dispose();
+    input.signal?.removeEventListener('abort', onAbort);
+    for (const g of guards) await g.dispose().catch(() => undefined);
     await trace.close?.();
     await context.close();
   }
@@ -480,4 +501,19 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
   }
   const caseMode: CaseMode = !replaying ? 'explore' : anyHealed ? 'healed' : 'replay';
   return finishCase(verdict, caseMode);
+}
+
+/** Options of {@link launchBrowser}. */
+export interface LaunchBrowserOptions {
+  /** Show the browser window. Default false (headless). */
+  headed?: boolean;
+}
+
+/**
+ * Launches a Playwright browser for {@link runCases}. Lets callers (the server's workers) avoid a direct
+ * dependency on `playwright`.
+ */
+export async function launchBrowser(name: BrowserName, opts: LaunchBrowserOptions = {}): Promise<Browser> {
+  const launcher = { chromium, firefox, webkit }[name];
+  return launcher.launch({ headless: opts.headed !== true });
 }
