@@ -16,6 +16,7 @@ fixtures/sites/.s1pilot/learned/
 *.storage-state.json
 
 .DS_Store
+.claude
 
 # eval harness output
 eval-results/
