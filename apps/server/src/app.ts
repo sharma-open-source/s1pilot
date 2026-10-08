@@ -29,6 +29,8 @@ export interface BuildAppOptions {
   dev?: boolean;
   /** Worker pool overrides (model factory, browser launcher, timings); tests inject mocks here. */
   workerOptions?: RuntimeOptions['workerOptions'];
+  /** Takeover browser launcher (tests inject a headless one). */
+  launchHeaded?: RuntimeOptions['launchHeaded'];
   /** Number of in-process workers. Default `config.workers`. */
   workers?: number;
 }
@@ -55,7 +57,7 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
 
   app.get('/api/health', async () => ({ ok: true, version: getVersion(), mode: config.mode }));
 
-  const runtime = createRuntime({ db, config, log, ...(opts.workerOptions ? { workerOptions: opts.workerOptions } : {}) });
+  const runtime = createRuntime({ db, config, log, ...(opts.launchHeaded ? { launchHeaded: opts.launchHeaded } : {}), ...(opts.workerOptions ? { workerOptions: opts.workerOptions } : {}) });
   runtime.workers.start(opts.workers ?? config.workers);
   const artifacts = new FsArtifactStore(db, config.artifactsDir);
   registerArtifactRoutes(app, artifacts);
@@ -66,7 +68,7 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
     if (ownsDb) db.close();
   });
 
-  registerLiveRoutes(app, runtime.live);
+  registerLiveRoutes(app, runtime.live, runtime.human);
 
   await app.register(fastifyTRPCPlugin, {
     prefix: '/trpc',

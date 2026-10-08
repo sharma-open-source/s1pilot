@@ -1,6 +1,9 @@
+import { RunControlMessageSchema, S1PilotError } from '@s1pilot/domain';
 import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
 
+
+import type { HumanControl } from './control.js';
 import type { LiveClient, LiveHub } from './hub.js';
 
 /** Frames are dropped for clients whose send buffer exceeds this many bytes. */
@@ -20,9 +23,11 @@ function clientFor(socket: WebSocket): LiveClient {
 /**
  * Registers `GET /ws/runs/:runId` (snapshot, events, screencast frames) and `GET /ws/workspace` (run status and
  * count updates for nav badges and the dashboard). Needs `@fastify/websocket` to be registered first.
- * Client-to-server messages are ignored; TODO(S-037): control messages.
+ * Client-to-server messages on the run socket are `RunControlMessageSchema` control messages (S-037, handled by
+ * `control`); each is answered with `{type:'control.ack'}` or `{type:'control.error', code, message}`.
+ * Workspace socket messages are ignored.
  */
-export function registerLiveRoutes(app: FastifyInstance, hub: LiveHub): void {
+export function registerLiveRoutes(app: FastifyInstance, hub: LiveHub, control?: HumanControl): void {
   app.get<{ Params: { runId: string } }>('/ws/runs/:runId', { websocket: true }, (socket, req) => {
     let unsubscribe: (() => void) | undefined;
     let closed = false;
@@ -31,6 +36,36 @@ export function registerLiveRoutes(app: FastifyInstance, hub: LiveHub): void {
       unsubscribe?.();
     });
     socket.on('error', () => socket.close());
+    socket.on('message', (data) => {
+      const reply = (body: Record<string, unknown>): void => {
+        if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(body));
+      };
+      let json: unknown;
+      try {
+        json = JSON.parse(String(data));
+      } catch {
+        reply({ type: 'control.error', code: 'INVALID_MESSAGE', message: 'Messages must be JSON' });
+        return;
+      }
+      const parsed = RunControlMessageSchema.safeParse(json);
+      if (!parsed.success || !control) {
+        reply({ type: 'control.error', code: 'INVALID_MESSAGE', message: parsed.success ? 'Control is not available' : parsed.error.message });
+        return;
+      }
+      // TODO(S-067): the user comes from the session in team mode.
+      control.handle(req.params.runId, 'local', parsed.data).then(
+        () => reply({ type: 'control.ack', control: parsed.data.type }),
+        (error: unknown) => {
+          if (!(error instanceof S1PilotError)) req.log.error({ err: error }, 'live: control failed');
+          reply({
+            type: 'control.error',
+            control: parsed.data.type,
+            code: error instanceof S1PilotError ? error.code : 'INTERNAL_ERROR',
+            message: error instanceof Error ? error.message : String(error),
+          });
+        },
+      );
+    });
     hub.subscribeRun(req.params.runId, clientFor(socket)).then(
       (remove) => {
         if (!remove) {

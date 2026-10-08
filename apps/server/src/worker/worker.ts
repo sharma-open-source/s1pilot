@@ -1,7 +1,14 @@
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { createDbLearnedScriptStore, repos, resolveVariables, type Db, type Job, type JobQueue } from '@s1pilot/db';
+import {
+  createDbLearnedScriptStore,
+  repos,
+  resolveVariables,
+  type Db,
+  type Job,
+  type JobQueue,
+} from '@s1pilot/db';
 import {
   ModelSettingsSchema,
   S1PilotError,
@@ -16,6 +23,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import { ingestCaseArtifacts } from '../artifacts/ingest.js';
 import { FsArtifactStore, type ArtifactStore } from '../artifacts/store.js';
 import type { ServerConfig } from '../config.js';
+import type { HumanControl } from '../live/control.js';
 import { WORKSPACE_MODEL_KEY } from '../trpc/routers/helpers.js';
 
 import type { RunEventBus } from './event-bus.js';
@@ -46,8 +54,14 @@ export interface WorkerPoolOptions {
   leaseMs?: number;
   /** Heartbeat interval. Default `min(leaseMs / 3, 1000)`. */
   heartbeatMs?: number;
+  /** Human-in-the-loop control (S-037): escalation hook, pause points and takeover pages for attended runs. */
+  human?: HumanControl;
   /** Live view hook (S-036): receives the page of every running case; returns a release function. */
-  onPage?: (runId: string, caseResultId: string, page: Parameters<NonNullable<RunCasesInput['onPage']>>[0]) => (() => unknown) | undefined;
+  onPage?: (
+    runId: string,
+    caseResultId: string,
+    page: Parameters<NonNullable<RunCasesInput['onPage']>>[0],
+  ) => (() => unknown) | undefined;
 }
 
 interface WorkerState {
@@ -74,12 +88,18 @@ export class WorkerPool {
   private readonly loops: Promise<void>[] = [];
   private readonly active = new Map<string, ActiveJob>();
   private readonly browsers = new Map<string, Promise<Browser>>();
-  private readonly opts: Required<Pick<WorkerPoolOptions, 'pollMs' | 'leaseMs' | 'heartbeatMs'>> & WorkerPoolOptions;
+  private readonly opts: Required<Pick<WorkerPoolOptions, 'pollMs' | 'leaseMs' | 'heartbeatMs'>> &
+    WorkerPoolOptions;
   private seq = 0;
 
   constructor(opts: WorkerPoolOptions) {
     const leaseMs = opts.leaseMs ?? 30_000;
-    this.opts = { ...opts, pollMs: opts.pollMs ?? 250, leaseMs, heartbeatMs: opts.heartbeatMs ?? Math.min(leaseMs / 3, 1000) };
+    this.opts = {
+      ...opts,
+      pollMs: opts.pollMs ?? 250,
+      leaseMs,
+      heartbeatMs: opts.heartbeatMs ?? Math.min(leaseMs / 3, 1000),
+    };
   }
 
   /** Starts `n` more workers. */
@@ -149,7 +169,10 @@ export class WorkerPool {
     while (!w.stopped) {
       try {
         for (const job of await queue.reapExpired()) {
-          log.warn({ jobId: job.id, status: job.status, attempts: job.attempts }, 'job lease expired');
+          log.warn(
+            { jobId: job.id, status: job.status, attempts: job.attempts },
+            'job lease expired',
+          );
           if (job.status === 'failed' && job.runId) await lifecycle.finalize(job.runId);
         }
         const job = await queue.claim(w.id, { types: [RUN_CASE_JOB], leaseMs: this.opts.leaseMs });
@@ -179,7 +202,9 @@ export class WorkerPool {
         () => undefined,
       );
     }, this.opts.heartbeatMs);
-    const aborted = new Promise<'aborted'>((resolve) => abort.signal.addEventListener('abort', () => resolve('aborted'), { once: true }));
+    const aborted = new Promise<'aborted'>((resolve) =>
+      abort.signal.addEventListener('abort', () => resolve('aborted'), { once: true }),
+    );
     const execution = this.execute(job, abort.signal);
     execution.catch(() => undefined);
     try {
@@ -217,27 +242,42 @@ export class WorkerPool {
     const testCase = await repos.cases.get(db, payload.caseId);
     if (!testCase) throw new S1PilotError('CASE_NOT_FOUND', `Case not found: ${payload.caseId}`);
     const environment = await repos.environments.get(db, payload.environmentId);
-    if (!environment) throw new S1PilotError('ENVIRONMENT_NOT_FOUND', `Environment not found: ${payload.environmentId}`);
+    if (!environment)
+      throw new S1PilotError(
+        'ENVIRONMENT_NOT_FOUND',
+        `Environment not found: ${payload.environmentId}`,
+      );
     const project = await repos.projects.get(db, payload.projectId);
-    if (!project) throw new S1PilotError('PROJECT_NOT_FOUND', `Project not found: ${payload.projectId}`);
+    if (!project)
+      throw new S1PilotError('PROJECT_NOT_FOUND', `Project not found: ${payload.projectId}`);
 
     await lifecycle.markRunning(runId, (await this.opts.queue.listByRun(runId)).length);
     if (job.attempts > 1) await lifecycle.discardCase(runId, testCase.id);
 
-    const workspace = ModelSettingsSchema.safeParse(await repos.settings.get(db, WORKSPACE_MODEL_KEY));
+    const workspace = ModelSettingsSchema.safeParse(
+      await repos.settings.get(db, WORKSPACE_MODEL_KEY),
+    );
     const settings = project.modelSettings ?? (workspace.success ? workspace.data : undefined);
     if (!settings) {
-      throw new S1PilotError('MODEL_NOT_CONFIGURED', 'No System 1 model is configured (Settings → Models).');
+      throw new S1PilotError(
+        'MODEL_NOT_CONFIGURED',
+        'No System 1 model is configured (Settings → Models).',
+      );
     }
     const vars = resolveVariables(environment, {
       vault: db.crypto,
       ciphertexts: await repos.environments.secretCiphertexts(db, environment.id),
     });
-    const redactor = createRedactor({ secrets: vars.secretValues(), patterns: project.dataPolicy.redactPatterns });
+    const redactor = createRedactor({
+      secrets: vars.secretValues(),
+      patterns: project.dataPolicy.redactPatterns,
+    });
     const models = (this.opts.createModels ?? createModelFactory())(settings, redactor);
 
     const flows = await repos.sharedSteps.listByProject(db, project.id);
-    const flowMap = new Map<string, SharedStep>(flows.flatMap((f) => [[f.id, f] as const, [f.name, f] as const]));
+    const flowMap = new Map<string, SharedStep>(
+      flows.flatMap((f) => [[f.id, f] as const, [f.name, f] as const]),
+    );
 
     const browser = await this.getBrowser(payload.browser);
     if (signal.aborted) return;
@@ -255,7 +295,14 @@ export class WorkerPool {
           bus.emit({ ...event.event, runId } as RunEvent);
           break;
         case 'case.started':
-          bus.emit({ type: 'case.started', runId, ts: ts(), caseResultId: event.caseResultId, caseId: testCase.id, caseKey: event.key });
+          bus.emit({
+            type: 'case.started',
+            runId,
+            ts: ts(),
+            caseResultId: event.caseResultId,
+            caseId: testCase.id,
+            caseKey: event.key,
+          });
           break;
         case 'note':
           bus.emit({ type: 'log', runId, ts: ts(), level: 'info', message: event.text });
@@ -277,9 +324,22 @@ export class WorkerPool {
           const result = event.result;
           chain = chain.then(async () => {
             if (signal.aborted) return;
-            await lifecycle.recordCase({ runId, testCase, environmentId: environment.id, attempt: job.attempts, result });
+            await lifecycle.recordCase({
+              runId,
+              testCase,
+              environmentId: environment.id,
+              attempt: job.attempts,
+              result,
+            });
             await ingestCaseArtifacts({ db, store, projectId: project.id, workDir, result });
-            bus.emit({ type: 'case.finished', runId, ts: ts(), caseResultId: result.caseResultId, verdict: result.verdict, durationMs: result.durationMs });
+            bus.emit({
+              type: 'case.finished',
+              runId,
+              ts: ts(),
+              caseResultId: result.caseResultId,
+              verdict: result.verdict,
+              durationMs: result.durationMs,
+            });
           });
           break;
         }
@@ -289,29 +349,51 @@ export class WorkerPool {
     };
 
     try {
-    await runCases({
-      cases: [testCase],
-      environment: environment as Environment,
-      browser,
-      browserName: payload.browser,
-      mode: payload.mode,
-      models,
-      stores: {
-        scripts: createDbLearnedScriptStore(db),
-        healProposals: { create: (draft) => repos.healProposals.create(db, draft) },
-      },
-      emit: handle,
-      attended: false, // TODO(S-037): attended runs wire a human hook that waits for a person.
-      out: workDir,
-      ...(this.opts.capture ? { capture: this.opts.capture } : {}),
-      vars,
-      redactor,
-      flows: (idOrName) => flowMap.get(idOrName),
-      suiteOf: (c) => c.suiteId ?? project.key,
-      signal,
-      ...(this.opts.onPage ? { onPage: (page, info) => this.opts.onPage?.(runId, info.caseResultId, page) } : {}),
-    });
-    await chain;
+      const session = this.opts.human?.openSession({ runId, projectId: project.id, signal });
+      const scripts = createDbLearnedScriptStore(db);
+      await runCases({
+        cases: [testCase],
+        environment: environment as Environment,
+        browser,
+        browserName: payload.browser,
+        mode: payload.mode,
+        models,
+        stores: {
+          // A human who approved a step with "don't save" keeps the explored path out of the learned script.
+          scripts: session
+            ? {
+                ...scripts,
+                put: async (ref, script) =>
+                  session.skipLearning ? undefined : scripts.put(ref, script),
+              }
+            : scripts,
+          healProposals: { create: (draft) => repos.healProposals.create(db, draft) },
+        },
+        emit: handle,
+        attended: payload.attended,
+        ...(session && payload.attended ? { human: session.hook } : {}),
+        ...(session ? { beforeStep: session.beforeStep } : {}),
+        out: workDir,
+        ...(this.opts.capture ? { capture: this.opts.capture } : {}),
+        vars,
+        redactor,
+        flows: (idOrName) => flowMap.get(idOrName),
+        suiteOf: (c) => c.suiteId ?? project.key,
+        signal,
+        ...(this.opts.onPage || session
+          ? {
+              onPage: (page, info) => {
+                const releaseSession = session?.addPage(page);
+                const releaseLive = this.opts.onPage?.(runId, info.caseResultId, page);
+                return () => {
+                  releaseSession?.();
+                  return releaseLive?.();
+                };
+              },
+            }
+          : {}),
+      }).finally(() => session?.close());
+      await chain;
     } finally {
       await rm(workDir, { recursive: true, force: true }).catch(() => undefined);
     }

@@ -15,10 +15,35 @@ export interface HumanAskRequest {
   screenshot?: string;
   /** Why the human is being asked (low confidence, disagreement, sensitive action, ...). */
   reason: string;
+  /** Id of this escalation, assigned by the loop so the same id appears in `escalation.needed` events. */
+  escalationId?: string;
+  /** System 1 confidence of the decision. */
+  confidence?: number;
+  /** Gate thresholds in force. */
+  thresholds?: { act: number; escalate: number };
+  /** What System 2 picked, when it was consulted. */
+  s2Choice?: string;
+}
+
+/** Who answered and how; stored on the decision record. */
+export interface HumanDecider {
+  decidedBy?: string;
+  via?: 'live' | 'cli' | 'api';
 }
 
 /** A human's answer to an escalation. */
-export type HumanResponse = { choice: string } | { skip: true } | { abort: true } | { takeover: true };
+export type HumanResponse = HumanDecider &
+  (
+    | {
+        choice: string;
+        /** `approved`: confirms the model's pick; `picked-other` (default): another option. */
+        resolution?: 'approved' | 'picked-other';
+      }
+    | { skip: true }
+    | { abort: true }
+    /** `resume`: the human handed the browser back; the loop observes the page again instead of ending the step. */
+    | { takeover: true; resume?: boolean }
+  );
 
 /**
  * Asks a human to resolve a decision. Implementations that cannot reach a human must reject with

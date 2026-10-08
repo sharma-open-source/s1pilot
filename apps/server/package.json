@@ -29,6 +29,7 @@
     "@fastify/websocket": "^11.3.3",
     "@s1pilot/db": "workspace:^",
     "@s1pilot/domain": "workspace:^",
+    "@s1pilot/engine": "workspace:^",
     "@s1pilot/providers": "workspace:^",
     "@s1pilot/runner": "workspace:^",
     "@s1pilot/sync": "workspace:^",

@@ -3,6 +3,7 @@ import {
   ExecutionModeSchema,
   IdSchema,
   ProjectKeySchema,
+  RunControlMessageSchema,
   RunStatusSchema,
   S1PilotError,
   newId,
@@ -180,6 +181,18 @@ export const runsRouter = router({
     ctx.runtime.workers.abortRun(run.id);
     return requireRun(ctx, run.id);
   }),
+
+  /**
+   * Human control of an attended run for clients without the WebSocket: approve / pickOther / skipStep / pause /
+   * resume / abort / takeover / release (S-037). Viewers cannot control runs.
+   */
+  control: publicProcedure
+    .input(z.object({ runId: IdSchema, message: RunControlMessageSchema }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role === 'viewer') throw new S1PilotError('FORBIDDEN', 'Viewers cannot control runs');
+      await ctx.runtime.human.handle(input.runId, ctx.user.id, input.message);
+      return { ok: true as const };
+    }),
 
   /** New run with only the cases that failed, were blocked, flaked or errored in `runId`, same configuration. */
   rerunFailed: publicProcedure.input(IdSchema).mutation(async ({ ctx, input }) => {

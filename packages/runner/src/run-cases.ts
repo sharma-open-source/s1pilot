@@ -121,6 +121,11 @@ export interface RunCasesInput {
    */
   signal?: AbortSignal;
   /**
+   * Awaited before every step (replay and explore); lets the server pause a run between steps (S-037). Not
+   * called for steps skipped because the case already stopped.
+   */
+  beforeStep?: (info: { runId: string; caseResultId: string; stepIndex: number }) => Promise<void>;
+  /**
    * Called with the case instance's page right after it is created (live view / screencast, S-036). The returned
    * function (if any) is called when the instance ends, before its context closes. Errors are ignored.
    */
@@ -400,6 +405,16 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
         ...(step.sharedStepId ? { sharedStepId: step.sharedStepId } : {}),
       };
       if (stop === undefined && input.signal?.aborted) stop = 'failed';
+      if (stop !== undefined) {
+        finishStep(emptyStep(index, r(action), tag));
+        continue;
+      }
+      try {
+        await input.beforeStep?.({ runId, caseResultId, stepIndex: index });
+      } catch {
+        // A faulty pause hook must not break the run.
+      }
+      if (input.signal?.aborted) stop = 'failed';
       if (stop !== undefined) {
         finishStep(emptyStep(index, r(action), tag));
         continue;

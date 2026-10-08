@@ -37,8 +37,8 @@ export type HealProposal = z.infer<typeof HealProposalSchema>;
 export const ReviewItemSchema = z.object({
   id: IdSchema,
   projectId: IdSchema,
-  kind: z.enum(['verdict', 'heal']),
-  /** CaseResult id or HealProposal id, depending on `kind`. */
+  kind: z.enum(['verdict', 'heal', 'decision']),
+  /** CaseResult id, HealProposal id or escalation id (`decision`: a human decision recorded for calibration). */
   refId: IdSchema,
   status: ReviewStatusSchema.default('pending'),
   note: z.string().optional(),

@@ -96,6 +96,9 @@ importers:
       '@s1pilot/domain':
         specifier: workspace:^
         version: link:../../packages/domain
+      '@s1pilot/engine':
+        specifier: workspace:^
+        version: link:../../packages/engine
       '@s1pilot/providers':
         specifier: workspace:^
         version: link:../../packages/providers

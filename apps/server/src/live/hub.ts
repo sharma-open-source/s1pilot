@@ -29,6 +29,8 @@ export interface RunSnapshot {
   currentCase: { caseResultId: string; caseId: string; caseKey?: string } | null;
   steps: SnapshotStep[];
   lastDecision: DecisionRecord | null;
+  /** Escalations still waiting for a human, so a reconnecting client can show the prompt again. */
+  pendingEscalations: Extract<RunEvent, { type: 'escalation.needed' }>[];
 }
 
 /** Messages of `/ws/runs/:runId` (besides binary frames). */
@@ -46,6 +48,7 @@ interface RunState {
   /** Steps per case result; the snapshot shows those of `currentCase`. */
   steps: Map<string, Map<number, SnapshotStep>>;
   lastDecision: DecisionRecord | null;
+  escalations: Map<string, Extract<RunEvent, { type: 'escalation.needed' }>>;
 }
 
 /** Finished runs whose state is kept for late joiners. */
@@ -131,6 +134,12 @@ export class LiveHub {
     this.broadcastWorkspace({ type: 'workspace', ...counts });
   }
 
+  /** Announces a status change that did not come from the run lifecycle (`paused` / `running`, S-037). */
+  announceStatus(runId: string, status: RunStatus): void {
+    this.broadcastWorkspace({ type: 'run.status', runId, status });
+    this.notifyWorkspace();
+  }
+
   /** Number of clients subscribed to a run (tests). */
   clientCount(runId: string): number {
     return this.runClients.get(runId)?.size ?? 0;
@@ -159,13 +168,14 @@ export class LiveHub {
       currentCase: current,
       steps: steps.sort((a, b) => a.stepIndex - b.stepIndex),
       lastDecision: state?.lastDecision ?? null,
+      pendingEscalations: [...(state?.escalations.values() ?? [])],
     };
   }
 
   private track(event: RunEvent): void {
     let state = this.states.get(event.runId);
     if (!state) {
-      state = { currentCase: null, steps: new Map(), lastDecision: null };
+      state = { currentCase: null, steps: new Map(), lastDecision: null, escalations: new Map() };
       this.states.set(event.runId, state);
     }
     switch (event.type) {
@@ -189,6 +199,12 @@ export class LiveHub {
       }
       case 'decision.made':
         state.lastDecision = event.decision;
+        break;
+      case 'escalation.needed':
+        state.escalations.set(event.escalationId, event);
+        break;
+      case 'escalation.resolved':
+        state.escalations.delete(event.escalationId);
         break;
       default:
         break;
