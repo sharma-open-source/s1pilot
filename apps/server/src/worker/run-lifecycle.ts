@@ -101,6 +101,12 @@ export function createRunLifecycle(deps: { db: Db; queue: JobQueue; bus: RunEven
 
     discardCase: (runId, caseId) =>
       lock(runId, async () => {
+        // A retried attempt replaces the discarded result, so its pending review item goes with it.
+        db.sqlite
+          .prepare(
+            "DELETE FROM review_items WHERE kind = 'verdict' AND status = 'pending' AND ref_id IN (SELECT id FROM case_results WHERE run_id = ? AND case_id = ?)",
+          )
+          .run(runId, caseId);
         db.sqlite.prepare('DELETE FROM case_results WHERE run_id = ? AND case_id = ?').run(runId, caseId);
         await refreshSummary(runId);
       }),
@@ -120,6 +126,11 @@ export function createRunLifecycle(deps: { db: Db; queue: JobQueue; bus: RunEven
           mode: result.mode,
           escalations: result.steps.flatMap((s) => s.decisions).filter((d) => d.escalatedTo !== undefined).length,
         });
+        if (result.verdict === 'needs-review') {
+          // Uncertain verdicts wait in the review queue (S-047); the workspace count follows `case.finished`.
+          const run = await repos.runs.get(db, runId);
+          if (run) await repos.reviews.create(db, { id: newId(), projectId: run.projectId, kind: 'verdict', refId: result.caseResultId, status: 'pending' });
+        }
         for (const s of result.steps) {
           await repos.results.addStep(db, {
             id: newId(),

@@ -33,6 +33,22 @@ export const HealProposalSchema = z.object({
 });
 export type HealProposal = z.infer<typeof HealProposalSchema>;
 
+/**
+ * What a human decided about an uncertain model verdict, stored for calibration (plan section 2.5, S-058).
+ * `pTrue` is the model's P(true) for the assertion (null when the result carried none).
+ */
+export const ReviewOutcomeSchema = z.object({
+  pTrue: z.number().min(0).max(1).nullable(),
+  humanVerdict: z.enum(['passed', 'failed']),
+  /** Kind of System 1 question that produced `pTrue` (`noul` for AI assertions). */
+  questionType: z.enum(['noul', 'choice', 'score']),
+  optionCount: z.number().int().min(1),
+  /** Model that answered, when known. */
+  model: z.string().nullable(),
+  decidedBy: z.string().optional(),
+});
+export type ReviewOutcome = z.infer<typeof ReviewOutcomeSchema>;
+
 /** Entry in the review queue: a `needs-review` verdict or a heal proposal. Minimal shape; S-047 may extend. */
 export const ReviewItemSchema = z.object({
   id: IdSchema,
@@ -42,6 +58,8 @@ export const ReviewItemSchema = z.object({
   refId: IdSchema,
   status: ReviewStatusSchema.default('pending'),
   note: z.string().optional(),
+  /** Calibration record of a decided `verdict` item. */
+  outcome: ReviewOutcomeSchema.optional(),
   createdAt: IsoTimestampSchema.optional(),
   resolvedAt: IsoTimestampSchema.optional(),
 });

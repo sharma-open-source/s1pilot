@@ -1,8 +1,10 @@
-import { IdSchema, S1PilotError, VerdictSchema, newId, type RunSummary, type StepResult } from '@s1pilot/domain';
+import { IdSchema, S1PilotError, VerdictSchema, type StepResult } from '@s1pilot/domain';
 import { z } from 'zod';
 
 import { FsArtifactStore } from '../../artifacts/store.js';
 import { publicProcedure, router } from '../trpc.js';
+
+import { applyVerdict } from './verdicts.js';
 
 const MAX_LOG_ENTRIES = 500;
 
@@ -13,19 +15,6 @@ const DEFAULT_BROWSER = 'chromium';
 function failedStepNo(steps: StepResult[]): number | null {
   const s = steps.find((x) => x.status === 'failed' || x.status === 'blocked');
   return s ? s.stepIndex + 1 : null;
-}
-
-/** Counts of case verdicts, in the shape stored on the run. */
-function summarize(verdicts: string[]): RunSummary {
-  const count = (v: string): number => verdicts.filter((x) => x === v).length;
-  return {
-    passed: count('passed'),
-    failed: count('failed'),
-    blocked: count('blocked'),
-    skipped: count('skipped'),
-    flaky: count('flaky'),
-    needsReview: count('needs-review'),
-  };
 }
 
 /** Entries of a stored JSON log artifact (`console.json` is an array, `network.json` has `entries`); empty when unreadable. */
@@ -143,25 +132,10 @@ export const resultsRouter = router({
       if (ctx.user.role === 'viewer') throw new S1PilotError('FORBIDDEN', 'Viewers cannot override verdicts');
       const result = await ctx.repos.results.getCase(ctx.db, input.resultId);
       if (!result) throw new S1PilotError('RESULT_NOT_FOUND', `Result not found: ${input.resultId}`, { resultId: input.resultId });
-      const run = await ctx.repos.runs.get(ctx.db, result.runId);
-      if (!run) throw new S1PilotError('RUN_NOT_FOUND', `Run not found: ${result.runId}`, { runId: result.runId });
       if (result.verdict === input.verdict) {
         throw new S1PilotError('INVALID_STATE', `Result is already ${input.verdict}`, { resultId: result.id });
       }
-      const updated = await ctx.repos.results.updateCase(ctx.db, result.id, { verdict: input.verdict });
-      const all = await ctx.repos.results.listCases(ctx.db, run.id);
-      const summary = summarize(all.map((r) => r.verdict));
-      await ctx.repos.runs.update(ctx.db, run.id, { summary });
-      const note = `Overridden by ${ctx.user.id}: ${result.verdict} -> ${input.verdict}${input.note ? `. ${input.note}` : ''}`;
-      const review = await ctx.repos.reviews.create(ctx.db, {
-        id: newId(),
-        projectId: run.projectId,
-        kind: 'verdict',
-        refId: result.id,
-        status: 'approved',
-        note,
-        resolvedAt: new Date().toISOString(),
-      });
-      return { result: updated, summary, review };
+      const noteText = `Overridden by ${ctx.user.id}: ${result.verdict} -> ${input.verdict}${input.note ? `. ${input.note}` : ''}`;
+      return applyVerdict(ctx, result, input.verdict, { noteText, status: 'approved' });
     }),
 });

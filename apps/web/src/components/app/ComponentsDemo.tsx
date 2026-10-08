@@ -5,6 +5,7 @@ import { DecisionPanel, EventLog, ProbabilityBar, RunProgressBar, StepStatusList
 import { ModeMixBar } from './ModeMixBar';
 import { PageHeader } from './PageHeader';
 import { ExpectedActual, ResultListItem, ScreenshotTimeline } from './report';
+import { DiffLine, ReviewListItem } from './review';
 import { Sparkline, StatTile } from './StatTile';
 import { WizardStepper } from './WizardStepper';
 
@@ -274,6 +275,19 @@ export function ComponentsDemo() {
               { index: 2, title: 'Pay', suffix: 'not run', state: 'not-run' },
             ]}
           />
+        </div>
+      </Demo>
+
+      <Demo title="Review queue: ReviewListItem, DiffLine">
+        <div className="flex w-full flex-wrap gap-4">
+          <div className="w-full max-w-[380px] rounded-card border border-line bg-surface">
+            <ReviewListItem title="“Guest checkout” → “Checkout as guest”" meta="Shared step “guest-checkout” · used by 6 cases · conf 0.62" selected to="/_dev/components" search={{}} />
+            <ReviewListItem title="Promo field moved into accordion" meta="SHOP-TC-43 step 2 · conf 0.88" resolved="approved" to="/_dev/components" search={{}} />
+          </div>
+          <div className="flex w-full max-w-[420px] flex-col gap-2">
+            <DiffLine kind="removed">{"getByRole('button', {name: 'Guest checkout'})"}</DiffLine>
+            <DiffLine kind="added">{"getByRole('button', {name: 'Checkout as guest'})"}</DiffLine>
+          </div>
         </div>
       </Demo>
 

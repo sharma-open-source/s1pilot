@@ -4,6 +4,7 @@ import type {
   MatrixEntry,
   PlanChecks,
   PlanSelection,
+  ReviewOutcome,
   RunSummary,
 } from '@s1pilot/domain';
 import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
@@ -172,6 +173,7 @@ export const reviewItems = sqliteTable(
     refId: text('ref_id').notNull(),
     status: text('status', { enum: ['pending', 'approved', 'rejected'] }).notNull(),
     note: text('note'),
+    outcome: text('outcome', { mode: 'json' }).$type<ReviewOutcome>(),
     createdAt: text('created_at'),
     resolvedAt: text('resolved_at'),
   },

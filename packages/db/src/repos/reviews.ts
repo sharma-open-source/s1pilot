@@ -1,6 +1,7 @@
 import {
   ReviewItemSchema,
   type ReviewItem,
+  type ReviewOutcome,
   type ReviewStatus,
 } from '@s1pilot/domain';
 import { and, desc, eq, type SQL } from 'drizzle-orm';
@@ -39,12 +40,29 @@ export const reviews = {
       .map((row) => fromRow(ReviewItemSchema, row));
   },
 
-  /** Marks an item approved or rejected. */
-  async resolve(db: Db, id: string, status: Exclude<ReviewStatus, 'pending'>, note?: string): Promise<ReviewItem> {
+  /** The newest item of `kind` that points at `refId`. */
+  async getByRef(db: Db, kind: ReviewItem['kind'], refId: string): Promise<ReviewItem | undefined> {
+    const row = db.orm
+      .select()
+      .from(ri)
+      .where(and(eq(ri.kind, kind), eq(ri.refId, refId)))
+      .orderBy(desc(ri.createdAt))
+      .get();
+    return row && fromRow(ReviewItemSchema, row);
+  },
+
+  /** Marks an item approved or rejected; `outcome` is the calibration record of a verdict decision. */
+  async resolve(
+    db: Db,
+    id: string,
+    status: Exclude<ReviewStatus, 'pending'>,
+    note?: string,
+    outcome?: ReviewOutcome,
+  ): Promise<ReviewItem> {
     if (!(await this.get(db, id))) return notFound('ReviewItem', id);
     db.orm
       .update(ri)
-      .set({ status, resolvedAt: nowIso(), ...(note !== undefined ? { note } : {}) })
+      .set({ status, resolvedAt: nowIso(), ...(note !== undefined ? { note } : {}), ...(outcome ? { outcome } : {}) })
       .where(eq(ri.id, id))
       .run();
     return (await this.get(db, id)) as ReviewItem;
