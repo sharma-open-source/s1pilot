@@ -12,6 +12,7 @@ import { trpc } from '@/lib/trpc';
 /** Step 1: name, key and base URL. Submitting creates the project (and its `dev` environment) so later steps save incrementally. */
 export function BasicsStep({ draft, patch, go, onExit }: StepProps) {
   const created = draft.createdKey !== undefined;
+  const utils = trpc.useUtils();
   const create = trpc.projects.create.useMutation();
   const [serverError, setServerError] = useState<string | null>(null);
   const [keyTouched, setKeyTouched] = useState(draft.basics.keyTouched);
@@ -39,6 +40,7 @@ export function BasicsStep({ draft, patch, go, onExit }: StepProps) {
     try {
       const project = await create.mutateAsync(values);
       patch({ basics: { ...values, keyTouched }, createdKey: project.key });
+      await utils.projects.list.invalidate();
       go('environments');
     } catch (err) {
       if (trpcCode(err) === 'CONFLICT') form.setError('key', { message: `A project with key ${values.key} already exists` });

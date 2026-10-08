@@ -41,30 +41,39 @@ importers:
 
   apps/cli:
     dependencies:
-      '@s1pilot/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@s1pilot/domain':
-        specifier: workspace:*
-        version: link:../../packages/domain
-      '@s1pilot/engine':
-        specifier: workspace:^
-        version: link:../../packages/engine
-      '@s1pilot/providers':
-        specifier: workspace:*
-        version: link:../../packages/providers
-      '@s1pilot/reporters':
-        specifier: workspace:*
-        version: link:../../packages/reporters
-      '@s1pilot/runner':
-        specifier: workspace:*
-        version: link:../../packages/runner
-      '@s1pilot/sync':
-        specifier: workspace:^
-        version: link:../../packages/sync
+      '@fastify/cors':
+        specifier: ^11.3.1
+        version: 11.3.1
+      '@fastify/static':
+        specifier: ^10.1.5
+        version: 10.1.5
+      '@fastify/websocket':
+        specifier: ^11.3.3
+        version: 11.3.3
+      '@trpc/server':
+        specifier: ^11
+        version: 11.19.0(typescript@5.9.3)
+      better-sqlite3:
+        specifier: ^13.0.3
+        version: 13.0.3
       commander:
         specifier: ^12.1.0
         version: 12.1.0
+      drizzle-orm:
+        specifier: ^0.45.3
+        version: 0.45.3(@types/better-sqlite3@9.6.0)(better-sqlite3@13.0.3)
+      fastify:
+        specifier: ^5
+        version: 5.12.5
+      libsodium-wrappers:
+        specifier: ^0.8.4
+        version: 0.8.4
+      nanoid:
+        specifier: ^5.0.9
+        version: 5.1.16
+      pino:
+        specifier: ^9.5.0
+        version: 9.14.0
       playwright:
         specifier: ^1.63.0
         version: 1.63.0
@@ -75,9 +84,36 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@s1pilot/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@s1pilot/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@s1pilot/engine':
+        specifier: workspace:^
+        version: link:../../packages/engine
       '@s1pilot/fixture-sites':
         specifier: workspace:^
         version: link:../../fixtures/sites
+      '@s1pilot/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@s1pilot/reporters':
+        specifier: workspace:*
+        version: link:../../packages/reporters
+      '@s1pilot/runner':
+        specifier: workspace:*
+        version: link:../../packages/runner
+      '@s1pilot/server':
+        specifier: workspace:^
+        version: link:../server
+      '@s1pilot/sync':
+        specifier: workspace:^
+        version: link:../../packages/sync
+      '@s1pilot/web':
+        specifier: workspace:^
+        version: link:../web
 
   apps/server:
     dependencies:
@@ -248,6 +284,24 @@ importers:
       vite:
         specifier: ^5
         version: 5.4.21(@types/node@20.19.43)
+
+  e2e:
+    devDependencies:
+      '@s1pilot/cli':
+        specifier: workspace:*
+        version: link:../apps/cli
+      '@s1pilot/domain':
+        specifier: workspace:*
+        version: link:../packages/domain
+      '@s1pilot/fixture-sites':
+        specifier: workspace:*
+        version: link:../fixtures/sites
+      '@s1pilot/providers':
+        specifier: workspace:*
+        version: link:../packages/providers
+      playwright:
+        specifier: ^1.63.0
+        version: 1.63.0
 
   fixtures/sites:
     devDependencies:

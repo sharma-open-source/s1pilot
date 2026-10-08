@@ -7,11 +7,22 @@ import { Command, Option } from 'commander';
 import { registerEvalCommand } from './eval.js';
 import { executeRun, type RunOptions } from './run.js';
 import { registerSyncCommands } from './sync.js';
+import { openInBrowser, registerUiCommand } from './ui.js';
 
-/** Reads the version from the root package.json (three levels above `dist/` or `src/`). */
+/**
+ * Reads the version from the nearest package.json: the CLI's own (one level above `dist/` or `src/`, which is also
+ * the packed tarball layout) or, in the monorepo, the root one (three levels above).
+ */
 export function getVersion(): string {
-  const raw = readFileSync(new URL('../../../package.json', import.meta.url), 'utf8');
-  return (JSON.parse(raw) as { version: string }).version;
+  for (const path of ['../package.json', '../../../package.json']) {
+    try {
+      const pkg = JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8')) as { version?: string };
+      if (pkg.version) return pkg.version;
+    } catch {
+      // try the next candidate
+    }
+  }
+  return '0.0.0';
 }
 
 /** Side effects of the CLI, injectable for tests. */
@@ -24,6 +35,8 @@ export interface CliDeps {
   /** Throw instead of exiting on usage errors (tests). */
   exitOverride: boolean;
   env: NodeJS.ProcessEnv;
+  /** Opens a URL in the default browser (`s1pilot ui`); tests must inject a stub. */
+  openBrowser: (url: string) => void;
 }
 
 const defaultDeps: CliDeps = {
@@ -35,6 +48,7 @@ const defaultDeps: CliDeps = {
   },
   exitOverride: false,
   env: process.env,
+  openBrowser: openInBrowser,
 };
 
 /** Renders a probe result as the capability grid shown in the new-project wizard. */
@@ -161,6 +175,7 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
 
   registerSyncCommands(program, deps);
   registerEvalCommand(program, deps);
+  registerUiCommand(program, deps);
 
   return program;
 }

@@ -2,39 +2,48 @@
   "name": "@s1pilot/cli",
   "version": "0.1.0",
   "private": true,
+  "description": "s1pilot command line: probe, run, sync, eval and the local web app (`s1pilot ui`)",
   "type": "module",
   "bin": {
     "s1pilot": "./dist/index.js"
   },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
   "files": [
-    "dist"
+    "dist",
+    "drizzle",
+    "profiles"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --clean",
+    "build": "tsup && node scripts/copy-assets.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src",
     "test": "vitest run"
   },
   "dependencies": {
-    "@s1pilot/db": "workspace:*",
-    "@s1pilot/domain": "workspace:*",
-    "@s1pilot/engine": "workspace:^",
-    "@s1pilot/providers": "workspace:*",
-    "@s1pilot/reporters": "workspace:*",
-    "@s1pilot/runner": "workspace:*",
-    "@s1pilot/sync": "workspace:^",
+    "@fastify/cors": "^11.3.1",
+    "@fastify/static": "^10.1.5",
+    "@fastify/websocket": "^11.3.3",
+    "@trpc/server": "^11",
+    "better-sqlite3": "^13.0.3",
     "commander": "^12.1.0",
+    "drizzle-orm": "^0.45.3",
+    "fastify": "^5",
+    "libsodium-wrappers": "^0.8.4",
+    "nanoid": "^5.0.9",
+    "pino": "^9.5.0",
     "playwright": "^1.63.0",
     "yaml": "^2.6.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@s1pilot/fixture-sites": "workspace:^"
+    "@s1pilot/db": "workspace:*",
+    "@s1pilot/domain": "workspace:*",
+    "@s1pilot/engine": "workspace:^",
+    "@s1pilot/fixture-sites": "workspace:^",
+    "@s1pilot/providers": "workspace:*",
+    "@s1pilot/reporters": "workspace:*",
+    "@s1pilot/runner": "workspace:*",
+    "@s1pilot/server": "workspace:^",
+    "@s1pilot/sync": "workspace:^",
+    "@s1pilot/web": "workspace:^"
   }
 }

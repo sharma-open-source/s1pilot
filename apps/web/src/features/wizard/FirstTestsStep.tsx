@@ -57,7 +57,7 @@ export function FirstTestsStep({ draft, patch, go, onFinish }: StepProps) {
     try {
       const caseKey = await ensureCase();
       setPhase('running');
-      const run = await createRun.mutateAsync({ projectKey, caseKeys: [caseKey], environment: 'dev', mode: 'explore' });
+      const run = await createRun.mutateAsync({ projectKey, caseKeys: [caseKey], environment: 'dev', mode: 'explore', attended: true });
       const runId = run.id;
       onFinish(`/p/${projectKey}/runs/${runId}/live`);
     } catch (err) {

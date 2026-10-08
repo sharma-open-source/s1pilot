@@ -307,7 +307,7 @@ describe('First tests step', () => {
 
     await waitFor(() => expect(onFinish).toHaveBeenCalledWith('/p/SHOP/runs/r1/live'));
     expect(callsTo(fake, 'cases.create')[0]?.input).toMatchObject({ projectKey: 'SHOP', status: 'draft', title: 'Add a product to the cart and check the badge' });
-    expect(callsTo(fake, 'runs.create')[0]?.input).toEqual({ projectKey: 'SHOP', caseKeys: ['SHOP-TC-1'], environment: 'dev', mode: 'explore' });
+    expect(callsTo(fake, 'runs.create')[0]?.input).toEqual({ projectKey: 'SHOP', caseKeys: ['SHOP-TC-1'], environment: 'dev', mode: 'explore', attended: true });
     expect(window.sessionStorage.getItem('s1pilot.wizard.draft')).toBeNull();
   });
 

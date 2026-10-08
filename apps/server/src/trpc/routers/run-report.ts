@@ -110,6 +110,8 @@ export const resultsRouter = router({
         const screenshotId = shots.get(s.stepIndex);
         return {
           ...s,
+          // `step_results` has no mode column, so fall back to how the case ran (replay / healed / explore).
+          mode: s.mode ?? result.mode,
           action: caseStep?.action ?? '',
           ...(caseStep?.expected ? { expected: caseStep.expected } : {}),
           ...(screenshotId ? { screenshotId } : {}),

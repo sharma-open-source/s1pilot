@@ -96,8 +96,8 @@ export function useProjects() {
 }
 
 /** S1/S2 reachability for the nav footer; empty while `models.status` is failing. */
-export function useModelsStatus() {
-  const q = trpc.models.status.useQuery(undefined, { refetchInterval: 30_000, select: parseModelsStatus });
+export function useModelsStatus(projectKey?: string | null) {
+  const q = trpc.models.status.useQuery(projectKey ? { projectKey } : undefined, { refetchInterval: 30_000, select: parseModelsStatus });
   return { ...q, data: q.data ?? EMPTY_MODELS };
 }
 

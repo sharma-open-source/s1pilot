@@ -35,13 +35,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const projects = useProjects();
-  const models = useModelsStatus();
   const badges = useWorkspaceBadges();
   const [chosen, setChosen] = useState<string | null>(readStored);
 
   const list = projects.data ?? [];
   const fromPath = projectKeyFromPath(pathname);
   const currentKey = fromPath ?? (chosen !== null && list.some((p) => p.key === chosen) ? chosen : (list[0]?.key ?? null));
+  const models = useModelsStatus(currentKey);
 
   return (
     <div className="flex min-h-screen flex-wrap bg-app">

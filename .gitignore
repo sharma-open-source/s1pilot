@@ -20,3 +20,8 @@ fixtures/sites/.s1pilot/learned/
 
 # eval harness output
 eval-results/
+
+# copied into the CLI package at build time
+apps/cli/drizzle/
+apps/cli/profiles/
+vite.config.ts.timestamp-*
