@@ -70,6 +70,8 @@ export const StepSchema = z.object({
   /** Test-data keys the step may use for text input. */
   inputs: z.array(z.string()).default([]),
   sharedStepId: IdSchema.optional(),
+  /** Arguments bound to `{name}` placeholders of the shared step (YAML `flow:` steps). */
+  args: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
 });
 export type Step = z.infer<typeof StepSchema>;
 

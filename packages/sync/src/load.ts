@@ -18,6 +18,8 @@ import {
 import { parse } from 'yaml';
 import { z } from 'zod';
 
+import { normalizeFlowSteps } from './flows.js';
+
 /** Directory (inside a project root) holding the tests-as-code files. */
 export const PROJECT_DIR = '.s1pilot';
 /** Project file name inside {@link PROJECT_DIR}. */
@@ -57,7 +59,12 @@ export interface LoadCaseOptions {
  */
 export function loadCaseFile(path: string, opts: LoadCaseOptions = {}): TestCase {
   const file = resolve(path);
-  const parsed = TestCaseFileSchema.safeParse(parseYamlFile(file));
+  const doc = parseYamlFile(file);
+  const withFlows =
+    typeof doc === 'object' && doc !== null && !Array.isArray(doc)
+      ? { ...doc, steps: normalizeFlowSteps((doc as { steps?: unknown }).steps) }
+      : doc;
+  const parsed = TestCaseFileSchema.safeParse(withFlows);
   if (!parsed.success) throw invalid('CASE_FILE_INVALID', file, parsed.error);
   return TestCaseSchema.parse({
     id: newId(),
