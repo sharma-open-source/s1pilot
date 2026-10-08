@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "description": "Ground truth for the fixture sites. `cases` are TestCaseFile-shaped (plan §1.2); `expectations` give the correct verdict per bug/variant set. Variants must still pass, but need healing (expectHealing).",
+  "sites": {
+    "shop": {
+      "baseUrl": "/shop",
+      "cases": [
+        {
+          "key": "SHOP-TC-1",
+          "title": "Guest can check out a single item",
+          "priority": "P1",
+          "type": "e2e",
+          "tags": ["checkout", "guest", "smoke"],
+          "parameters": [{ "size": "M", "colour": "Blue" }],
+          "steps": [
+            { "action": "Search for \"t-shirt\" and open the \"Classic Tee\" product", "expected": "The product page for Classic Tee is shown" },
+            {
+              "action": "Choose colour {colour} and size {size}, then add to cart",
+              "expected": "Cart badge shows 1 item",
+              "assert": [{ "type": "elementText", "role": "status", "equals": "1" }]
+            },
+            {
+              "action": "Go to checkout as guest and fill the shipping form with name \"Alex Doe\" and ZIP \"94105\"",
+              "inputs": ["shipping_name", "shipping_zip"],
+              "expected": "The payment step is displayed",
+              "assert": [{ "type": "urlMatches", "pattern": "/checkout/payment" }]
+            },
+            { "action": "Stop before payment", "expected": "No order has been placed" }
+          ]
+        },
+        {
+          "key": "SHOP-TC-2",
+          "title": "Promo code SAVE10 is accepted",
+          "priority": "P2",
+          "type": "regression",
+          "tags": ["cart", "promo"],
+          "steps": [
+            { "action": "Open the cart page", "expected": "The cart page is shown" },
+            { "action": "Enter the promo code SAVE10 and apply it", "expected": "The message \"Promo applied: 10% off\" is shown" }
+          ]
+        },
+        {
+          "key": "SHOP-TC-3",
+          "title": "Shipping form rejects an invalid ZIP code",
+          "priority": "P1",
+          "type": "regression",
+          "tags": ["checkout", "validation"],
+          "steps": [
+            { "action": "Go to checkout as guest", "expected": "The shipping form is displayed" },
+            { "action": "Fill name \"Alex Doe\" and ZIP \"abc\" and continue", "expected": "An error about the ZIP code is shown and the payment step is not reached" }
+          ]
+        },
+        {
+          "key": "SHOP-TC-4",
+          "title": "Cart keeps its items after a page reload",
+          "priority": "P1",
+          "type": "regression",
+          "tags": ["cart"],
+          "steps": [
+            { "action": "Add the Classic Tee in Blue, size M, to the cart", "expected": "Cart badge shows 1 item" },
+            { "action": "Reload the page", "expected": "Cart badge still shows 1 item" }
+          ]
+        }
+      ],
+      "expectations": [
+        { "case": "SHOP-TC-1", "bugs": [], "variants": [], "verdict": "passed" },
+        { "case": "SHOP-TC-2", "bugs": [], "variants": [], "verdict": "passed" },
+        { "case": "SHOP-TC-3", "bugs": [], "variants": [], "verdict": "passed" },
+        { "case": "SHOP-TC-4", "bugs": [], "variants": [], "verdict": "passed" },
+        { "case": "SHOP-TC-1", "bugs": ["shop.badge-wrong-count"], "variants": [], "verdict": "failed" },
+        { "case": "SHOP-TC-3", "bugs": ["shop.zip-validation-missing"], "variants": [], "verdict": "failed" },
+        { "case": "SHOP-TC-4", "bugs": ["shop.cart-empties-on-reload"], "variants": [], "verdict": "failed" },
+        { "case": "SHOP-TC-1", "bugs": [], "variants": ["shop.guest-button-renamed"], "verdict": "passed", "expectHealing": true },
+        { "case": "SHOP-TC-1", "bugs": [], "variants": ["shop.size-picker-dropdown"], "verdict": "passed", "expectHealing": true },
+        { "case": "SHOP-TC-2", "bugs": [], "variants": ["shop.promo-in-accordion"], "verdict": "passed", "expectHealing": true }
+      ]
+    },
+    "settings": {
+      "baseUrl": "/settings",
+      "cases": [
+        {
+          "key": "SET-TC-1",
+          "title": "Saved profile changes persist after reload",
+          "priority": "P1",
+          "type": "regression",
+          "tags": ["profile"],
+          "steps": [
+            { "action": "Change the display name to \"Sam Rivers\" and save", "expected": "A confirmation \"Settings saved\" is shown" },
+            { "action": "Reload the page", "expected": "The display name is still \"Sam Rivers\"" }
+          ]
+        },
+        {
+          "key": "SET-TC-2",
+          "title": "Cancelling the delete dialog keeps the account",
+          "priority": "P2",
+          "type": "regression",
+          "tags": ["sensitive"],
+          "steps": [
+            { "action": "Open the delete account dialog and cancel it", "expected": "The settings page is still shown and the account is not deleted" }
+          ]
+        }
+      ],
+      "expectations": [
+        { "case": "SET-TC-1", "bugs": [], "variants": [], "verdict": "passed" },
+        { "case": "SET-TC-2", "bugs": [], "variants": [], "verdict": "passed" },
+        { "case": "SET-TC-1", "bugs": ["settings.save-silently-fails"], "variants": [], "verdict": "failed" }
+      ]
+    },
+    "forms": {
+      "baseUrl": "/forms",
+      "cases": [
+        {
+          "key": "FORMS-TC-1",
+          "title": "Submitting an empty form shows validation errors",
+          "priority": "P1",
+          "type": "regression",
+          "tags": ["validation"],
+          "steps": [
+            { "action": "Press Send without filling anything", "expected": "Errors are shown for full name, email, ZIP code, country, date of birth and terms", "assert": [{ "type": "elementText", "css": "#fullname-error", "equals": "Full name is required" }] }
+          ]
+        },
+        {
+          "key": "FORMS-TC-2",
+          "title": "A valid form can be submitted",
+          "priority": "P2",
+          "type": "smoke",
+          "tags": ["forms"],
+          "steps": [
+            { "action": "Fill every field with valid values, accept the terms and press Send", "expected": "The message \"Form submitted\" is shown" }
+          ]
+        }
+      ],
+      "expectations": [
+        { "case": "FORMS-TC-1", "bugs": [], "variants": [], "verdict": "passed" },
+        { "case": "FORMS-TC-2", "bugs": [], "variants": [], "verdict": "passed" },
+        { "case": "FORMS-TC-1", "bugs": ["forms.error-not-shown"], "variants": [], "verdict": "failed" }
+      ]
+    },
+    "mail": {
+      "baseUrl": "/mail",
+      "cases": [
+        {
+          "key": "MAIL-TC-1",
+          "title": "Read the verification code from the inbox",
+          "priority": "P2",
+          "type": "smoke",
+          "tags": ["otp"],
+          "steps": [
+            { "action": "Open the message \"Your verification code\"", "expected": "The one-time code 482913 is displayed", "assert": [{ "type": "elementText", "css": "[data-testid=otp]", "equals": "482913" }] }
+          ]
+        }
+      ],
+      "expectations": [{ "case": "MAIL-TC-1", "bugs": [], "variants": [], "verdict": "passed" }]
+    }
+  }
+}

@@ -13,4 +13,3 @@ coverage/
 *.storage-state.json
 
 .DS_Store
-fixtures

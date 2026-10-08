@@ -1,0 +1,28 @@
+{
+  "name": "@s1pilot/fixture-sites",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "ground-truth.json"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts src/dev.ts --format esm --dts --clean",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "dev": "pnpm build && node dist/dev.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@s1pilot/domain": "workspace:^",
+    "playwright": "^1.63.0"
+  }
+}
