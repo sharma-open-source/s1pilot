@@ -16,6 +16,7 @@
     "@radix-ui/react-dialog": "^1.2.0",
     "@radix-ui/react-dropdown-menu": "^2",
     "@radix-ui/react-popover": "^1.2.0",
+    "@s1pilot/domain": "workspace:^",
     "@s1pilot/server": "workspace:^",
     "@tanstack/react-query": "^5.104.1",
     "@tanstack/react-router": "^1.170.41",
@@ -25,10 +26,12 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.53.0",
+    "monaco-editor": "^0.57.0",
     "react": "^18",
     "react-dom": "^18",
     "react-hook-form": "^7.89.0",
     "tailwind-merge": "^3.7.0",
+    "yaml": "^2.6.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -1,7 +1,10 @@
 import type { Assertion } from '@s1pilot/domain';
+import { describeTarget, summarizeAssertion } from '@s1pilot/domain/assertion-summary';
 import type { APIRequestContext, Locator, Page } from 'playwright';
 
 import type { StepCapture } from './capture.js';
+
+export { summarizeAssertion };
 
 /** Context for {@link runAssertion}. */
 export interface AssertionContext {
@@ -91,13 +94,6 @@ function hasTarget(t: Target): boolean {
   return Boolean(t.role ?? t.text ?? t.testId ?? t.css);
 }
 
-function describeTarget(t: Target): string {
-  if (t.testId) return t.testId;
-  if (t.role) return t.name ? `${t.role} "${t.name}"` : t.role;
-  if (t.text) return `"${t.text}"`;
-  return t.css ?? '?';
-}
-
 function toLocator(page: Page, t: Target): Locator {
   if (t.role) {
     const loc = page.getByRole(t.role as Parameters<Page['getByRole']>[0], t.name ? { name: t.name } : {});
@@ -110,43 +106,6 @@ function toLocator(page: Page, t: Target): Locator {
 
 const q = (s: string): string => JSON.stringify(s);
 
-/**
- * Human-readable one-line summary of an assertion, as shown in UI tags
- * (`url ~ /checkout/payment`, `text(status) ⊇ "1"`).
- */
-export function summarizeAssertion(a: Assertion): string {
-  switch (a.type) {
-    case 'urlMatches':
-      return `url ~ ${a.pattern.startsWith('/') ? a.pattern : `/${a.pattern}`}`;
-    case 'titleContains':
-      return `title ⊇ ${q(a.contains)}`;
-    case 'elementVisible':
-      return `${a.visible ? 'visible' : 'hidden'}(${describeTarget(a)})`;
-    case 'elementText':
-      return a.equals !== undefined
-        ? `text(${describeTarget(a)}) = ${q(a.equals)}`
-        : `text(${describeTarget(a)}) ⊇ ${q(a.contains ?? '')}`;
-    case 'elementValue':
-      return `value(${describeTarget(a)}) = ${q(a.equals)}`;
-    case 'elementCount': {
-      const parts: string[] = [];
-      if (a.equals !== undefined) parts.push(`= ${a.equals}`);
-      if (a.min !== undefined) parts.push(`≥ ${a.min}`);
-      if (a.max !== undefined) parts.push(`≤ ${a.max}`);
-      return `count(${describeTarget(a)}) ${parts.join(' ') || '≥ 0'}`;
-    }
-    case 'responseStatus':
-      return `response${a.method ? ` ${a.method.toUpperCase()}` : ''} ~ ${a.urlPattern} → ${a.status}`;
-    case 'noConsoleErrors':
-      return 'no console errors';
-    case 'downloadExists':
-      return a.filenamePattern ? `download ~ ${a.filenamePattern}` : 'download exists';
-    case 'apiCheck':
-      return `api ${a.method} ${a.url}${a.status !== undefined ? ` → ${a.status}` : ''}${a.bodyContains ? ` ⊇ ${q(a.bodyContains)}` : ''}`;
-    case 'ai':
-      return `AI: ${a.expected}`;
-  }
-}
 
 function done(a: Assertion, check: Check, expected: string): AssertionResult {
   const summary = summarizeAssertion(a);

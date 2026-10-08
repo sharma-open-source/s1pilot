@@ -1,7 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router';
-
-import { PlaceholderPage } from '@/components/app/PageHeader';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/p/$key/cases/$caseKey/')({
-  component: () => <PlaceholderPage title="Test case" spec="S-044" />,
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: '/p/$key/cases/$caseKey/$tab', params: { ...params, tab: 'steps' }, replace: true });
+  },
 });
