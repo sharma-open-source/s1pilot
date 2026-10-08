@@ -2,5 +2,45 @@
   "name": "@s1pilot/web",
   "version": "0.1.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@radix-ui/react-dialog": "^1.2.0",
+    "@radix-ui/react-popover": "^1.2.0",
+    "@s1pilot/server": "workspace:^",
+    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-router": "^1.170.41",
+    "@trpc/client": "^11",
+    "@trpc/react-query": "^11",
+    "@trpc/server": "^11",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.53.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@tanstack/router-plugin": "^1.168.42",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^4",
+    "autoprefixer": "^10.6.1",
+    "jsdom": "^30.1.2",
+    "playwright": "^1.63.0",
+    "postcss": "^8.5.29",
+    "tailwindcss": "^3.4",
+    "vite": "^5"
+  }
 }
