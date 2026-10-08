@@ -96,6 +96,9 @@ importers:
       '@s1pilot/domain':
         specifier: workspace:^
         version: link:../../packages/domain
+      '@s1pilot/providers':
+        specifier: workspace:^
+        version: link:../../packages/providers
       '@trpc/server':
         specifier: ^11
         version: 11.19.0(typescript@5.9.3)
