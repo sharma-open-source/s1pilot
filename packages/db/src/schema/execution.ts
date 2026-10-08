@@ -202,3 +202,28 @@ export const jobs = sqliteTable(
   },
   (t) => [index('jobs_status_idx').on(t.status, t.type), index('jobs_run_idx').on(t.runId)],
 );
+
+/** Metadata of a stored artifact file (screenshot, video, trace, logs); the bytes live in the artifact store. */
+export const artifacts = sqliteTable(
+  'artifacts',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    runId: text('run_id').notNull(),
+    caseResultId: text('case_result_id').notNull(),
+    /** Step the artifact belongs to; null for case-level artifacts (video, trace, logs). */
+    stepIndex: integer('step_index'),
+    kind: text('kind', {
+      enum: ['screenshot', 'video', 'trace', 'log', 'console', 'network', 'dom', 'a11y'],
+    }).notNull(),
+    name: text('name').notNull(),
+    contentType: text('content_type').notNull(),
+    size: integer('size').notNull(),
+    /** File path relative to the store root. */
+    path: text('path').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [index('artifacts_project_idx').on(t.projectId, t.createdAt), index('artifacts_result_idx').on(t.caseResultId)],
+);

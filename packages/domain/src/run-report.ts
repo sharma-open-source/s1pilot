@@ -21,8 +21,18 @@ export const StepReportSchema = z.object({
   durationMs: z.number().min(0).default(0),
   assertions: z.array(AssertionVerdictSchema).default([]),
   decisions: z.array(DecisionRecordSchema).default([]),
+  /** Screenshot taken after the step: file name below the case's result directory (`dir`). */
+  screenshot: z.string().optional(),
 });
 export type StepReport = z.infer<typeof StepReportSchema>;
+
+/** A file captured for a case instance (video, trace, logs), relative to its result directory. */
+export const CaptureFileSchema = z.object({
+  kind: z.enum(['video', 'trace', 'log', 'console', 'network']),
+  file: z.string(),
+  contentType: z.string(),
+});
+export type CaptureFile = z.infer<typeof CaptureFileSchema>;
 
 /** Result of one case instance (one parameter row) in a run report. */
 export const CaseRunResultSchema = z.object({
@@ -48,6 +58,8 @@ export const CaseRunResultSchema = z.object({
   durationMs: z.number().min(0),
   healProposals: z.number().int().min(0).default(0),
   steps: z.array(StepReportSchema),
+  /** Case-level capture files (video, Playwright trace, console / network logs, decision trace). */
+  files: z.array(CaptureFileSchema).optional(),
 });
 export type CaseRunResult = z.infer<typeof CaseRunResultSchema>;
 

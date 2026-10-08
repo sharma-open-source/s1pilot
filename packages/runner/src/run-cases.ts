@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import {
   newId,
   type BrowserName,
+  type CaptureFile,
   type CaseMode,
   type CaseRunResult,
   type DecisionModel,
@@ -40,6 +41,8 @@ import {
 import type { ChatModel } from '@s1pilot/providers';
 import type { LearnedScriptRef, LearnedScriptStore } from '@s1pilot/sync';
 import { chromium, firefox, webkit, type Browser, type BrowserContextOptions } from 'playwright';
+
+import { CaseCapture, type CaptureOptions } from './capture.js';
 
 /** Full result of a run; the reporters render exactly this. */
 export type RunSummary = RunReport;
@@ -117,6 +120,8 @@ export interface RunCasesInput {
    * the report. Used by the server's `runs.cancel`.
    */
   signal?: AbortSignal;
+  /** Evidence capture (screenshots, video, trace, logs). Defaults: screenshots, trace and logs on; video off. */
+  capture?: CaptureOptions;
 }
 
 const bind = (text: string, params: Record<string, string>): string => text.replace(/\{([\w.-]+)\}/g, (whole, name: string) => params[name] ?? whole);
@@ -261,6 +266,7 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
     steps.push(step);
     emit({ type: 'step.finished', caseResultId, key: testCase.key, step });
   };
+  let files: CaptureFile[] = [];
   const finishCase = async (verdict: Verdict, mode: CaseMode): Promise<CaseRunResult> => {
     const result: CaseRunResult = {
       runId,
@@ -282,6 +288,7 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
       durationMs: Date.now() - startedAt.getTime(),
       healProposals: proposals,
       steps,
+      ...(files.length > 0 ? { files } : {}),
     };
     const safe = redactor.redactDeep(result);
     if (input.signal?.aborted) cancelledResults.add(safe);
@@ -318,11 +325,14 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
     note('! auth preconditions are not applied yet');
   }
   const storageState = await input.auth?.storageState(testCase, environment);
+  const evidence = new CaseCapture(caseDir, CaseCapture.options(input.capture), redactor, input.vars.secretValues());
   const context = await input.browser.newContext({
     locale: environment.locale,
     timezoneId: environment.timezone,
     ...(storageState ? { storageState } : {}),
+    ...(input.capture?.video ? { recordVideo: { dir: evidence.videoDir, size: { width: 1280, height: 720 } } } : {}),
   });
+  await evidence.start(context);
   const guards: InstalledGuard[] = [];
   const onEvent = (e: { method?: string; url?: string; reason: string }): void => {
     note(`! blocked ${e.method ?? ''} ${r(e.url ?? '')}: ${e.reason}`.replace(/\s+/g, ' '));
@@ -469,7 +479,8 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
       } finally {
         capture.dispose();
       }
-      finishStep(record);
+      const screenshot = await evidence.screenshot(ctx.page, index);
+      finishStep(screenshot ? { ...record, screenshot } : record);
       if (record.verdict === 'failed' || record.verdict === 'blocked') {
         // A broken precondition means the case never really ran: blocked, not failed.
         if (pre) preconditionBroken = true;
@@ -480,8 +491,11 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
     input.signal?.removeEventListener('abort', onAbort);
     for (const g of guards) await g.dispose().catch(() => undefined);
     await trace.close?.();
+    await evidence.stopTrace(context);
     await context.close();
   }
+  files = await evidence.finish();
+  files.push({ kind: 'log', file: 'trace.jsonl', contentType: 'application/x-ndjson' });
 
   const verdict = preconditionBroken ? 'blocked' : caseVerdict(steps.map((s) => s.verdict));
   // A passing explore run (first run, or a stale / environment-changed script) is learned.
