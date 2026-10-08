@@ -13,6 +13,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | 2026-10-08 | S-024, S-029 | todo → done | Replay mode and tests-as-code sync (parallel sub-agents, merged). |
 | 2026-10-08 | S-025 | todo → done | Heal mode & heal proposals (sub-agent, merged). |
 | 2026-10-08 | S-027 | todo → done | Case runner & JUnit/JSON reporters (sub-agent, merged). Replay/heal wired into CLI. |
+| 2026-10-08 | S-028, S-030 | todo → done | HTML report and eval harness (parallel sub-agents, merged). **P2 complete (S-023–S-030).** |
 | 2026-10-08 | S-020 | todo → done | `verifyStep`, `judgeExpected`, `verdictFor`/`caseVerdict` (sub-agent, merged). |
 | 2026-10-08 | S-019 | todo → done | `exploreStep`, `EngineContext`, JSONL trace writer + `TraceLineSchema` (sub-agent, merged). |
 | 2026-10-08 | S-021 | todo → done | Deterministic assertions `runAssertion`, `StepCapture` (sub-agent, merged). |
@@ -67,9 +68,9 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-025 | Heal mode & heal proposals | P2 | done | Sub-agent, merged (fast-forward). `healStep`, `replayWithHeal` (engine); `HealProposal` replaced with spec shape + new `heal_proposals` table (migration 0001) and `healProposals` repo (create/list/approve/reject, scope all/case); project setting `autoApplyHeals` (default false; not synced yet). Engine returns drafts, persisting is S-027's job. No heal below `act` confidence. |
 | S-026 | Parameters & shared steps | P2 | done | Sub-agent, merged. `expandCase`, shared-step inlining, preconditions (failure ⇒ case `blocked`), flow/dataset loaders (`@s1pilot/sync`), `scriptKey` per instance. Auth preconditions print "not applied yet" (`TODO(S-038)`). Mock script counts calls per step text across the run, so row step texts must differ in tests. |
 | S-027 | Case runner & JUnit/JSON reporters | P2 | done | Sub-agent, merged (fast-forward). `runCases` (runner), JUnit/JSON reporters + `validateJunit` (own structural validator; no XSD tool), `RunReportSchema` (domain), CLI `run --mode replay-heal|explore|replay-only --reporter junit,json --parallel n` (default mode replay-heal). Mock-script moved to providers. Heal proposals: DB if `.s1pilot/data.db` exists, else `.s1pilot/heal-proposals/<id>.json`; approving in DB doesn't update FS scripts (S-034). Auth hook unused (`TODO(S-038)`). `FsLearnedScriptStore.get` sets env id (fixes environment-mismatch). |
-| S-028 | HTML report | P2 | todo | |
+| S-028 | HTML report | P2 | done | Sub-agent, merged. `renderHtml` + `--reporter html` (self-contained, no network by default, redacted, screenshots inlined up to 15 MB). Screenshots found by convention `<case.dir>/step-<n>*.png` — verify against runner naming; report has no "Expected" field yet. |
 | S-029 | Tests-as-code sync | P2 | done | Sub-agent, merged. `exportProject`/`importProject`/`syncStatus` (sync), `s1pilot sync` CLI (`--db --dry-run --prune --json`), `cases.createWithKey` (db). Secrets never exported; plaintext secret in file ⇒ `SECRET_IN_FILE`. `data/*` not synced; conflicts detected for cases only. sync and cli now depend on db. |
-| S-030 | Eval harness & seeded bugs | P2 | todo | |
+| S-030 | Eval harness & seeded bugs | P2 | done | Sub-agent, merged. `s1pilot eval --suite … [--models --oracle --repeat --out]`; metrics + leaderboard + engine sha; `--oracle` uses mock scripts (100% detection, 0 false-pass in test). Suite `suites/fixtures-all` has only SHOP-TC-42 (clean + `badge-wrong-count`); other fixture cases need YAML + mock scripts. Fixture server must be running (not auto-started). Added `yaml` dep to cli. **P2 complete.** |
 | S-031 | API server scaffold | P3 | todo | |
 | S-032 | API: projects, environments, model settings | P3 | todo | |
 | S-033 | API: suites, cases, versions | P3 | todo | |
