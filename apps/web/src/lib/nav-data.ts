@@ -1,9 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
-import { untypedClient } from './trpc';
+import { trpc } from './trpc';
 
-/** Minimal project shape the nav needs. TODO(S-032): derive from `projects.list` output. */
+/** Minimal project shape the nav needs (a subset of the `projects.list` output). */
 export interface NavProject {
   key: string;
   name: string;
@@ -18,7 +17,7 @@ export interface ModelRow {
   reachable: boolean | 'unknown';
 }
 
-/** Minimal `models.status` shape. TODO(S-032): derive from the real procedure output. */
+/** Nav view of the `models.status` output. */
 export interface ModelsStatus {
   s1: ModelRow | null;
   s2: ModelRow | null;
@@ -50,6 +49,7 @@ export function parseProjects(raw: unknown): NavProject[] {
 
 function parseModelRow(raw: unknown): ModelRow | null {
   if (!isRecord(raw)) return null;
+  if (raw['configured'] === false) return null;
   const model = raw['model'] ?? raw['name'];
   const endpoint = raw['endpoint'] ?? raw['baseUrl'] ?? raw['adapter'];
   const reachable = raw['reachable'] ?? raw['ok'];
@@ -76,39 +76,16 @@ export function parseBadges(raw: unknown): Partial<WorkspaceBadges> {
   return out;
 }
 
-/**
- * Projects for the switcher. Falls back to an empty list while `projects.list` is absent or failing.
- * TODO(S-032): wire to the typed `projects.list` procedure.
- */
+/** Projects for the switcher; `data` is an empty list while `projects.list` is failing. */
 export function useProjects() {
-  return useQuery({
-    queryKey: ['nav', 'projects.list'],
-    queryFn: async () => {
-      try {
-        return parseProjects(await untypedClient.query('projects.list'));
-      } catch {
-        return [];
-      }
-    },
-  });
+  const q = trpc.projects.list.useQuery(undefined, { select: parseProjects });
+  return { ...q, data: q.data ?? [] };
 }
 
-/**
- * S1/S2 reachability for the nav footer. `unknown` while `models.status` is absent or failing.
- * TODO(S-032): wire to the typed `models.status` procedure.
- */
+/** S1/S2 reachability for the nav footer; empty while `models.status` is failing. */
 export function useModelsStatus() {
-  return useQuery({
-    queryKey: ['nav', 'models.status'],
-    refetchInterval: 30_000,
-    queryFn: async () => {
-      try {
-        return parseModelsStatus(await untypedClient.query('models.status'));
-      } catch {
-        return EMPTY_MODELS;
-      }
-    },
-  });
+  const q = trpc.models.status.useQuery(undefined, { refetchInterval: 30_000, select: parseModelsStatus });
+  return { ...q, data: q.data ?? EMPTY_MODELS };
 }
 
 /**

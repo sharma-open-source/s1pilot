@@ -2,23 +2,30 @@ import type { AppRouter } from '@s1pilot/server/router';
 import { QueryClient } from '@tanstack/react-query';
 import { createTRPCUntypedClient, httpBatchLink } from '@trpc/client';
 import { createTRPCReact } from '@trpc/react-query';
+import type { inferRouterOutputs } from '@trpc/server';
 
+
+/** Output types of every procedure, e.g. `RouterOutputs['models']['probe']`. */
+export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 /** Typed React hooks for every procedure that exists in `AppRouter`. */
 export const trpc = createTRPCReact<AppRouter>();
 
-function links() {
-  return [httpBatchLink({ url: '/trpc' })];
+/** Resolves `globalThis.fetch` per call so tests can stub it after import. */
+const lateFetch: typeof fetch = (input, init) => globalThis.fetch(input, init);
+
+function links(fetchImpl: typeof fetch = lateFetch) {
+  return [httpBatchLink({ url: '/trpc', fetch: fetchImpl })];
 }
 
-/** Creates the React-bound tRPC client used by `trpc.Provider`. */
-export function createTrpcClient() {
-  return trpc.createClient({ links: links() });
+/** Creates the React-bound tRPC client used by `trpc.Provider`. Tests pass a fake `fetch`. */
+export function createTrpcClient(fetchImpl?: typeof fetch) {
+  return trpc.createClient({ links: links(fetchImpl) });
 }
 
 /**
- * Untyped client for procedures that may not exist yet (nav data: `projects.list`, `models.status`).
- * TODO(S-032): replace with typed `trpc.projects.list` / `trpc.models.status` once those routers are in `AppRouter`.
+ * Untyped client for procedures that may not exist yet (wizard: `cases.create` TODO(S-033), `runs.start` TODO(S-034),
+ * `auth.*` TODO(S-038)). Replace with typed hooks once those routers are in `AppRouter`.
  */
 export const untypedClient = createTRPCUntypedClient<AppRouter>({ links: links() });
 

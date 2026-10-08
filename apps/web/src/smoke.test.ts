@@ -10,7 +10,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 /** Concrete URL for every route in src/routes (see design.md section 5). */
 const ROUTES: Array<[path: string, h1: string]> = [
   ['/', 'Dashboard'],
-  ['/projects/new', 'New project'],
+  ['/projects/new', 'Create project'],
   ['/p/shop/environments', 'Environments'],
   ['/p/shop/environments/staging', 'Environments'],
   ['/p/shop/cases', 'Test cases'],
