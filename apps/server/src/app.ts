@@ -14,6 +14,7 @@ import { startRetentionJob } from './artifacts/retention.js';
 import { registerArtifactRoutes } from './artifacts/routes.js';
 import { FsArtifactStore } from './artifacts/store.js';
 import type { ServerConfig } from './config.js';
+import { registerExportRoutes } from './exports/routes.js';
 import { registerLiveRoutes } from './live/routes.js';
 import { createContext } from './trpc/context.js';
 import { appRouter } from './trpc/router.js';
@@ -61,6 +62,7 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
   runtime.workers.start(opts.workers ?? config.workers);
   const artifacts = new FsArtifactStore(db, config.artifactsDir);
   registerArtifactRoutes(app, artifacts);
+  registerExportRoutes(app, { db, runtime, config });
   const stopRetention = startRetentionJob({ db, store: artifacts, log });
   app.addHook('onClose', async () => {
     stopRetention();

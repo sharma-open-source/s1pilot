@@ -18,6 +18,7 @@ import { publicProcedure, router } from '../trpc.js';
 
 import { RecentInput, recentRuns } from './dashboard.js';
 import { requireCase, requireProject } from './helpers.js';
+import { reportProcedure } from './run-report.js';
 
 async function requireRun(ctx: Context, runId: string): Promise<TestRun> {
   const run = await ctx.repos.runs.get(ctx.db, runId);
@@ -134,6 +135,9 @@ export const runsRouter = router({
       input.buildRef,
     );
   }),
+
+  /** Run report: summary, exit-criteria placeholder and result rows (S-046). */
+  report: reportProcedure,
 
   /** Newest runs across all projects (dashboard). */
   recent: publicProcedure.input(RecentInput).query(({ ctx, input }) => recentRuns(ctx, input.limit)),

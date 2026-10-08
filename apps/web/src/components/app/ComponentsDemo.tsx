@@ -4,6 +4,7 @@ import { CapabilityGrid } from './CapabilityGrid';
 import { DecisionPanel, EventLog, ProbabilityBar, RunProgressBar, StepStatusList } from './live';
 import { ModeMixBar } from './ModeMixBar';
 import { PageHeader } from './PageHeader';
+import { ExpectedActual, ResultListItem, ScreenshotTimeline } from './report';
 import { Sparkline, StatTile } from './StatTile';
 import { WizardStepper } from './WizardStepper';
 
@@ -256,6 +257,23 @@ export function ComponentsDemo() {
             />
           </div>
           <EventLog className="w-full" lines={[{ id: 1, time: '10:00:01', text: 'step 3 replay failed → heal', warn: false }, { id: 2, time: '10:00:02', text: 'S1 conf=0.62 awaiting approval', warn: true }]} />
+        </div>
+      </Demo>
+
+      <Demo title="Run report: ResultListItem, ExpectedActual, ScreenshotTimeline">
+        <div className="flex w-full flex-col gap-3">
+          <div className="w-full max-w-[440px] rounded-card border border-line bg-surface">
+            <ResultListItem resultKey="SHOP-TC-44" title="Invalid ZIP shows a field error" meta="staging · WebKit · step 3" status="failed" selected to="/_dev/components" search={{}} />
+            <ResultListItem resultKey="SHOP-TC-51" title="Order confirmation email arrives" meta="staging · Chromium · step 5" status="blocked" to="/_dev/components" search={{}} />
+          </div>
+          <ExpectedActual expected="An error appears next to the ZIP field" actual={'Form submitted; payment step shown with ZIP "ABCDE"'} />
+          <ScreenshotTimeline
+            steps={[
+              { index: 0, title: 'Add item', suffix: '✓ replay', state: 'passed' },
+              { index: 1, title: 'Enter ZIP', suffix: '✗', state: 'failed' },
+              { index: 2, title: 'Pay', suffix: 'not run', state: 'not-run' },
+            ]}
+          />
         </div>
       </Demo>
 

@@ -7,6 +7,7 @@ import { environmentsRouter } from './routers/environments.js';
 import { modelsRouter } from './routers/models.js';
 import { projectsRouter } from './routers/projects.js';
 import { requirementsRouter } from './routers/requirements.js';
+import { resultsRouter } from './routers/run-report.js';
 import { runsRouter } from './routers/runs.js';
 import { sharedStepsRouter } from './routers/shared-steps.js';
 import { suitesRouter } from './routers/suites.js';
@@ -30,6 +31,7 @@ export const appRouter = router({
   sharedSteps: sharedStepsRouter,
   requirements: requirementsRouter,
   runs: runsRouter,
+  results: resultsRouter,
   syncStatus: syncStatusProcedure,
   dashboard: dashboardRouter,
   auth: authRouter,

@@ -1,0 +1,167 @@
+import { IdSchema, S1PilotError, VerdictSchema, newId, type RunSummary, type StepResult } from '@s1pilot/domain';
+import { z } from 'zod';
+
+import { FsArtifactStore } from '../../artifacts/store.js';
+import { publicProcedure, router } from '../trpc.js';
+
+const MAX_LOG_ENTRIES = 500;
+
+/** Browser shown when a result has none recorded. */
+const DEFAULT_BROWSER = 'chromium';
+
+/** 1-based number of the first failed / blocked step, if any. */
+function failedStepNo(steps: StepResult[]): number | null {
+  const s = steps.find((x) => x.status === 'failed' || x.status === 'blocked');
+  return s ? s.stepIndex + 1 : null;
+}
+
+/** Counts of case verdicts, in the shape stored on the run. */
+function summarize(verdicts: string[]): RunSummary {
+  const count = (v: string): number => verdicts.filter((x) => x === v).length;
+  return {
+    passed: count('passed'),
+    failed: count('failed'),
+    blocked: count('blocked'),
+    skipped: count('skipped'),
+    flaky: count('flaky'),
+    needsReview: count('needs-review'),
+  };
+}
+
+/** Entries of a stored JSON log artifact (`console.json` is an array, `network.json` has `entries`); empty when unreadable. */
+async function loadEntries(store: FsArtifactStore, id: string | undefined, wrapped: boolean): Promise<Array<Record<string, unknown>>> {
+  if (!id) return [];
+  try {
+    const chunks: Buffer[] = [];
+    for await (const chunk of await store.get(id)) chunks.push(Buffer.from(chunk as Uint8Array));
+    const json = JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
+    const list = wrapped ? (json as Record<string, unknown>)['entries'] : json;
+    return Array.isArray(list) ? (list.slice(0, MAX_LOG_ENTRIES) as Array<Record<string, unknown>>) : [];
+  } catch {
+    return [];
+  }
+}
+
+const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+const numOrNull = (v: unknown): number | null => (typeof v === 'number' ? v : null);
+
+/** `runs.report(runId)`: summary, exit-criteria placeholder and the results list. */
+export const reportProcedure = publicProcedure.input(IdSchema).query(async ({ ctx, input }) => {
+  const run = await ctx.repos.runs.get(ctx.db, input);
+  if (!run) throw new S1PilotError('RUN_NOT_FOUND', `Run not found: ${input}`, { runId: input });
+  const project = await ctx.repos.projects.get(ctx.db, run.projectId);
+  const results = await ctx.repos.results.listCases(ctx.db, run.id);
+  const envNames = new Map<string, string>();
+  const rows = await Promise.all(
+    results.map(async (r) => {
+      const c = await ctx.repos.cases.get(ctx.db, r.caseId);
+      let environment = '';
+      if (r.environmentId) {
+        if (!envNames.has(r.environmentId)) {
+          envNames.set(r.environmentId, (await ctx.repos.environments.get(ctx.db, r.environmentId))?.name ?? '');
+        }
+        environment = envNames.get(r.environmentId) ?? '';
+      }
+      const steps = await ctx.repos.results.listSteps(ctx.db, r.id);
+      return {
+        id: r.id,
+        caseId: r.caseId,
+        key: c?.key ?? r.caseId,
+        title: c?.title ?? '',
+        verdict: r.verdict,
+        environment,
+        browser: r.browser ?? DEFAULT_BROWSER,
+        mode: r.mode,
+        attempt: r.attempt,
+        durationMs: r.durationMs,
+        failedStep: failedStepNo(steps),
+      };
+    }),
+  );
+  return {
+    run,
+    projectKey: project?.key ?? '',
+    environments: [...new Set(rows.map((r) => r.environment).filter(Boolean))],
+    // TODO(S-056): exit criteria evaluation; null renders as "–".
+    exitCriteria: null as null | { met: number; total: number },
+    results: rows,
+  };
+});
+
+/** Case-result procedures: `get` (detail with evidence) and `overrideVerdict`. */
+export const resultsRouter = router({
+  /** One case result: steps (with the case's action / expected text), assertions, decisions and evidence refs. */
+  get: publicProcedure.input(IdSchema).query(async ({ ctx, input }) => {
+    const result = await ctx.repos.results.getCase(ctx.db, input);
+    if (!result) throw new S1PilotError('RESULT_NOT_FOUND', `Result not found: ${input}`, { resultId: input });
+    const testCase = await ctx.repos.cases.get(ctx.db, result.caseId);
+    const environment = result.environmentId ? await ctx.repos.environments.get(ctx.db, result.environmentId) : undefined;
+    const steps = await ctx.repos.results.listSteps(ctx.db, result.id);
+    const artifacts = await ctx.repos.artifacts.listByCaseResult(ctx.db, result.id);
+    const store = new FsArtifactStore(ctx.db, ctx.config.artifactsDir);
+    const video = artifacts.find((a) => a.kind === 'video');
+    const trace = artifacts.find((a) => a.kind === 'trace');
+
+    const shots = new Map<number, string>();
+    for (const a of artifacts) if (a.kind === 'screenshot' && a.stepIndex !== undefined) shots.set(a.stepIndex, a.id);
+    const consoleRaw = await loadEntries(store, artifacts.find((a) => a.kind === 'console')?.id, false);
+    const networkRaw = await loadEntries(store, artifacts.find((a) => a.kind === 'network')?.id, true);
+    const run = await ctx.repos.runs.get(ctx.db, result.runId);
+    const project = run ? await ctx.repos.projects.get(ctx.db, run.projectId) : undefined;
+    const reviews = project ? await ctx.repos.reviews.list(ctx.db, { projectId: project.id, kind: 'verdict' }) : [];
+
+    return {
+      result,
+      projectKey: project?.key ?? '',
+      case: { id: result.caseId, key: testCase?.key ?? result.caseId, title: testCase?.title ?? '' },
+      environment: environment?.name ?? '',
+      failedStep: failedStepNo(steps),
+      steps: steps.map((s) => {
+        const caseStep = testCase?.steps[s.stepIndex];
+        const screenshotId = shots.get(s.stepIndex);
+        return {
+          ...s,
+          action: caseStep?.action ?? '',
+          ...(caseStep?.expected ? { expected: caseStep.expected } : {}),
+          ...(screenshotId ? { screenshotId } : {}),
+        };
+      }),
+      /** Case steps with no step result (not run because an earlier step stopped the case). */
+      notRun: (testCase?.steps ?? []).map((st, i) => ({ index: i, action: st.action })).filter((x) => !steps.some((s) => s.stepIndex === x.index)),
+      video: video ? { artifactId: video.id } : null,
+      trace: trace ? { artifactId: trace.id, size: trace.size } : null,
+      console: consoleRaw.map((o) => ({ ts: str(o['ts']), type: str(o['type']), text: str(o['text']), ...(o['location'] ? { location: str(o['location']) } : {}) })),
+      network: networkRaw.map((o) => ({ url: str(o['url']), method: str(o['method']), status: numOrNull(o['status']), durationMs: numOrNull(o['durationMs']), resourceType: str(o['resourceType']) })),
+      overrides: reviews.filter((r) => r.refId === result.id),
+    };
+  }),
+
+  /** Replaces the verdict of a case result, refreshes the run counts and records a review item for calibration. */
+  overrideVerdict: publicProcedure
+    .input(z.object({ resultId: IdSchema, verdict: VerdictSchema, note: z.string().max(2000).default('') }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role === 'viewer') throw new S1PilotError('FORBIDDEN', 'Viewers cannot override verdicts');
+      const result = await ctx.repos.results.getCase(ctx.db, input.resultId);
+      if (!result) throw new S1PilotError('RESULT_NOT_FOUND', `Result not found: ${input.resultId}`, { resultId: input.resultId });
+      const run = await ctx.repos.runs.get(ctx.db, result.runId);
+      if (!run) throw new S1PilotError('RUN_NOT_FOUND', `Run not found: ${result.runId}`, { runId: result.runId });
+      if (result.verdict === input.verdict) {
+        throw new S1PilotError('INVALID_STATE', `Result is already ${input.verdict}`, { resultId: result.id });
+      }
+      const updated = await ctx.repos.results.updateCase(ctx.db, result.id, { verdict: input.verdict });
+      const all = await ctx.repos.results.listCases(ctx.db, run.id);
+      const summary = summarize(all.map((r) => r.verdict));
+      await ctx.repos.runs.update(ctx.db, run.id, { summary });
+      const note = `Overridden by ${ctx.user.id}: ${result.verdict} -> ${input.verdict}${input.note ? `. ${input.note}` : ''}`;
+      const review = await ctx.repos.reviews.create(ctx.db, {
+        id: newId(),
+        projectId: run.projectId,
+        kind: 'verdict',
+        refId: result.id,
+        status: 'approved',
+        note,
+        resolvedAt: new Date().toISOString(),
+      });
+      return { result: updated, summary, review };
+    }),
+});
