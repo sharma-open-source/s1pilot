@@ -22,5 +22,8 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     testTimeout: 30_000,
+    // Browser suites each start a Vite dev server + Chromium; keep startup within budget when the whole repo tests in parallel.
+    hookTimeout: 120_000,
+    poolOptions: { forks: { minForks: 1, maxForks: 3 } },
   },
 });
