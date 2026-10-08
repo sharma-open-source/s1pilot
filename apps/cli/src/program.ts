@@ -4,6 +4,8 @@ import { AdapterKindSchema, type ProbeResult } from '@s1pilot/domain';
 import { probe as defaultProbe, type ProbeTarget } from '@s1pilot/providers';
 import { Command, Option } from 'commander';
 
+import { executeRun, type RunOptions } from './run.js';
+
 /** Reads the version from the root package.json (three levels above `dist/` or `src/`). */
 export function getVersion(): string {
   const raw = readFileSync(new URL('../../../package.json', import.meta.url), 'utf8');
@@ -89,6 +91,29 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
       });
       deps.stdout(opts.json ? `${JSON.stringify(result, null, 2)}\n` : formatProbe(result));
       if (!result.ok) deps.setExitCode(1);
+    });
+
+  program
+    .command('run')
+    .description('Run YAML test cases in explore mode (exit codes: 0 passed, 1 failed, 2 needs review, 3 config error)')
+    .argument('<file-or-dir>', 'a test case YAML file or a directory of them')
+    .option('--env <name>', 'environment from .s1pilot/project.yaml (default: the project default)')
+    .option('--model-url <url>', 'System 1 model server base URL')
+    .option('--model <name>', 'System 1 model name')
+    .addOption(new Option('--adapter <adapter>', 'System 1 adapter').choices(AdapterKindSchema.options))
+    .option('--profile <id>', 'model capability profile (thresholds), e.g. clef-flash')
+    .option('--key <key>', 'System 1 API key (or set S1PILOT_API_KEY)')
+    .option('--s2-url <url>', 'System 2 (chat LLM) base URL')
+    .option('--s2-model <name>', 'System 2 model name')
+    .option('--headed', 'show the browser window')
+    .option('--attended', 'ask a human on the terminal when the engine cannot decide')
+    .addOption(new Option('--browser <name>', 'browser engine').choices(['chromium', 'firefox', 'webkit']).default('chromium'))
+    .option('--out <dir>', 'output directory for trace.jsonl and result.json', './s1pilot-results')
+    .option('--project <dir>', 'project directory containing .s1pilot/project.yaml (default: searched upwards from the target)')
+    .option('--base-url <url>', 'override the environment base URL (or define an ad-hoc environment)')
+    .option('--mock-script <file>', 'JSON script for --adapter mock (steps, inputs, expected)')
+    .action(async (target: string, opts: RunOptions) => {
+      deps.setExitCode(await executeRun(target, opts, deps));
     });
 
   return program;

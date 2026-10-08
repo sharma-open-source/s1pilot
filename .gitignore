@@ -7,6 +7,8 @@ coverage/
 
 # s1pilot runtime data, secrets and recorded auth state — never commit
 .s1pilot/
+# the fixture sites' project config holds no secrets and is tracked
+!fixtures/sites/.s1pilot/
 .env
 .env.*
 !.env.example

@@ -1,0 +1,12 @@
+# Project for the fixture sites (no secrets). `pnpm --filter @s1pilot/fixture-sites dev` serves it on :4400.
+key: FIX
+name: Fixture sites
+defaultEnvironment: local
+environments:
+  - name: local
+    baseUrl: http://127.0.0.1:4400/shop
+    variables:
+      - { key: search_term, value: t-shirt }
+      - { key: shipping_name, value: Alex Doe }
+      - { key: shipping_zip, value: "94105" }
+      - { key: email, value: demo@example.com }

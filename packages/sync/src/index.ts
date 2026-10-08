@@ -1,2 +1,4 @@
-/** Package name; placeholder export until tests-as-code sync lands (S-029). */
+/** Package name; tests-as-code sync (S-029) builds on the loader below. */
 export const SYNC_PACKAGE = '@s1pilot/sync';
+
+export * from './load.js';

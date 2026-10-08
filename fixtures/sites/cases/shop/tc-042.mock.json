@@ -1,0 +1,17 @@
+{
+  "steps": {
+    "Search for \"t-shirt\" and open the \"Classic Tee\" product": ["[searchbox] Search products", "[button] Search", "[link] Classic Tee"],
+    "Choose colour Blue and size M, then add to cart": ["[radio] Blue", "[radio] M", "[button] Add to cart"],
+    "Go to checkout as guest and fill the shipping form": [
+      "[link] Cart 1",
+      "[link] Checkout",
+      "[button] Guest checkout",
+      "[textbox] Full name",
+      "[textbox] ZIP code",
+      "[button] Continue to payment"
+    ],
+    "Stop before payment": []
+  },
+  "inputs": { "search": "search_term", "name": "shipping_name", "zip": "shipping_zip" },
+  "expected": 0.95
+}
