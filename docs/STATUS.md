@@ -9,6 +9,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | Date | Spec | Change | Notes |
 |---|---|---|---|
 | 2026-10-08 | S-022 | todo → done | YAML case loader (`@s1pilot/sync`) + `s1pilot run` CLI (sub-agent, merged). **P1 complete (S-006–S-022).** |
+| 2026-10-08 | S-023, S-026 | todo → done | Learned script capture and parameters & shared steps (parallel sub-agents, merged). |
 | 2026-10-08 | S-020 | todo → done | `verifyStep`, `judgeExpected`, `verdictFor`/`caseVerdict` (sub-agent, merged). |
 | 2026-10-08 | S-019 | todo → done | `exploreStep`, `EngineContext`, JSONL trace writer + `TraceLineSchema` (sub-agent, merged). |
 | 2026-10-08 | S-021 | todo → done | Deterministic assertions `runAssertion`, `StepCapture` (sub-agent, merged). |
@@ -58,10 +59,10 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-020 | Verifier: AI-judged assertions & verdict policy | P1 | done | Sub-agent, merged; engine 154 tests. Dual-phrasing for `noul` is done in `ai.ts` (`decideDualOrder` only reorders `choice`). `VerifiedAssertion` is engine-level (domain `AssertionVerdict` has no model field; model id also on `DecisionRecord`). `verdictFor` takes an extra `dualOrderAgreed`; disagreement → needs-review. Step with no assertions/expected text → passed. |
 | S-021 | Deterministic assertions | P1 | done | Sub-agent, merged. Code in `engine/src/verify/`. Field names follow the S-002 `AssertionSchema`, which differs from the spec prose (no `matches`/JSON path). `ai` assertions fail here; S-020 owns them. |
 | S-022 | YAML case loader & CLI `run` | P1 | done | Sub-agent, merged; cli 15 + sync 9 tests. Exit codes 0 passed / 1 failed or blocked / 2 needs-review only / 3 config error. `--mock-script` JSON format is our own (`steps`, `inputs`, `expected`). Added `--base-url`, `--profile`, `--key`, `--project`. CLI resolves only `env:NAME` secret refs (vault refs out of scope); inline secrets in YAML rejected. `flow:`/`auth:` preconditions not applied in explore mode (`TODO(S-026)`); YAML step schema has no per-step `guards`. `.gitignore` exception tracks the secret-free fixture project `fixtures/sites/.s1pilot/`. The ≥70% real-model step success rate was **not** measured (manual check). |
-| S-023 | Learned script capture | P2 | todo | |
+| S-023 | Learned script capture | P2 | done | Sub-agent, merged. `LearnedRecorder`/`buildLearnedScript` (engine), `FsLearnedScriptStore` + DB-backed store; CLI saves script after a passing run (single-row cases only). Added optional `postFingerprint`/`waitHint`/`stepHash` to `ResolvedAction`. Step hash covers raw text with `{placeholders}` (param change doesn't invalidate; revisit in S-024/S-026). |
 | S-024 | Replay mode | P2 | todo | |
 | S-025 | Heal mode & heal proposals | P2 | todo | |
-| S-026 | Parameters & shared steps | P2 | todo | |
+| S-026 | Parameters & shared steps | P2 | done | Sub-agent, merged. `expandCase`, shared-step inlining, preconditions (failure ⇒ case `blocked`), flow/dataset loaders (`@s1pilot/sync`), `scriptKey` per instance. Auth preconditions print "not applied yet" (`TODO(S-038)`). Mock script counts calls per step text across the run, so row step texts must differ in tests. |
 | S-027 | Case runner & JUnit/JSON reporters | P2 | todo | |
 | S-028 | HTML report | P2 | todo | |
 | S-029 | Tests-as-code sync | P2 | todo | |
