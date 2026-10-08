@@ -17,3 +17,8 @@ export { RUN_CASE_JOB, RunCaseJobPayloadSchema, createRunLifecycle } from './wor
 export type { RunCaseJobPayload, RunLifecycle } from './worker/run-lifecycle.js';
 export { WorkerPool } from './worker/worker.js';
 export type { WorkerPoolOptions } from './worker/worker.js';
+export { FsArtifactStore } from './artifacts/store.js';
+export type { ArtifactMeta, ArtifactStore, ByteRange } from './artifacts/store.js';
+export { runRetention, startRetentionJob } from './artifacts/retention.js';
+export { ingestCaseArtifacts } from './artifacts/ingest.js';
+export { parseRange, registerArtifactRoutes } from './artifacts/routes.js';

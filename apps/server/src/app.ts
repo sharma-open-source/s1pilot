@@ -10,6 +10,9 @@ import { createLogger } from '@s1pilot/domain/logger';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 
+import { startRetentionJob } from './artifacts/retention.js';
+import { registerArtifactRoutes } from './artifacts/routes.js';
+import { FsArtifactStore } from './artifacts/store.js';
 import type { ServerConfig } from './config.js';
 import { registerLiveRoutes } from './live/routes.js';
 import { createContext } from './trpc/context.js';
@@ -54,7 +57,11 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
 
   const runtime = createRuntime({ db, config, log, ...(opts.workerOptions ? { workerOptions: opts.workerOptions } : {}) });
   runtime.workers.start(opts.workers ?? config.workers);
+  const artifacts = new FsArtifactStore(db, config.artifactsDir);
+  registerArtifactRoutes(app, artifacts);
+  const stopRetention = startRetentionJob({ db, store: artifacts, log });
   app.addHook('onClose', async () => {
+    stopRetention();
     await runtime.workers.stop(); // before the db closes
     if (ownsDb) db.close();
   });

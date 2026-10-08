@@ -1,3 +1,4 @@
+import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { createDbLearnedScriptStore, repos, resolveVariables, type Db, type Job, type JobQueue } from '@s1pilot/db';
@@ -12,6 +13,8 @@ import {
 import { launchBrowser, runCases, type RunCasesInput, type RunnerEvent } from '@s1pilot/runner';
 import type { FastifyBaseLogger } from 'fastify';
 
+import { ingestCaseArtifacts } from '../artifacts/ingest.js';
+import { FsArtifactStore, type ArtifactStore } from '../artifacts/store.js';
 import type { ServerConfig } from '../config.js';
 import { WORKSPACE_MODEL_KEY } from '../trpc/routers/helpers.js';
 
@@ -33,6 +36,10 @@ export interface WorkerPoolOptions {
   createModels?: ModelFactory;
   /** Browser launcher. Default: {@link launchBrowser}. */
   launch?: typeof launchBrowser;
+  /** Artifact store. Default: {@link FsArtifactStore} under `config.artifactsDir`. */
+  artifacts?: ArtifactStore;
+  /** Capture settings of the runner (video is off unless enabled here). */
+  capture?: RunCasesInput['capture'];
   /** Idle poll interval. Default 250 ms. */
   pollMs?: number;
   /** Job lease; a worker that stops heartbeating loses its job after this long. Default 30 s. */
@@ -236,6 +243,8 @@ export class WorkerPool {
     if (signal.aborted) return;
 
     const ts = (): string => new Date().toISOString();
+    const store = this.opts.artifacts ?? new FsArtifactStore(db, config.artifactsDir);
+    const workDir = join(config.artifactsDir, '.work', runId, job.id);
     let chain: Promise<unknown> = Promise.resolve();
     const handle = (event: RunnerEvent): void => {
       if (signal.aborted) return;
@@ -269,6 +278,7 @@ export class WorkerPool {
           chain = chain.then(async () => {
             if (signal.aborted) return;
             await lifecycle.recordCase({ runId, testCase, environmentId: environment.id, attempt: job.attempts, result });
+            await ingestCaseArtifacts({ db, store, projectId: project.id, workDir, result });
             bus.emit({ type: 'case.finished', runId, ts: ts(), caseResultId: result.caseResultId, verdict: result.verdict, durationMs: result.durationMs });
           });
           break;
@@ -278,6 +288,7 @@ export class WorkerPool {
       }
     };
 
+    try {
     await runCases({
       cases: [testCase],
       environment: environment as Environment,
@@ -291,7 +302,8 @@ export class WorkerPool {
       },
       emit: handle,
       attended: false, // TODO(S-037): attended runs wire a human hook that waits for a person.
-      out: join(config.artifactsDir, 'runs', runId, job.id),
+      out: workDir,
+      ...(this.opts.capture ? { capture: this.opts.capture } : {}),
       vars,
       redactor,
       flows: (idOrName) => flowMap.get(idOrName),
@@ -300,5 +312,8 @@ export class WorkerPool {
       ...(this.opts.onPage ? { onPage: (page, info) => this.opts.onPage?.(runId, info.caseResultId, page) } : {}),
     });
     await chain;
+    } finally {
+      await rm(workDir, { recursive: true, force: true }).catch(() => undefined);
+    }
   }
 }
