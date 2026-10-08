@@ -8,6 +8,8 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 
 | Date | Spec | Change | Notes |
 |---|---|---|---|
+| 2026-10-08 | S-015 | todo → done | Executor `execute()`, `inferAction`, stability waits (sub-agent, merged). |
+| 2026-10-08 | S-013 | todo → done | Page context, action history, Set-of-Marks, `serializeObservation`, fingerprint (sub-agent, merged). |
 | 2026-10-07 | S-012 | todo → done | Observer: `captureElements`, locators, `ElementMap` (sub-agent, reviewed + merged). |
 | 2026-10-07 | S-017 | todo → done | Gate, dual-order, human hook (sub-agent, reviewed + fixed). |
 | 2026-10-07 | S-011 | todo → done | Provider probe + `s1pilot probe` CLI. |
@@ -39,9 +41,9 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-010 | `openai-chat` System 2 adapter | P1 | done | build/typecheck/lint/test green (156 provider tests). `ChatModel` gained `chatJson(req, zodSchema)` (one repair attempt; also on `MockChatModel`). `CreateModelOptions.redactor` scrubs every prompt. `isCloudEndpoint` in `util/endpoint.ts`. No wire-format doc written (standard OpenAI chat API). |
 | S-011 | Provider probe & auto-detect | P1 | done | build/typecheck/lint/test green (providers 174, cli 8 tests). Added domain `ProbeResultSchema`; `probe()` in providers; `s1pilot probe` in cli (`--url --model --key --adapter --json`, key also via `S1PILOT_API_KEY`). Detection exercises the **assumed** systemone/decide wire formats against fake servers only — try it against a real model. Unreachable URL → `ok:false` in ~60 ms (timeouts cap at one request timeout, default 5 s). |
 | S-012 | Observer: elements & locators | P1 | done | Built by a sub-agent in a worktree, diff merged into main and re-verified; build/typecheck/lint/test green (engine 49 tests incl. 8 fixture-site snapshots). **Deviations:** Playwright 1.63 has no `page.accessibility`, so role/accessible name are computed in-page (one `evaluate` per frame, reaches shadow DOM); no separate "in viewport" filter (non-zero box only); `ObservedElement.frame` added; shadow content ordered right after its host. Perf test asserts best-of-5 after warm-up < 500 ms (lenient). New engine deps: `playwright`; dev: `@playwright/test`, `@s1pilot/fixture-sites`. `Observation` type left for S-013 (`ElementMap`/`indexElements` provided). |
-| S-013 | Observer: page context & Set-of-Marks | P1 | todo | |
+| S-013 | Observer: page context & Set-of-Marks | P1 | done | Sub-agent, merged; engine tests green. Fingerprint also hashes interactive element role+name (else the renamed-button variant wouldn't change it). SoM downscale via canvas on a scratch page (no `sharp`). |
 | S-014 | Coarse-to-fine narrowing | P1 | todo | |
-| S-015 | Executor | P1 | todo | |
+| S-015 | Executor | P1 | done | Sub-agent, merged; 12 new tests. `execute()` never throws; only uniquely-resolving candidates used, at most 2 tried. `EngineAction` lives in engine. Popup/dialog/download tests use `setContent` (fixture sites have none). |
 | S-016 | Text input resolution | P1 | todo | |
 | S-017 | Gate, escalation & dual-order | P1 | done | Built by a sub-agent in a worktree, diff applied to main and re-verified; build/typecheck/lint/test green (engine 34 tests). I fixed a prototype-key bug (`in` → `Object.hasOwn` for option ids; regression tests added). `GateResult` is a union on `outcome` (act/blocked/skip/abort/takeover), each with a `DecisionRecord`; `gate()` takes a `disagreement` flag from `decideDualOrder`. Human hook signals "no human" by throwing `HUMAN_UNAVAILABLE`. New dep: `@s1pilot/providers` in engine. |
 | S-018 | Guards | P1 | todo | |
