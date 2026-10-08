@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react';
 
+import { CapabilityGrid } from './CapabilityGrid';
 import { PageHeader } from './PageHeader';
+import { WizardStepper } from './WizardStepper';
 
 import {
   Breadcrumb,
@@ -181,6 +183,28 @@ export function ComponentsDemo() {
         <EmptyState className="w-full" action={<Button variant="secondary">New test case</Button>}>
           No test cases yet.
         </EmptyState>
+      </Demo>
+
+      <Demo title="WizardStepper">
+        <WizardStepper
+          current="models"
+          steps={[
+            { id: 'basics', label: 'Basics' },
+            { id: 'environments', label: 'Environments' },
+            { id: 'models', label: 'Models' },
+            { id: 'login', label: 'Login setup' },
+            { id: 'first-tests', label: 'First tests' },
+          ]}
+        />
+      </Demo>
+
+      <Demo title="CapabilityGrid">
+        <CapabilityGrid
+          adapter="systemone"
+          capabilities={{ maxOptions: 8, multiQuestionPerCall: true, supportsImages: true, maxContextTokens: 32768 }}
+          className="w-full"
+        />
+        <CapabilityGrid className="w-full" />
       </Demo>
 
       <Demo title="Skeleton">
