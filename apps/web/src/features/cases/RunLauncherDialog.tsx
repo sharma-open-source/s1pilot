@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { Button, Callout, Dialog, Field, Select } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
-import { trpc, untypedClient } from '@/lib/trpc';
+import { trpc } from '@/lib/trpc';
 
 const BROWSERS = ['chromium', 'firefox', 'webkit'] as const;
 const MODES = [
@@ -10,16 +10,6 @@ const MODES = [
   { value: 'explore', label: 'Explore with AI' },
   { value: 'replay-only', label: 'Replay only' },
 ] as const;
-
-function pickRunId(raw: unknown): string | undefined {
-  if (typeof raw !== 'object' || raw === null) return undefined;
-  const rec = raw as Record<string, unknown>;
-  for (const k of ['runId', 'id']) {
-    const v = rec[k];
-    if (typeof v === 'string' && v !== '') return v;
-  }
-  return undefined;
-}
 
 interface RunLauncherDialogProps {
   open: boolean;
@@ -44,20 +34,14 @@ export function RunLauncherDialog({ open, onOpenChange, projectKey, caseKeys, on
     if (envId === '' && list[0] !== undefined) setEnvId(list[0].id);
   }, [envId, list]);
 
+  const createRun = trpc.runs.create.useMutation();
+
   const start = async () => {
     setBusy(true);
     setError(null);
     try {
-      // TODO(S-034): switch to the typed `runs.create` once the runs router is in AppRouter.
-      const run: unknown = await untypedClient.mutation('runs.create', {
-        projectKey,
-        caseKeys,
-        environmentId: envId,
-        browser,
-        mode,
-      });
-      const runId = pickRunId(run);
-      if (runId === undefined) throw new Error('The server did not return a run id');
+      const run = await createRun.mutateAsync({ projectKey, caseKeys, environment: envId, browser, mode });
+      const runId = run.id;
       onOpenChange(false);
       onStarted(runId);
     } catch (err) {

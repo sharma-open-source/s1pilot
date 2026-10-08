@@ -4,17 +4,7 @@ import { ResultLine, WizardFooter, type StepProps } from './shared';
 
 import { Button, Callout, Card, Field, Textarea } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
-import { trpc, untypedClient } from '@/lib/trpc';
-
-function pickString(raw: unknown, ...keys: string[]): string | undefined {
-  if (typeof raw !== 'object' || raw === null) return undefined;
-  const rec = raw as Record<string, unknown>;
-  for (const k of keys) {
-    const v = rec[k];
-    if (typeof v === 'string' && v !== '') return v;
-  }
-  return undefined;
-}
+import { trpc } from '@/lib/trpc';
 
 /** Title for the draft case: the first line, trimmed to 80 characters. */
 export function titleFromDescription(text: string): string {
@@ -32,6 +22,7 @@ export function FirstTestsStep({ draft, patch, go, onFinish }: StepProps) {
   const savedText = useRef<string | null>(null);
   const empty = text.trim() === '';
   const createCase = trpc.cases.create.useMutation();
+  const createRun = trpc.runs.create.useMutation();
 
   /** Creates the draft case once per description; returns its key. */
   const ensureCase = async (): Promise<string> => {
@@ -66,10 +57,8 @@ export function FirstTestsStep({ draft, patch, go, onFinish }: StepProps) {
     try {
       const caseKey = await ensureCase();
       setPhase('running');
-      // TODO(S-034): switch to the typed `runs.start` once the router is in AppRouter.
-      const run: unknown = await untypedClient.mutation('runs.start', { projectKey, caseKeys: [caseKey], mode: 'explore' });
-      const runId = pickString(run, 'runId', 'id');
-      if (runId === undefined) throw new Error('The server did not return a run id');
+      const run = await createRun.mutateAsync({ projectKey, caseKeys: [caseKey], environment: 'dev', mode: 'explore' });
+      const runId = run.id;
       onFinish(`/p/${projectKey}/runs/${runId}/live`);
     } catch (err) {
       setError(errorMessage(err));

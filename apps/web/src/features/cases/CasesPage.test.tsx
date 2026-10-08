@@ -18,12 +18,12 @@ const mk = (n: number, over: Record<string, unknown> = {}) => ({
   owner: n === 1 ? 'Ann' : undefined,
   stepCount: 2,
   suitePath: [],
-  learned: [{ environmentId: 'e1', environmentName: 'staging', status: 'current' }],
+  learned: [{ environment: 'e1', environmentName: 'staging', status: 'current' }],
   lastResult: { runId: 'r1', verdict: 'passed', mode: 'replay', caseVersion: 1, durationMs: 5 },
   ...over,
 });
 
-const CASES = [mk(1), mk(2, { lastResult: null, learned: [{ environmentId: 'e1', environmentName: 'staging', status: 'none' }] }), mk(3), mk(4, { status: 'draft', tags: ['s2-generated'], lastResult: null, learned: [] })];
+const CASES = [mk(1), mk(2, { lastResult: null, learned: [{ environment: 'e1', environmentName: 'staging', status: 'none' }] }), mk(3), mk(4, { status: 'draft', tags: ['s2-generated'], lastResult: null, learned: [] })];
 
 const TREE = {
   tree: [
@@ -42,7 +42,7 @@ function handlers(over: Record<string, Handler> = {}): Record<string, Handler> {
     'environments.list': () => [{ id: 'e1', name: 'staging', baseUrl: 'http://x' }],
     'cases.bulk': (i) => ({ action: (i as { action: string }).action, affected: 2, keys: [] }),
     'cases.create': () => ({ key: 'SHOP-TC-9' }),
-    'runs.create': () => ({ runId: 'run-7' }),
+    'runs.create': () => ({ id: 'run-7' }),
     ...over,
   };
 }
@@ -211,7 +211,7 @@ describe('CasesPage', () => {
     expect(callsTo(fake, 'runs.create')[0]?.input).toEqual({
       projectKey: 'SHOP',
       caseKeys: ['SHOP-TC-1'],
-      environmentId: 'e1',
+      environment: 'e1',
       browser: 'chromium',
       mode: 'explore',
     });

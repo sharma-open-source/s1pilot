@@ -13,6 +13,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | 2026-10-08 | S-024, S-029 | todo → done | Replay mode and tests-as-code sync (parallel sub-agents, merged). |
 | 2026-10-08 | S-025 | todo → done | Heal mode & heal proposals (sub-agent, merged). |
 | 2026-10-08 | S-027 | todo → done | Case runner & JUnit/JSON reporters (sub-agent, merged). Replay/heal wired into CLI. |
+| 2026-10-08 | S-034, S-043 | todo → done | Queue/worker/runs and cases UI (parallel, merged; web wired to typed runs.create). |
 | 2026-10-08 | S-041 | todo → done | New project wizard UI (merged). |
 | 2026-10-08 | S-033 | todo → done | Suites/cases/versions API (merged). |
 | 2026-10-08 | S-039 | todo → done | Web scaffold & shell (merged). |
@@ -79,7 +80,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-031 | API server scaffold | P3 | done | Sub-agent, merged. `buildApp(config)` (Fastify, pino redaction, CORS dev-only, ws plugin registered w/o routes, static SPA), `/api/health`, tRPC `/trpc` + `health`, `AppRouter` from `@s1pilot/server/router`, S1PilotError→tRPC code mapping. Data dir `./.s1pilot` if present else `~/.s1pilot`; vault key at `dataDir/master.key`. Extra deps: fastify plugins, `@trpc/server`/`client`, `tsx`. |
 | S-032 | API: projects, environments, model settings | P3 | done | Sub-agent, merged. Routers `projects`, `environments`, `models` (probe/status cached 30 s). Secrets encrypted, masked in responses; `revealSecret` admin/lead only, rate-limited 10/min, audit = pino log line (no audit table yet; S-067). Workspace model defaults in `settings` key `workspace.modelSettings`. Last environment can't be deleted. Only `env:` key refs resolved in probe/status. |
 | S-033 | API: suites, cases, versions | P3 | done | Sub-agent, merged. Routers `suites`, `cases` (list/get/create/update w/ `expectedVersion`→CONFLICT/bulk/history/diff/yaml/updateFromYaml), `sharedSteps`, `requirements`, root `syncStatus`. New `parseCaseQuery`/`matchesCaseQuery` in domain (AND only; OR → S-049). db: `requirements` repo, `results.lastByCases`, `cases.update` expectedVersion. sync exports `caseToYaml`/`parseCaseYaml`. Server now depends on `@s1pilot/sync`. |
-| S-034 | Job queue, worker & run lifecycle | P3 | todo | |
+| S-034 | Job queue, worker & run lifecycle | P3 | done | Sub-agent, merged. SQLite `jobs` table + `createSqliteJobQueue` (lease/heartbeat/reap, maxAttempts 2), `WorkerPool` (`config.workers`, default 1), event bus, `runs` router (`create`/`list`/`get`/`cancel`/`rerunFailed`; `create` takes `{projectKey, caseKeys, environment (name|id), browser, mode, attended}`). One job per case×env×browser. Server uses DB learned-script store + DB heal proposals (consistent). `RunStatusSchema` extended additively; runner gains `signal` + `launchBrowser()`. Not wired: human hook (`TODO(S-037)`), plans (`TODO(S-049)`), datasets, `secret:` key refs. |
 | S-035 | Artifact store & evidence capture | P3 | todo | |
 | S-036 | Live events & screencast WebSocket | P3 | todo | |
 | S-037 | Human-in-the-loop control | P3 | todo | |
@@ -88,7 +89,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-040 | UI: workspace dashboard | P3 | todo | |
 | S-041 | UI: new project wizard | P3 | done | Sub-agent, merged. 5-step wizard (`apps/web/src/features/wizard`), react-hook-form + zod, draft in sessionStorage, API key never stored (only `env:`/`secret:` refs). Steps 4/5 call `auth.record`/`auth.finishRecording`, `cases.create`, `runs.start` via untyped client with guessed shapes (`TODO(S-038)`/`TODO(S-034)`) — verify when those land (cases.create now exists with S-033: check shape). Redaction checkbox fixed-on. nav-data now typed. Web smoke test (Chromium vs Vite dev) can time out under heavy parallel load; passes alone. |
 | S-042 | UI: environments & secrets | P3 | todo | |
-| S-043 | UI: test cases list & suites | P3 | todo | |
+| S-043 | UI: test cases list & suites | P3 | done | Sub-agent, merged. `features/cases/*`, QueryInput, dropdown (Radix), library pages (shared steps/requirements/test data stub). Last-result filter client-side only; owners from loaded page; `s2-generated` tag marks S2 cases. Orchestrator then switched wizard + run launcher to typed `runs.create` (replaces guessed `runs.start`). Auth procedures in wizard login step still untyped (`TODO(S-038)`). |
 | S-044 | UI: test case editor | P3 | todo | |
 | S-045 | UI: run launcher & live run | P3 | todo | |
 | S-046 | UI: run report & result detail | P3 | todo | |

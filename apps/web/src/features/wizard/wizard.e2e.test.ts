@@ -44,7 +44,7 @@ const fake = createFakeTrpc({
   },
   'models.updateSettings': () => ({}),
   'cases.create': () => ({ key: 'SHOP-TC-1' }),
-  'runs.start': () => ({ runId: 'r1' }),
+  'runs.create': () => ({ id: 'r1' }),
 });
 
 let httpServer: Server;
@@ -149,7 +149,7 @@ describe('new project wizard (headless Chromium, fake server)', () => {
       await page.waitForURL('**/p/SHOP/runs/r1/live');
 
       const paths = fake.calls.map((c) => c.path);
-      for (const p of ['projects.create', 'environments.create', 'models.updateSettings', 'cases.create', 'runs.start']) {
+      for (const p of ['projects.create', 'environments.create', 'models.updateSettings', 'cases.create', 'runs.create']) {
         expect(paths, p).toContain(p);
       }
       await page.close();

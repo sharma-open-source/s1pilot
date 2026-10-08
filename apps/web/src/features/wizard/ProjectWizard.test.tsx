@@ -32,7 +32,7 @@ function baseHandlers(): Record<string, Handler> {
     'models.updateSettings': () => ({}),
     'models.status': () => ({ system1: { configured: false, reachable: false }, system2: { configured: false, reachable: false } }),
     'cases.create': () => ({ key: 'SHOP-TC-1' }),
-    'runs.start': () => ({ runId: 'r1' }),
+    'runs.create': () => ({ id: 'r1' }),
   };
 }
 
@@ -291,7 +291,7 @@ describe('First tests step', () => {
 
     await waitFor(() => expect(onFinish).toHaveBeenCalledWith('/p/SHOP/runs/r1/live'));
     expect(callsTo(fake, 'cases.create')[0]?.input).toMatchObject({ projectKey: 'SHOP', status: 'draft', title: 'Add a product to the cart and check the badge' });
-    expect(callsTo(fake, 'runs.start')[0]?.input).toEqual({ projectKey: 'SHOP', caseKeys: ['SHOP-TC-1'], mode: 'explore' });
+    expect(callsTo(fake, 'runs.create')[0]?.input).toEqual({ projectKey: 'SHOP', caseKeys: ['SHOP-TC-1'], environment: 'dev', mode: 'explore' });
     expect(window.sessionStorage.getItem('s1pilot.wizard.draft')).toBeNull();
   });
 
