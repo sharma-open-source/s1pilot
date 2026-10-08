@@ -18,6 +18,11 @@ export const SYSTEMONE_DEFAULT_CAPABILITIES: Capabilities = {
 
 const AnswersWireSchema = z.record(AnswerWireSchema);
 
+/** OpenRouter serves the same wire format at `/api/alpha/decisions`; a base URL already ending in an endpoint path is used as given. */
+function systemOneUrl(baseUrl: string): string {
+  return /\/(decisions|systemone)\/?$/.test(baseUrl.split(/[?#]/)[0] ?? '') ? baseUrl.replace(/\/+$/, '') : joinUrl(baseUrl, '/v1/systemone');
+}
+
 /**
  * Creates the model for `POST {baseUrl}/v1/systemone` (Clef, Laya via `laya-serve`, TypeSafe Jev).
  * Wire format: see `systemone.md`.
@@ -25,7 +30,7 @@ const AnswersWireSchema = z.record(AnswerWireSchema);
 export function createSystemOneModel(ctx: AdapterContext): DecisionModel {
   const { endpoint, options } = ctx;
   const capabilities = ctx.profile?.capabilities ?? SYSTEMONE_DEFAULT_CAPABILITIES;
-  const url = joinUrl(endpoint.baseUrl ?? '', '/v1/systemone');
+  const url = systemOneUrl(endpoint.baseUrl ?? '');
   const secrets = options.apiKey ? [options.apiKey] : [];
 
   async function callOnce(req: DecideRequest): Promise<Record<string, DecideAnswer>> {

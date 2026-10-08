@@ -50,6 +50,12 @@ describe('systemone adapter: success', () => {
     expect(sent?.body).toEqual({ model: 'clef-flash', state: request.state, questions: request.questions });
   });
 
+  it('uses a base URL that already ends in /decisions as the endpoint (OpenRouter)', async () => {
+    const { baseUrl, requests } = await serve((_, res) => json(res, 200, fixture('three-questions.json')));
+    await createDecisionModel(endpoint(`${baseUrl}/api/alpha/decisions`)).decide(request);
+    expect(requests[0]).toMatchObject({ method: 'POST', url: '/api/alpha/decisions' });
+  });
+
   it('sends no Authorization header without an API key', async () => {
     const { baseUrl, requests } = await serve((_, res) => json(res, 200, fixture('three-questions.json')));
     await createDecisionModel(endpoint(baseUrl)).decide(request);
