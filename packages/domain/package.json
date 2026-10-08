@@ -12,6 +12,10 @@
       "types": "./dist/errors.d.ts",
       "import": "./dist/errors.js"
     },
+    "./assertion-summary": {
+      "types": "./dist/assertion-summary.d.ts",
+      "import": "./dist/assertion-summary.js"
+    },
     "./logger": {
       "types": "./dist/logger.d.ts",
       "import": "./dist/logger.js"
@@ -19,7 +23,7 @@
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsup src/index.ts src/errors.ts src/logger.ts --format esm --dts --clean",
+    "build": "tsup src/index.ts src/errors.ts src/logger.ts src/assertion-summary.ts --format esm --dts --clean",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src",
     "test": "vitest run"
