@@ -13,6 +13,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | 2026-10-08 | S-024, S-029 | todo → done | Replay mode and tests-as-code sync (parallel sub-agents, merged). |
 | 2026-10-08 | S-025 | todo → done | Heal mode & heal proposals (sub-agent, merged). |
 | 2026-10-08 | S-027 | todo → done | Case runner & JUnit/JSON reporters (sub-agent, merged). Replay/heal wired into CLI. |
+| 2026-10-08 | S-033 | todo → done | Suites/cases/versions API (merged). |
 | 2026-10-08 | S-039 | todo → done | Web scaffold & shell (merged). |
 | 2026-10-08 | S-032 | todo → done | Projects/environments/models API (merged). |
 | 2026-10-08 | S-031 | todo → done | API server scaffold (merged). |
@@ -76,7 +77,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-030 | Eval harness & seeded bugs | P2 | done | Sub-agent, merged. `s1pilot eval --suite … [--models --oracle --repeat --out]`; metrics + leaderboard + engine sha; `--oracle` uses mock scripts (100% detection, 0 false-pass in test). Suite `suites/fixtures-all` has only SHOP-TC-42 (clean + `badge-wrong-count`); other fixture cases need YAML + mock scripts. Fixture server must be running (not auto-started). Added `yaml` dep to cli. **P2 complete.** |
 | S-031 | API server scaffold | P3 | done | Sub-agent, merged. `buildApp(config)` (Fastify, pino redaction, CORS dev-only, ws plugin registered w/o routes, static SPA), `/api/health`, tRPC `/trpc` + `health`, `AppRouter` from `@s1pilot/server/router`, S1PilotError→tRPC code mapping. Data dir `./.s1pilot` if present else `~/.s1pilot`; vault key at `dataDir/master.key`. Extra deps: fastify plugins, `@trpc/server`/`client`, `tsx`. |
 | S-032 | API: projects, environments, model settings | P3 | done | Sub-agent, merged. Routers `projects`, `environments`, `models` (probe/status cached 30 s). Secrets encrypted, masked in responses; `revealSecret` admin/lead only, rate-limited 10/min, audit = pino log line (no audit table yet; S-067). Workspace model defaults in `settings` key `workspace.modelSettings`. Last environment can't be deleted. Only `env:` key refs resolved in probe/status. |
-| S-033 | API: suites, cases, versions | P3 | todo | |
+| S-033 | API: suites, cases, versions | P3 | done | Sub-agent, merged. Routers `suites`, `cases` (list/get/create/update w/ `expectedVersion`→CONFLICT/bulk/history/diff/yaml/updateFromYaml), `sharedSteps`, `requirements`, root `syncStatus`. New `parseCaseQuery`/`matchesCaseQuery` in domain (AND only; OR → S-049). db: `requirements` repo, `results.lastByCases`, `cases.update` expectedVersion. sync exports `caseToYaml`/`parseCaseYaml`. Server now depends on `@s1pilot/sync`. |
 | S-034 | Job queue, worker & run lifecycle | P3 | todo | |
 | S-035 | Artifact store & evidence capture | P3 | todo | |
 | S-036 | Live events & screencast WebSocket | P3 | todo | |
