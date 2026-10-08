@@ -147,6 +147,6 @@ describe('writeReports', () => {
     const files = await writeReports(REPORT, dir, parseReporterList('junit, json,junit'));
     expect(files.map((f) => f.slice(dir.length + 1))).toEqual(['junit.xml', 'report.json']);
     expect(validateJunit(readFileSync(files[0] ?? '', 'utf8'))).toEqual([]);
-    expect(() => parseReporterList('junit,html')).toThrow(/Unknown reporter "html"/);
+    expect(() => parseReporterList('junit,pdf')).toThrow(/Unknown reporter "pdf"/);
   });
 });

@@ -151,7 +151,7 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
         .choices(['replay-heal', 'explore', 'replay-only'])
         .default('replay-heal'),
     )
-    .option('--reporter <names>', 'comma-separated reports to write into --out: junit (junit.xml), json (report.json)')
+    .option('--reporter <names>', 'comma-separated reports to write into --out: junit (junit.xml), json (report.json), html (report.html)')
     .option('--parallel <n>', 'cases to run at the same time, each in its own browser context', (v) => Number.parseInt(v, 10), 1)
     .option('--mock-script <file>', 'JSON script for --adapter mock (steps, inputs, expected)')
     .action(async (target: string, opts: RunOptions) => {

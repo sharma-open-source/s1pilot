@@ -198,9 +198,9 @@ describe('s1pilot run (in-process)', () => {
 
   it('rejects bad --reporter, --parallel and --mode values', async () => {
     const base = [CASE, '--env', 'local', '--adapter', 'mock', '--mock-script', SCRIPT, '--base-url', `${server.url}/shop`, '--out', out()];
-    let r = await run([...base, '--reporter', 'html']);
+    let r = await run([...base, '--reporter', 'pdf']);
     expect(r.code).toBe(3);
-    expect(r.stderr).toContain('Unknown reporter "html"');
+    expect(r.stderr).toContain('Unknown reporter "pdf"');
     r = await run([...base, '--parallel', '0']);
     expect(r.code).toBe(3);
     expect(r.stderr).toContain('--parallel');

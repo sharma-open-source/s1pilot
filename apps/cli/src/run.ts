@@ -75,7 +75,7 @@ export interface RunOptions {
   mockScript?: string;
   /** `replay-heal` (default), `explore` or `replay-only`. */
   mode?: ExecutionMode;
-  /** Comma-separated reporters: `junit`, `json`. */
+  /** Comma-separated reporters: `junit`, `json`, `html`. */
   reporter?: string;
   /** Cases to run at the same time (default 1). */
   parallel?: number;
@@ -485,7 +485,7 @@ export async function executeRun(target: string, opts: RunOptions, deps: RunDeps
         2,
       )}\n`,
     );
-    for (const file of await writeReports(report, outDir, reporters)) say(`Report: ${file}`);
+    for (const file of await writeReports(report, outDir, reporters, {}, { redactor })) say(`Report: ${file}`);
     return exitCodeFor(report.cases.map((c) => c.verdict));
   } catch (error) {
     if (error instanceof ConfigError || error instanceof S1PilotError) {
