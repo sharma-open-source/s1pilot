@@ -1,4 +1,5 @@
 import { artifacts } from './artifacts.js';
+import { authSetups } from './auth-setups.js';
 import { cases } from './cases.js';
 import { defects } from './defects.js';
 import { environments } from './environments.js';
@@ -31,8 +32,10 @@ export const repos = {
   healProposals,
   settings,
   artifacts,
+  authSetups,
 };
 
+export type { AuthSetupsRepo, NewAuthSetup } from './auth-setups.js';
 export type { ArtifactKind, ArtifactRecord, ArtifactsRepo, NewArtifactRecord } from './artifacts.js';
 export type { CaseFilters, NewTestCase, CasesRepo } from './cases.js';
 export type { DefectsRepo } from './defects.js';

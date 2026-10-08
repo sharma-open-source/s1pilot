@@ -7,7 +7,7 @@ import { isNotNull, eq } from 'drizzle-orm';
 import sodium from 'libsodium-wrappers';
 
 import { atomic, type Db } from './db.js';
-import { variables } from './schema/index.js';
+import { authSetups, variables } from './schema/index.js';
 
 /** Symmetric encryption for secret values at rest. Structurally a `SecretCrypto`. */
 export interface Vault {
@@ -121,7 +121,7 @@ export async function rotateKey(oldKey: string, newKey: string, ciphertexts: str
 }
 
 /**
- * Re-encrypts every secret variable in the database from `oldVault` to `newVault`, atomically.
+ * Re-encrypts every secret variable and saved auth state in the database from `oldVault` to `newVault`, atomically.
  * Returns the number of rows rotated. Nothing changes if any row fails to decrypt.
  */
 export function rotateDbSecrets(db: Db, oldVault: Vault, newVault: Vault): number {
@@ -131,6 +131,11 @@ export function rotateDbSecrets(db: Db, oldVault: Vault, newVault: Vault): numbe
       const plain = oldVault.decrypt(row.secretCiphertext as string);
       db.orm.update(variables).set({ secretCiphertext: newVault.encrypt(plain) }).where(eq(variables.id, row.id)).run();
     }
-    return rows.length;
+    const states = db.orm.select().from(authSetups).where(isNotNull(authSetups.stateCiphertext)).all();
+    for (const row of states) {
+      const plain = oldVault.decrypt(row.stateCiphertext as string);
+      db.orm.update(authSetups).set({ stateCiphertext: newVault.encrypt(plain) }).where(eq(authSetups.id, row.id)).run();
+    }
+    return rows.length + states.length;
   });
 }

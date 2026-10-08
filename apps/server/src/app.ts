@@ -64,6 +64,7 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
   const stopRetention = startRetentionJob({ db, store: artifacts, log });
   app.addHook('onClose', async () => {
     stopRetention();
+    await runtime.auth.close();
     await runtime.workers.stop(); // before the db closes
     if (ownsDb) db.close();
   });

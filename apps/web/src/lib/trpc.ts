@@ -24,8 +24,7 @@ export function createTrpcClient(fetchImpl?: typeof fetch) {
 }
 
 /**
- * Untyped client for procedures that may not exist yet (wizard: `cases.create` TODO(S-033), `runs.start` TODO(S-034),
- * `auth.*` TODO(S-038)). Replace with typed hooks once those routers are in `AppRouter`.
+ * Untyped client for procedures that may not exist yet (wizard: `cases.create` TODO(S-033), `runs.start` TODO(S-034)). Replace with typed hooks once those routers are in `AppRouter`.
  */
 export const untypedClient = createTRPCUntypedClient<AppRouter>({ links: links() });
 

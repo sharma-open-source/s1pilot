@@ -4,12 +4,13 @@ import { ResultLine, WizardFooter, type StepProps } from './shared';
 
 import { Button, Callout, Card, Field, Input } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
-import { untypedClient } from '@/lib/trpc';
+import { trpc } from '@/lib/trpc';
 
 type Phase = 'idle' | 'starting' | 'recording' | 'finishing' | 'saved' | 'error';
 
-/** Step 4 (optional): record a login, pick a flow, or skip. Uses the S-038 `auth.*` procedures when the server has them. */
+/** Step 4 (optional): record a login, pick a flow, or skip. Uses the S-038 `auth.*` procedures. */
 export function LoginStep({ draft, patch, go }: StepProps) {
+  const utils = trpc.useUtils();
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
   const [showFlow, setShowFlow] = useState(draft.login.choice === 'flow');
@@ -23,8 +24,7 @@ export function LoginStep({ draft, patch, go }: StepProps) {
     setError(null);
     setPhase('starting');
     try {
-      // TODO(S-038): switch to the typed `auth.record` once the router is in AppRouter.
-      await untypedClient.mutation('auth.record', base);
+      await utils.client.auth.record.mutate(base);
       setPhase('recording');
     } catch (err) {
       setError(errorMessage(err));
@@ -35,8 +35,7 @@ export function LoginStep({ draft, patch, go }: StepProps) {
   const finish = async () => {
     setPhase('finishing');
     try {
-      // TODO(S-038): switch to the typed `auth.finishRecording`.
-      await untypedClient.mutation('auth.finishRecording', base);
+      await utils.client.auth.finishRecording.mutate(base);
       patch({ login: { choice: 'recorded', flowName } });
       setPhase('saved');
     } catch (err) {
@@ -45,7 +44,17 @@ export function LoginStep({ draft, patch, go }: StepProps) {
     }
   };
 
-  const next = (choice: 'recorded' | 'flow' | 'skipped') => {
+  const next = async (choice: 'recorded' | 'flow' | 'skipped') => {
+    if (choice === 'flow') {
+      try {
+        // The flow runs (and is refreshed) by the server; here it is only registered under the login name.
+        await utils.client.auth.saveFlow.mutate({ ...base, flowId: flowName.trim() });
+      } catch (err) {
+        setError(errorMessage(err));
+        setPhase('error');
+        return;
+      }
+    }
     patch({ login: { choice, flowName } });
     go('first-tests');
   };
@@ -55,7 +64,7 @@ export function LoginStep({ draft, patch, go }: StepProps) {
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
-        next(phase === 'saved' ? 'recorded' : showFlow && flowName.trim() !== '' ? 'flow' : 'skipped');
+        void next(phase === 'saved' ? 'recorded' : showFlow && flowName.trim() !== '' ? 'flow' : 'skipped');
       }}
       className="flex flex-col gap-6"
     >
@@ -73,7 +82,7 @@ export function LoginStep({ draft, patch, go }: StepProps) {
           <Button variant="secondary" aria-pressed={showFlow} onClick={() => setShowFlow((s) => !s)}>
             Use a flow
           </Button>
-          <Button variant="secondary" onClick={() => next('skipped')}>
+          <Button variant="secondary" onClick={() => void next('skipped')}>
             Skip
           </Button>
         </div>

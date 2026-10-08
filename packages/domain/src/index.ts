@@ -1,3 +1,4 @@
+export * from './auth-setup.js';
 export * from './common.js';
 export * from './decision.js';
 export * from './defect.js';

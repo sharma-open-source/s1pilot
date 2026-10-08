@@ -22,6 +22,7 @@ import type { FastifyBaseLogger } from 'fastify';
 
 import { ingestCaseArtifacts } from '../artifacts/ingest.js';
 import { FsArtifactStore, type ArtifactStore } from '../artifacts/store.js';
+import type { AuthService } from '../auth/service.js';
 import type { ServerConfig } from '../config.js';
 import type { HumanControl } from '../live/control.js';
 import { WORKSPACE_MODEL_KEY } from '../trpc/routers/helpers.js';
@@ -56,6 +57,8 @@ export interface WorkerPoolOptions {
   heartbeatMs?: number;
   /** Human-in-the-loop control (S-037): escalation hook, pause points and takeover pages for attended runs. */
   human?: HumanControl;
+  /** Saved logins (S-038): restores the storage state of `auth:` preconditions. */
+  auth?: AuthService;
   /** Live view hook (S-036): receives the page of every running case; returns a release function. */
   onPage?: (
     runId: string,
@@ -377,6 +380,7 @@ export class WorkerPool {
         ...(this.opts.capture ? { capture: this.opts.capture } : {}),
         vars,
         redactor,
+        ...(this.opts.auth ? { auth: this.opts.auth.providerFor(browser, this.opts.auth.lazyRefresher(browser, workDir)) } : {}),
         flows: (idOrName) => flowMap.get(idOrName),
         suiteOf: (c) => c.suiteId ?? project.key,
         signal,

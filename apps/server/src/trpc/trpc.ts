@@ -12,6 +12,7 @@ export function trpcCodeFor(code: string): TrpcCode {
   if (code === 'UNAUTHORIZED') return 'UNAUTHORIZED';
   if (code === 'RATE_LIMITED') return 'TOO_MANY_REQUESTS';
   if (code === 'CONFLICT' || code.endsWith('_DUPLICATE')) return 'CONFLICT';
+  if (code.startsWith('AUTH_')) return 'PRECONDITION_FAILED';
   if (code === 'INVALID_STATE') return 'PRECONDITION_FAILED';
   if (code.startsWith('MODEL_')) return 'BAD_GATEWAY';
   if (code === 'CONFIG_ERROR') return 'INTERNAL_SERVER_ERROR';
