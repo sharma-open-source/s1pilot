@@ -8,6 +8,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 
 | Date | Spec | Change | Notes |
 |---|---|---|---|
+| 2026-10-08 | S-019 | todo → done | `exploreStep`, `EngineContext`, JSONL trace writer + `TraceLineSchema` (sub-agent, merged). |
 | 2026-10-08 | S-021 | todo → done | Deterministic assertions `runAssertion`, `StepCapture` (sub-agent, merged). |
 | 2026-10-08 | S-018 | todo → done | Guards: domain, read-only, sensitive-action classifier, loop, untrusted-text wrapper (sub-agent, merged). |
 | 2026-10-08 | S-016 | todo → done | `resolveInput` text-input resolution + literal store (sub-agent, merged). |
@@ -51,7 +52,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-016 | Text input resolution | P1 | done | Sub-agent, merged. Code in `engine/src/text-input/` (not `decide/`). Only key names reach S1/S2; password-like fields never go to S2. Extra exports `createLiteralStore`, `createValueResolver`. |
 | S-017 | Gate, escalation & dual-order | P1 | done | Built by a sub-agent in a worktree, diff applied to main and re-verified; build/typecheck/lint/test green (engine 34 tests). I fixed a prototype-key bug (`in` → `Object.hasOwn` for option ids; regression tests added). `GateResult` is a union on `outcome` (act/blocked/skip/abort/takeover), each with a `DecisionRecord`; `gate()` takes a `disagreement` flag from `decideDualOrder`. Human hook signals "no human" by throwing `HUMAN_UNAVAILABLE`. New dep: `@s1pilot/providers` in engine. |
 | S-018 | Guards | P1 | done | Sub-agent, merged. `classifySensitive` returns `SensitiveClass` (name `SensitiveAction` taken by the gate). Read-only guard blocks all non-GET/HEAD/OPTIONS requests. Not yet wired into the executor (S-019). |
-| S-019 | Explore step loop & trace | P1 | todo | |
+| S-019 | Explore step loop & trace | P1 | done | Sub-agent, merged; engine 129 tests. `TraceLineSchema` lives in engine (`trace/schema.ts`). New engine dep: `zod`. `passed` means the action was performed; expected-result checks are S-020/S-021. Step guards come in via `ExploreStepInput.guards`. SoM screenshot not captured in the loop. |
 | S-020 | Verifier: AI-judged assertions & verdict policy | P1 | todo | |
 | S-021 | Deterministic assertions | P1 | done | Sub-agent, merged. Code in `engine/src/verify/`. Field names follow the S-002 `AssertionSchema`, which differs from the spec prose (no `matches`/JSON path). `ai` assertions fail here; S-020 owns them. |
 | S-022 | YAML case loader & CLI `run` | P1 | todo | |
