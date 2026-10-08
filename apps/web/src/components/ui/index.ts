@@ -2,6 +2,7 @@ export * from './button';
 export * from './callout';
 export * from './card';
 export * from './dialog';
+export * from './dropdown';
 export * from './form';
 export * from './misc';
 export * from './pill';

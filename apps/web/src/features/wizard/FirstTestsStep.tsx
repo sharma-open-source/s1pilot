@@ -4,7 +4,7 @@ import { ResultLine, WizardFooter, type StepProps } from './shared';
 
 import { Button, Callout, Card, Field, Textarea } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
-import { untypedClient } from '@/lib/trpc';
+import { trpc, untypedClient } from '@/lib/trpc';
 
 function pickString(raw: unknown, ...keys: string[]): string | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined;
@@ -31,19 +31,18 @@ export function FirstTestsStep({ draft, patch, go, onFinish }: StepProps) {
   /** Description the current draft case was created from; editing the text creates a fresh draft. */
   const savedText = useRef<string | null>(null);
   const empty = text.trim() === '';
+  const createCase = trpc.cases.create.useMutation();
 
   /** Creates the draft case once per description; returns its key. */
   const ensureCase = async (): Promise<string> => {
     if (draft.caseKey !== undefined && savedText.current === text) return draft.caseKey;
-    // TODO(S-033): switch to the typed `cases.create` once the router is in AppRouter.
-    const created: unknown = await untypedClient.mutation('cases.create', {
+    const created = await createCase.mutateAsync({
       projectKey,
       title: titleFromDescription(text),
       status: 'draft',
-      steps: [{ text: text.trim() }],
+      steps: [{ action: text.trim() }],
     });
-    const key = pickString(created, 'key', 'caseKey');
-    if (key === undefined) throw new Error('The server did not return a case key');
+    const key = created.key;
     savedText.current = text;
     patch({ caseKey: key });
     return key;

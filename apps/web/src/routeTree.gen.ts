@@ -21,6 +21,9 @@ import { Route as PKeyCasesIndexRouteImport } from './routes/p/$key/cases/index'
 import { Route as PKeyDefectsIndexRouteImport } from './routes/p/$key/defects/index'
 import { Route as PKeyEnvironmentsIndexRouteImport } from './routes/p/$key/environments/index'
 import { Route as PKeyEnvironmentsEnvRouteImport } from './routes/p/$key/environments/$env'
+import { Route as PKeyLibraryRequirementsRouteImport } from './routes/p/$key/library/requirements'
+import { Route as PKeyLibrarySharedStepsRouteImport } from './routes/p/$key/library/shared-steps'
+import { Route as PKeyLibraryTestDataRouteImport } from './routes/p/$key/library/test-data'
 import { Route as PKeyManualIndexRouteImport } from './routes/p/$key/manual/index'
 import { Route as PKeyManualSessionIdRouteImport } from './routes/p/$key/manual/$sessionId'
 import { Route as PKeyPlansIndexRouteImport } from './routes/p/$key/plans/index'
@@ -93,6 +96,21 @@ const PKeyEnvironmentsEnvRoute = PKeyEnvironmentsEnvRouteImport.update({
   path: '/p/$key/environments/$env',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PKeyLibraryRequirementsRoute = PKeyLibraryRequirementsRouteImport.update({
+  id: '/p/$key/library/requirements',
+  path: '/p/$key/library/requirements',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PKeyLibrarySharedStepsRoute = PKeyLibrarySharedStepsRouteImport.update({
+  id: '/p/$key/library/shared-steps',
+  path: '/p/$key/library/shared-steps',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PKeyLibraryTestDataRoute = PKeyLibraryTestDataRouteImport.update({
+  id: '/p/$key/library/test-data',
+  path: '/p/$key/library/test-data',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PKeyManualIndexRoute = PKeyManualIndexRouteImport.update({
   id: '/p/$key/manual/',
   path: '/p/$key/manual/',
@@ -158,6 +176,9 @@ export interface FileRoutesByFullPath {
   '/p/$key/': typeof PKeyIndexRoute
   '/p/$key/analytics/$view': typeof PKeyAnalyticsViewRoute
   '/p/$key/environments/$env': typeof PKeyEnvironmentsEnvRoute
+  '/p/$key/library/requirements': typeof PKeyLibraryRequirementsRoute
+  '/p/$key/library/shared-steps': typeof PKeyLibrarySharedStepsRoute
+  '/p/$key/library/test-data': typeof PKeyLibraryTestDataRoute
   '/p/$key/manual/$sessionId': typeof PKeyManualSessionIdRoute
   '/p/$key/plans/$planId': typeof PKeyPlansPlanIdRoute
   '/p/$key/analytics/': typeof PKeyAnalyticsIndexRoute
@@ -183,6 +204,9 @@ export interface FileRoutesByTo {
   '/p/$key': typeof PKeyIndexRoute
   '/p/$key/analytics/$view': typeof PKeyAnalyticsViewRoute
   '/p/$key/environments/$env': typeof PKeyEnvironmentsEnvRoute
+  '/p/$key/library/requirements': typeof PKeyLibraryRequirementsRoute
+  '/p/$key/library/shared-steps': typeof PKeyLibrarySharedStepsRoute
+  '/p/$key/library/test-data': typeof PKeyLibraryTestDataRoute
   '/p/$key/manual/$sessionId': typeof PKeyManualSessionIdRoute
   '/p/$key/plans/$planId': typeof PKeyPlansPlanIdRoute
   '/p/$key/analytics': typeof PKeyAnalyticsIndexRoute
@@ -209,6 +233,9 @@ export interface FileRoutesById {
   '/p/$key/': typeof PKeyIndexRoute
   '/p/$key/analytics/$view': typeof PKeyAnalyticsViewRoute
   '/p/$key/environments/$env': typeof PKeyEnvironmentsEnvRoute
+  '/p/$key/library/requirements': typeof PKeyLibraryRequirementsRoute
+  '/p/$key/library/shared-steps': typeof PKeyLibrarySharedStepsRoute
+  '/p/$key/library/test-data': typeof PKeyLibraryTestDataRoute
   '/p/$key/manual/$sessionId': typeof PKeyManualSessionIdRoute
   '/p/$key/plans/$planId': typeof PKeyPlansPlanIdRoute
   '/p/$key/analytics/': typeof PKeyAnalyticsIndexRoute
@@ -236,6 +263,9 @@ export interface FileRouteTypes {
     | '/p/$key/'
     | '/p/$key/analytics/$view'
     | '/p/$key/environments/$env'
+    | '/p/$key/library/requirements'
+    | '/p/$key/library/shared-steps'
+    | '/p/$key/library/test-data'
     | '/p/$key/manual/$sessionId'
     | '/p/$key/plans/$planId'
     | '/p/$key/analytics/'
@@ -261,6 +291,9 @@ export interface FileRouteTypes {
     | '/p/$key'
     | '/p/$key/analytics/$view'
     | '/p/$key/environments/$env'
+    | '/p/$key/library/requirements'
+    | '/p/$key/library/shared-steps'
+    | '/p/$key/library/test-data'
     | '/p/$key/manual/$sessionId'
     | '/p/$key/plans/$planId'
     | '/p/$key/analytics'
@@ -286,6 +319,9 @@ export interface FileRouteTypes {
     | '/p/$key/'
     | '/p/$key/analytics/$view'
     | '/p/$key/environments/$env'
+    | '/p/$key/library/requirements'
+    | '/p/$key/library/shared-steps'
+    | '/p/$key/library/test-data'
     | '/p/$key/manual/$sessionId'
     | '/p/$key/plans/$planId'
     | '/p/$key/analytics/'
@@ -312,6 +348,9 @@ export interface RootRouteChildren {
   PKeyIndexRoute: typeof PKeyIndexRoute
   PKeyAnalyticsViewRoute: typeof PKeyAnalyticsViewRoute
   PKeyEnvironmentsEnvRoute: typeof PKeyEnvironmentsEnvRoute
+  PKeyLibraryRequirementsRoute: typeof PKeyLibraryRequirementsRoute
+  PKeyLibrarySharedStepsRoute: typeof PKeyLibrarySharedStepsRoute
+  PKeyLibraryTestDataRoute: typeof PKeyLibraryTestDataRoute
   PKeyManualSessionIdRoute: typeof PKeyManualSessionIdRoute
   PKeyPlansPlanIdRoute: typeof PKeyPlansPlanIdRoute
   PKeyAnalyticsIndexRoute: typeof PKeyAnalyticsIndexRoute
@@ -415,6 +454,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PKeyEnvironmentsEnvRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p/$key/library/requirements': {
+      id: '/p/$key/library/requirements'
+      path: '/p/$key/library/requirements'
+      fullPath: '/p/$key/library/requirements'
+      preLoaderRoute: typeof PKeyLibraryRequirementsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/p/$key/library/shared-steps': {
+      id: '/p/$key/library/shared-steps'
+      path: '/p/$key/library/shared-steps'
+      fullPath: '/p/$key/library/shared-steps'
+      preLoaderRoute: typeof PKeyLibrarySharedStepsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/p/$key/library/test-data': {
+      id: '/p/$key/library/test-data'
+      path: '/p/$key/library/test-data'
+      fullPath: '/p/$key/library/test-data'
+      preLoaderRoute: typeof PKeyLibraryTestDataRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p/$key/manual/': {
       id: '/p/$key/manual/'
       path: '/p/$key/manual'
@@ -504,6 +564,9 @@ const rootRouteChildren: RootRouteChildren = {
   PKeyIndexRoute: PKeyIndexRoute,
   PKeyAnalyticsViewRoute: PKeyAnalyticsViewRoute,
   PKeyEnvironmentsEnvRoute: PKeyEnvironmentsEnvRoute,
+  PKeyLibraryRequirementsRoute: PKeyLibraryRequirementsRoute,
+  PKeyLibrarySharedStepsRoute: PKeyLibrarySharedStepsRoute,
+  PKeyLibraryTestDataRoute: PKeyLibraryTestDataRoute,
   PKeyManualSessionIdRoute: PKeyManualSessionIdRoute,
   PKeyPlansPlanIdRoute: PKeyPlansPlanIdRoute,
   PKeyAnalyticsIndexRoute: PKeyAnalyticsIndexRoute,
