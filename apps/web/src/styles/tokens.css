@@ -1,0 +1,69 @@
+/* Design tokens: docs/design.md section 2.1. Light theme only; redefine these variables for a dark theme. */
+:root {
+  --bg-app: #f4f4f1;
+  --surface: #ffffff;
+  --surface-subtle: #f7f7f5;
+  --surface-muted: #efefec;
+  --surface-hatch-a: #f4f4f1;
+  --surface-hatch-b: #ecece8;
+  --surface-selected: #f5f8fe;
+
+  --border: #d9d9d4;
+  --border-input: #cfcfca;
+  --divider: #e4e4e0;
+  --divider-row: #edede9;
+  --border-dashed: #bdbdb7;
+  --border-dashed-strong: #9a9a94;
+
+  --text: #1c1c1a;
+  --text-strong-2: #2e2e2b;
+  --text-secondary: #4a4a45;
+  --text-muted: #5a5a55;
+  --ink: #1c1c1a;
+  --ink-text: #e8e8e3;
+
+  --primary: #1f4fc4;
+  --primary-soft: #e8eefb;
+  --primary-text: #1a3f9e;
+  --primary-text-hover: #122c70;
+
+  --ai: #2a3a86;
+  --ai-soft: #eef0fa;
+  --ai-strong: #1f2c6b;
+
+  --success: #1f6b45;
+  --success-soft: #e3f1e8;
+  --success-strong: #154d31;
+  --success-dot: #1f7a4d;
+
+  --danger: #a0281c;
+  --danger-soft: #fbe7e4;
+  --danger-strong: #7a1f15;
+  --danger-ink: #4a160f;
+  --danger-border: #e2b8b2;
+  --danger-hatch: #f6d6d1;
+
+  --warning: #8a4b0a;
+  --warning-soft: #fbefd9;
+  --warning-strong: #6e3c08;
+  --warning-ink: #4a2806;
+  --warning-bar: #c27a1a;
+  --warning-log: #f2c98a;
+
+  --flaky: #4e3889;
+  --flaky-soft: #eeeaf8;
+
+  --chart-1: #3a3a36;
+  --chart-2: #8c8c86;
+  --chart-3: #d4d4cf;
+  --track: #edede9;
+
+  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --radius-card: 10px;
+  --radius-control: 8px;
+  --radius-tag: 6px;
+  --radius-pill: 999px;
+  --radius-block: 4px;
+}

@@ -1,0 +1,33 @@
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    background: var(--bg-app);
+  }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--text);
+    background: var(--bg-app);
+  }
+  h1,
+  h2,
+  h3 {
+    line-height: 1.2;
+    margin: 0;
+  }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+}
+
+.hatch {
+  background-image: repeating-linear-gradient(45deg, var(--surface-hatch-a) 0 8px, var(--surface-hatch-b) 8px 16px);
+}
