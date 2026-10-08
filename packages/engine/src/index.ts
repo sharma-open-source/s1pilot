@@ -5,6 +5,7 @@ export * from './executor/index.js';
 export * from './guards/index.js';
 export * from './narrow/index.js';
 export * from './observer/index.js';
+export * from './text-input/index.js';
 export * from './verify/index.js';
 
 /** Package name; placeholder export until the engine lands (S-012+). */
@@ -12,4 +13,3 @@ export const ENGINE_PACKAGE = '@s1pilot/engine';
 
 /** Verdicts the engine can produce; proves workspace linking to `@s1pilot/domain` works. */
 export const ENGINE_VERDICTS = VerdictSchema.options;
-export * from './text-input/index.js';
