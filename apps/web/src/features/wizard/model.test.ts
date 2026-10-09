@@ -46,13 +46,20 @@ describe('keyFromName', () => {
 
 describe('BasicsSchema', () => {
   it('accepts a valid project', () => {
-    expect(BasicsSchema.safeParse({ name: 'Shop', key: 'SHOP', baseUrl: 'http://127.0.0.1:4400/shop' }).success).toBe(true);
+    expect(
+      BasicsSchema.safeParse({ name: 'Shop', key: 'SHOP', baseUrl: 'http://127.0.0.1:4400/shop' })
+        .success,
+    ).toBe(true);
   });
   it.each(['shop', 'S', 'TOOLONGKEY1', '1AB'])('rejects key %s', (key) => {
-    expect(BasicsSchema.safeParse({ name: 'Shop', key, baseUrl: 'http://x.test' }).success).toBe(false);
+    expect(BasicsSchema.safeParse({ name: 'Shop', key, baseUrl: 'http://x.test' }).success).toBe(
+      false,
+    );
   });
   it('rejects a bad URL', () => {
-    expect(BasicsSchema.safeParse({ name: 'Shop', key: 'SHOP', baseUrl: 'not a url' }).success).toBe(false);
+    expect(
+      BasicsSchema.safeParse({ name: 'Shop', key: 'SHOP', baseUrl: 'not a url' }).success,
+    ).toBe(false);
   });
 });
 
@@ -71,10 +78,16 @@ describe('EnvironmentsSchema', () => {
 
 describe('thresholds', () => {
   it('keeps escalate below act when act is lowered', () => {
-    expect(constrainThresholds({ act: 0.8, escalate: 0.6 }, { act: 0.55 })).toEqual({ act: 0.55, escalate: 0.54 });
+    expect(constrainThresholds({ act: 0.8, escalate: 0.6 }, { act: 0.55 })).toEqual({
+      act: 0.55,
+      escalate: 0.54,
+    });
   });
   it('keeps act above escalate when escalate is raised', () => {
-    expect(constrainThresholds({ act: 0.6, escalate: 0.5 }, { escalate: 0.8 })).toEqual({ act: 0.81, escalate: 0.8 });
+    expect(constrainThresholds({ act: 0.6, escalate: 0.5 }, { escalate: 0.8 })).toEqual({
+      act: 0.81,
+      escalate: 0.8,
+    });
   });
   it('clamps to slider ranges', () => {
     expect(constrainThresholds({ act: 0.8, escalate: 0.5 }, { act: 2 }).act).toBe(0.99);
@@ -87,11 +100,16 @@ describe('thresholds', () => {
     expect(escalateBounds(0.95).max).toBe(0.8);
   });
   it('the models schema rejects escalate >= act', () => {
-    expect(ModelsSchema.safeParse({ ...DEFAULT_MODELS, act: 0.6, escalate: 0.6 }).success).toBe(false);
+    expect(ModelsSchema.safeParse({ ...DEFAULT_MODELS, act: 0.6, escalate: 0.6 }).success).toBe(
+      false,
+    );
     expect(ModelsSchema.safeParse(DEFAULT_MODELS).success).toBe(true);
   });
   it('requires a model id once a base URL is given', () => {
-    const r = ModelsSchema.safeParse({ ...DEFAULT_MODELS, s1: { ...DEFAULT_MODELS.s1, baseUrl: 'http://localhost:8000' } });
+    const r = ModelsSchema.safeParse({
+      ...DEFAULT_MODELS,
+      s1: { ...DEFAULT_MODELS.s1, baseUrl: 'http://localhost:8000' },
+    });
     expect(r.success).toBe(false);
   });
 });
@@ -109,7 +127,11 @@ describe('draft storage', () => {
   beforeEach(() => window.sessionStorage.clear());
 
   it('round-trips and merges onto defaults', () => {
-    saveDraft({ ...EMPTY_DRAFT, createdKey: 'SHOP', basics: { ...EMPTY_DRAFT.basics, name: 'Shop' } });
+    saveDraft({
+      ...EMPTY_DRAFT,
+      createdKey: 'SHOP',
+      basics: { ...EMPTY_DRAFT.basics, name: 'Shop' },
+    });
     const d = loadDraft();
     expect(d.createdKey).toBe('SHOP');
     expect(d.basics.name).toBe('Shop');

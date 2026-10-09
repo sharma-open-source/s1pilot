@@ -13,7 +13,17 @@ import {
 import { fieldError, ResultLine, WizardFooter, type StepProps } from './shared';
 
 import { CapabilityGrid } from '@/components/app/CapabilityGrid';
-import { Button, Callout, Card, Checkbox, Field, Input, Pill, Range, Select } from '@/components/ui';
+import {
+  Button,
+  Callout,
+  Card,
+  Checkbox,
+  Field,
+  Input,
+  Pill,
+  Range,
+  Select,
+} from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
 import { zodResolver } from '@/lib/form';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
@@ -38,7 +48,8 @@ function useProbe() {
   }) => {
     setProbe({ state: 'pending' });
     const ref = apiKeyRefFrom(input.apiKey);
-    const pastedKey = input.apiKey.trim() !== '' && ref === undefined ? input.apiKey.trim() : undefined;
+    const pastedKey =
+      input.apiKey.trim() !== '' && ref === undefined ? input.apiKey.trim() : undefined;
     try {
       const result = await utils.client.models.probe.mutate({
         baseUrl: input.baseUrl,
@@ -48,7 +59,11 @@ function useProbe() {
         ...(ref !== undefined ? { apiKeyRef: ref } : {}),
         timeoutMs: 30_000,
       });
-      setProbe(result.ok ? { state: 'success', result } : { state: 'error', result, error: result.error ?? 'Could not connect' });
+      setProbe(
+        result.ok
+          ? { state: 'success', result }
+          : { state: 'error', result, error: result.error ?? 'Could not connect' },
+      );
     } catch (err) {
       setProbe({ state: 'error', error: errorMessage(err) });
     }
@@ -109,14 +124,26 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
   const testEndpoint = async (which: 's1' | 's2') => {
     const v = form.getValues(which);
     if (!/^https?:\/\/\S+$/.test(v.baseUrl.trim())) {
-      form.setError(`${which}.baseUrl`, { message: 'Enter the endpoint URL, for example http://localhost:8000' });
+      form.setError(`${which}.baseUrl`, {
+        message: 'Enter the endpoint URL, for example http://localhost:8000',
+      });
       return;
     }
     form.clearErrors(`${which}.baseUrl`);
     if (which === 's1') {
-      await runS1Probe({ baseUrl: v.baseUrl.trim(), model: v.model.trim(), adapter: form.getValues('s1.adapter'), apiKey: v.apiKey });
+      await runS1Probe({
+        baseUrl: v.baseUrl.trim(),
+        model: v.model.trim(),
+        adapter: form.getValues('s1.adapter'),
+        apiKey: v.apiKey,
+      });
     } else {
-      await runS2Probe({ baseUrl: v.baseUrl.trim(), model: v.model.trim(), adapter: 'openai-chat', apiKey: v.apiKey });
+      await runS2Probe({
+        baseUrl: v.baseUrl.trim(),
+        model: v.model.trim(),
+        adapter: 'openai-chat',
+        apiKey: v.apiKey,
+      });
     }
   };
 
@@ -128,7 +155,9 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
         const detected = s1Probe.result?.ok === true ? s1Probe.result.adapter : undefined;
         const adapter = v.s1.adapter === 'auto' ? detected : v.s1.adapter;
         if (adapter === undefined) {
-          form.setError('s1.adapter', { message: 'Run Test connection first so the adapter can be detected, or pick one' });
+          form.setError('s1.adapter', {
+            message: 'Run Test connection first so the adapter can be detected, or pick one',
+          });
           return;
         }
         const s1Ref = apiKeyRefFrom(v.s1.apiKey);
@@ -136,9 +165,21 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
         await utils.client.models.updateSettings.mutate({
           target: projectKey,
           settings: {
-            system1: { adapter, baseUrl: v.s1.baseUrl, model: v.s1.model, ...(s1Ref ? { apiKeyRef: s1Ref } : {}) },
+            system1: {
+              adapter,
+              baseUrl: v.s1.baseUrl,
+              model: v.s1.model,
+              ...(s1Ref ? { apiKeyRef: s1Ref } : {}),
+            },
             ...(v.s2.baseUrl !== ''
-              ? { system2: { adapter: 'openai-chat' as const, baseUrl: v.s2.baseUrl, model: v.s2.model, ...(s2Ref ? { apiKeyRef: s2Ref } : {}) } }
+              ? {
+                  system2: {
+                    adapter: 'openai-chat' as const,
+                    baseUrl: v.s2.baseUrl,
+                    model: v.s2.model,
+                    ...(s2Ref ? { apiKeyRef: s2Ref } : {}),
+                  },
+                }
               : {}),
             thresholds: { act: v.act, pass: v.act, fail: 0.2, escalate: v.escalate },
             dualOrderSensitive: v.dualOrderSensitive,
@@ -147,7 +188,10 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
       }
       await utils.client.projects.update.mutate({
         key: projectKey,
-        dataPolicy: { sendPageText: v.sendPageText, sendScreenshots: v.sendScreenshots ? 'ambiguous' : 'never' },
+        dataPolicy: {
+          sendPageText: v.sendPageText,
+          sendScreenshots: v.sendScreenshots ? 'ambiguous' : 'never',
+        },
       });
       await utils.models.status.invalidate();
       go('login');
@@ -169,10 +213,15 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start gap-5">
-        <Card aria-label="System 1 decision model" className="flex min-w-0 flex-[3_1_520px] flex-col gap-[18px] p-[22px]">
+        <Card
+          aria-label="System 1 decision model"
+          className="flex min-w-0 flex-[3_1_520px] flex-col gap-[18px] p-[22px]"
+        >
           <div className="flex flex-col gap-1">
             <h2 className="text-lg font-semibold text-fg">System 1 · decision model</h2>
-            <p className="text-sm text-secondary">Picks every action and judges expected results. Local or cloud endpoint.</p>
+            <p className="text-sm text-secondary">
+              Picks every action and judges expected results. Local or cloud endpoint.
+            </p>
           </div>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
             <Field label="API adapter" hint={fieldError(errors.s1?.adapter?.message)}>
@@ -210,12 +259,21 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
                 />
               )}
             </Field>
-            <Field label="API key (optional)" hint="Enter env:NAME to save a reference. A pasted key is used for Test connection only and is never stored.">
-              {(id) => <Input id={id} type="password" autoComplete="off" {...form.register('s1.apiKey')} />}
+            <Field
+              label="API key (optional)"
+              hint="Enter env:NAME to save a reference. A pasted key is used for Test connection only and is never stored."
+            >
+              {(id) => (
+                <Input id={id} type="password" autoComplete="off" {...form.register('s1.apiKey')} />
+              )}
             </Field>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
-            <Button variant="primary" disabled={s1Probe.state === 'pending'} onClick={() => void testEndpoint('s1')}>
+            <Button
+              variant="primary"
+              disabled={s1Probe.state === 'pending'}
+              onClick={() => void testEndpoint('s1')}
+            >
               Test connection
             </Button>
             <ProbeLine probe={s1Probe} label="System 1" />
@@ -243,7 +301,10 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
                   step={0.01}
                   value={act}
                   onChange={(e) => {
-                    const next = constrainThresholds({ act, escalate }, { act: Number(e.target.value) });
+                    const next = constrainThresholds(
+                      { act, escalate },
+                      { act: Number(e.target.value) },
+                    );
                     form.setValue('act', next.act);
                     form.setValue('escalate', next.escalate);
                   }}
@@ -262,7 +323,10 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
                   step={0.01}
                   value={escalate}
                   onChange={(e) => {
-                    const next = constrainThresholds({ act, escalate }, { escalate: Number(e.target.value) });
+                    const next = constrainThresholds(
+                      { act, escalate },
+                      { escalate: Number(e.target.value) },
+                    );
                     form.setValue('act', next.act);
                     form.setValue('escalate', next.escalate);
                   }}
@@ -286,7 +350,8 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
               </Pill>
             </div>
             <p className="text-sm text-secondary">
-              Any OpenAI-compatible chat model. Used for second opinions, writing step text and generating test drafts.
+              Any OpenAI-compatible chat model. Used for second opinions, writing step text and
+              generating test drafts.
             </p>
             <Field label="Base URL" hint={fieldError(errors.s2?.baseUrl?.message)}>
               {(id) => (
@@ -313,10 +378,16 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
               )}
             </Field>
             <Field label="API key (optional)">
-              {(id) => <Input id={id} type="password" autoComplete="off" {...form.register('s2.apiKey')} />}
+              {(id) => (
+                <Input id={id} type="password" autoComplete="off" {...form.register('s2.apiKey')} />
+              )}
             </Field>
             <div className="flex flex-wrap items-center gap-2.5">
-              <Button variant="secondary" disabled={s2Probe.state === 'pending'} onClick={() => void testEndpoint('s2')}>
+              <Button
+                variant="secondary"
+                disabled={s2Probe.state === 'pending'}
+                onClick={() => void testEndpoint('s2')}
+              >
                 Test connection
               </Button>
               <ProbeLine probe={s2Probe} label="System 2" />
@@ -339,14 +410,19 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
             <p className="-mt-1.5 text-xs text-muted">Redaction is always on.</p>
             {cloudSystems.length > 0 && (
               <Callout tone="warning">
-                Cloud endpoint detected for {cloudSystems.join(' and ')} — page data leaves this machine.
+                Cloud endpoint detected for {cloudSystems.join(' and ')} — page data leaves this
+                machine.
               </Callout>
             )}
           </Card>
         </div>
       </div>
       {serverError !== null && <Callout tone="danger">{serverError}</Callout>}
-      <WizardFooter onBack={() => go('environments')} continueLabel="Continue to login setup" pending={saving} />
+      <WizardFooter
+        onBack={() => go('environments')}
+        continueLabel="Continue to login setup"
+        pending={saving}
+      />
     </form>
   );
 }

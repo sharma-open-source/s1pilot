@@ -13,12 +13,21 @@ import { createFakeTrpc, FakeTrpcError } from '../../test/fake-trpc';
 const ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const SHOTS = process.env['WIZARD_SHOTS_DIR'];
 
-const CAPS = { maxOptions: 8, multiQuestionPerCall: true, supportsImages: true, maxContextTokens: 32768, orderSensitive: false };
+const CAPS = {
+  maxOptions: 8,
+  multiQuestionPerCall: true,
+  supportsImages: true,
+  maxContextTokens: 32768,
+  orderSensitive: false,
+};
 
 /** Fake S1 Pilot server: only the procedures the wizard calls, with a probe that reports a cloud System 2. */
 const fake = createFakeTrpc({
   'projects.list': () => [],
-  'models.status': () => ({ system1: { configured: false, reachable: false }, system2: { configured: false, reachable: false } }),
+  'models.status': () => ({
+    system1: { configured: false, reachable: false },
+    system2: { configured: false, reachable: false },
+  }),
   'projects.create': (i) => {
     const key = (i as { key: string }).key;
     if (key === 'TAKEN') throw new FakeTrpcError('exists', 'CONFLICT');
@@ -30,7 +39,13 @@ const fake = createFakeTrpc({
   'models.probe': (i) => {
     const input = i as { adapter: string; baseUrl: string };
     if (input.baseUrl.includes('down')) {
-      return { ok: false, latencyMs: { p50: 0, samples: [] }, isCloud: false, warnings: [], error: 'connect ECONNREFUSED' };
+      return {
+        ok: false,
+        latencyMs: { p50: 0, samples: [] },
+        isCloud: false,
+        warnings: [],
+        error: 'connect ECONNREFUSED',
+      };
     }
     return {
       ok: true,
@@ -59,7 +74,10 @@ beforeAll(async () => {
     req.on('end', () => {
       const body = Buffer.concat(chunks).toString();
       void fake
-        .fetch(`http://fake${req.url ?? '/'}`, { method: req.method ?? 'GET', ...(body ? { body } : {}) })
+        .fetch(`http://fake${req.url ?? '/'}`, {
+          method: req.method ?? 'GET',
+          ...(body ? { body } : {}),
+        })
         .then(async (r) => {
           res.writeHead(r.status, { 'content-type': 'application/json' });
           res.end(await r.text());
@@ -67,11 +85,17 @@ beforeAll(async () => {
     });
   });
   await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
-  process.env['S1PILOT_SERVER_URL'] = `http://127.0.0.1:${(httpServer.address() as AddressInfo).port}`;
-  vite = await createServer({ root: ROOT, server: { port: 0, host: '127.0.0.1' }, logLevel: 'silent' });
+  process.env['S1PILOT_SERVER_URL'] =
+    `http://127.0.0.1:${(httpServer.address() as AddressInfo).port}`;
+  vite = await createServer({
+    root: ROOT,
+    server: { port: 0, host: '127.0.0.1' },
+    logLevel: 'silent',
+  });
   await vite.listen();
   const addr = vite.httpServer?.address();
-  if (addr === null || addr === undefined || typeof addr === 'string') throw new Error('no address');
+  if (addr === null || addr === undefined || typeof addr === 'string')
+    throw new Error('no address');
   base = `http://127.0.0.1:${addr.port}`;
   browser = await chromium.launch();
   if (SHOTS) mkdirSync(SHOTS, { recursive: true });
@@ -84,7 +108,9 @@ afterAll(async () => {
 });
 
 async function noHorizontalScroll(page: Page, where: string) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
   expect(overflow, where).toBeLessThanOrEqual(0);
 }
 
@@ -130,7 +156,9 @@ describe('new project wizard (headless Chromium, fake server)', () => {
       await s2.getByLabel('Base URL').fill('https://api.example.com/v1');
       await s2.getByLabel('Model').fill('gpt-4o-mini');
       await s2.getByRole('button', { name: 'Test connection' }).click();
-      await page.getByText('Cloud endpoint detected for System 2 — page data leaves this machine.').waitFor();
+      await page
+        .getByText('Cloud endpoint detected for System 2 — page data leaves this machine.')
+        .waitFor();
       await noHorizontalScroll(page, 'models');
       await shot(page, '3-models', width);
       await page.getByRole('button', { name: 'Continue to login setup' }).click();
@@ -142,14 +170,22 @@ describe('new project wizard (headless Chromium, fake server)', () => {
       await page.getByRole('button', { name: 'Skip' }).click();
 
       // Step 5
-      await page.getByLabel('Describe a test in plain language').fill('Add a product to the cart and check the badge shows 1');
+      await page
+        .getByLabel('Describe a test in plain language')
+        .fill('Add a product to the cart and check the badge shows 1');
       await noHorizontalScroll(page, 'first-tests');
       await shot(page, '5-first-tests', width);
       await page.getByRole('button', { name: 'Run now (explore)' }).click();
       await page.waitForURL('**/p/SHOP/runs/r1/live');
 
       const paths = fake.calls.map((c) => c.path);
-      for (const p of ['projects.create', 'environments.create', 'models.updateSettings', 'cases.create', 'runs.create']) {
+      for (const p of [
+        'projects.create',
+        'environments.create',
+        'models.updateSettings',
+        'cases.create',
+        'runs.create',
+      ]) {
         expect(paths, p).toContain(p);
       }
       await page.close();

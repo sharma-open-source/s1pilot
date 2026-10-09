@@ -51,7 +51,10 @@ export const BasicsSchema = z.object({
   key: z
     .string()
     .trim()
-    .regex(PROJECT_KEY_RE, 'Use 2 to 10 uppercase letters or digits, starting with a letter (for example SHOP)'),
+    .regex(
+      PROJECT_KEY_RE,
+      'Use 2 to 10 uppercase letters or digits, starting with a letter (for example SHOP)',
+    ),
   baseUrl: url,
 });
 export type BasicsValues = z.infer<typeof BasicsSchema>;
@@ -70,7 +73,12 @@ export const EnvironmentsSchema = z
     const seen = new Set<string>();
     v.rows.forEach((r, i) => {
       const n = r.name.trim().toLowerCase();
-      if (seen.has(n)) ctx.addIssue({ code: 'custom', path: ['rows', i, 'name'], message: 'Names must be unique' });
+      if (seen.has(n))
+        ctx.addIssue({
+          code: 'custom',
+          path: ['rows', i, 'name'],
+          message: 'Names must be unique',
+        });
       seen.add(n);
     });
   });
@@ -108,7 +116,9 @@ export function constrainThresholds(
   change: Partial<{ act: number; escalate: number }>,
 ): { act: number; escalate: number } {
   let act = round2(Math.min(ACT_RANGE.max, Math.max(ACT_RANGE.min, change.act ?? current.act)));
-  let escalate = round2(Math.min(ESCALATE_RANGE.max, Math.max(ESCALATE_RANGE.min, change.escalate ?? current.escalate)));
+  let escalate = round2(
+    Math.min(ESCALATE_RANGE.max, Math.max(ESCALATE_RANGE.min, change.escalate ?? current.escalate)),
+  );
   if (escalate >= act) {
     if (change.act !== undefined) escalate = round2(act - STEP);
     else act = round2(escalate + STEP);
@@ -155,7 +165,11 @@ export const ModelsSchema = z
   })
   .superRefine((v, ctx) => {
     if (v.escalate >= v.act) {
-      ctx.addIssue({ code: 'custom', path: ['escalate'], message: 'Escalate must stay below the act threshold' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['escalate'],
+        message: 'Escalate must stay below the act threshold',
+      });
     }
     if (v.s1.baseUrl !== '' && v.s1.model === '') {
       ctx.addIssue({ code: 'custom', path: ['s1', 'model'], message: 'Enter the model id' });
@@ -241,4 +255,45 @@ export function clearDraft(): void {
   } catch {
     /* nothing to clear */
   }
+}
+
+/** Subset of a project's saved settings the wizard can edit. */
+export interface ExistingProject {
+  key: string;
+  name: string;
+  baseUrl: string;
+  settings: {
+    system1?: { adapter?: string; baseUrl?: string; model?: string };
+    system2?: { baseUrl?: string; model?: string };
+    thresholds?: { act?: number; escalate?: number };
+    dualOrderSensitive?: boolean;
+  } | null;
+  dataPolicy?: { sendPageText?: boolean; sendScreenshots?: string };
+}
+
+/** Builds a draft from a saved project so "Project setup" edits it instead of starting over. API keys are never loaded. */
+export function draftFromProject(p: ExistingProject): WizardDraft {
+  const s = p.settings ?? {};
+  const adapter = s.system1?.adapter;
+  return {
+    ...EMPTY_DRAFT,
+    basics: { name: p.name, key: p.key, baseUrl: p.baseUrl, keyTouched: true },
+    createdKey: p.key,
+    models: {
+      act: s.thresholds?.act ?? DEFAULT_MODELS.act,
+      escalate: s.thresholds?.escalate ?? DEFAULT_MODELS.escalate,
+      dualOrderSensitive: s.dualOrderSensitive ?? DEFAULT_MODELS.dualOrderSensitive,
+      sendPageText: p.dataPolicy?.sendPageText ?? DEFAULT_MODELS.sendPageText,
+      sendScreenshots: (p.dataPolicy?.sendScreenshots ?? 'never') !== 'never',
+      s1: {
+        adapter:
+          adapter === 'systemone' || adapter === 'decide' || adapter === 'openai-logprobs'
+            ? adapter
+            : DEFAULT_MODELS.s1.adapter,
+        baseUrl: s.system1?.baseUrl ?? '',
+        model: s.system1?.model ?? '',
+      },
+      s2: { baseUrl: s.system2?.baseUrl ?? '', model: s.system2?.model ?? '' },
+    },
+  };
 }

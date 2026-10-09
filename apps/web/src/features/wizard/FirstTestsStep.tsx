@@ -57,7 +57,13 @@ export function FirstTestsStep({ draft, patch, go, onFinish }: StepProps) {
     try {
       const caseKey = await ensureCase();
       setPhase('running');
-      const run = await createRun.mutateAsync({ projectKey, caseKeys: [caseKey], environment: 'dev', mode: 'explore', attended: true });
+      const run = await createRun.mutateAsync({
+        projectKey,
+        caseKeys: [caseKey],
+        environment: 'dev',
+        mode: 'explore',
+        attended: true,
+      });
       const runId = run.id;
       onFinish(`/p/${projectKey}/runs/${runId}/live`);
     } catch (err) {
@@ -81,7 +87,8 @@ export function FirstTestsStep({ draft, patch, go, onFinish }: StepProps) {
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold text-fg">First tests</h2>
           <p className="text-sm text-secondary">
-            Write what a user should be able to do. s1-pilot explores it once with AI, then you can replay it deterministically.
+            Write what a user should be able to do. s1-pilot explores it once with AI, then you can
+            replay it deterministically.
           </p>
         </div>
         <Field

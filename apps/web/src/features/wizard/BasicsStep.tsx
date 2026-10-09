@@ -18,14 +18,20 @@ export function BasicsStep({ draft, patch, go, onExit }: StepProps) {
   const [keyTouched, setKeyTouched] = useState(draft.basics.keyTouched);
   const form = useForm<BasicsValues>({
     resolver: zodResolver(BasicsSchema),
-    defaultValues: { name: draft.basics.name, key: draft.basics.key, baseUrl: draft.basics.baseUrl },
+    defaultValues: {
+      name: draft.basics.name,
+      key: draft.basics.key,
+      baseUrl: draft.basics.baseUrl,
+    },
   });
   const { errors } = form.formState;
 
   // Keep the sessionStorage draft in step with the form (the API is never involved until submit).
   useEffect(() => {
     const sub = form.watch((v) => {
-      patch({ basics: { name: v.name ?? '', key: v.key ?? '', baseUrl: v.baseUrl ?? '', keyTouched } });
+      patch({
+        basics: { name: v.name ?? '', key: v.key ?? '', baseUrl: v.baseUrl ?? '', keyTouched },
+      });
     });
     return () => sub.unsubscribe();
   }, [form, patch, keyTouched]);
@@ -43,14 +49,18 @@ export function BasicsStep({ draft, patch, go, onExit }: StepProps) {
       await utils.projects.list.invalidate();
       go('environments');
     } catch (err) {
-      if (trpcCode(err) === 'CONFLICT') form.setError('key', { message: `A project with key ${values.key} already exists` });
+      if (trpcCode(err) === 'CONFLICT')
+        form.setError('key', { message: `A project with key ${values.key} already exists` });
       else setServerError(errorMessage(err));
     }
   });
 
   const nameField = form.register('name', {
     onChange: (e: { target: { value: string } }) => {
-      if (!keyTouched) form.setValue('key', keyFromName(e.target.value), { shouldValidate: form.formState.isSubmitted });
+      if (!keyTouched)
+        form.setValue('key', keyFromName(e.target.value), {
+          shouldValidate: form.formState.isSubmitted,
+        });
     },
   });
   const keyField = form.register('key', {
@@ -86,7 +96,10 @@ export function BasicsStep({ draft, patch, go, onExit }: StepProps) {
           </Field>
           <Field
             label="Project key"
-            hint={fieldError(errors.key?.message) ?? 'Used in case keys such as SHOP-TC-42. Cannot be changed later.'}
+            hint={
+              fieldError(errors.key?.message) ??
+              'Used in case keys such as SHOP-TC-42. Cannot be changed later.'
+            }
           >
             {(id) => (
               <Input
@@ -101,7 +114,11 @@ export function BasicsStep({ draft, patch, go, onExit }: StepProps) {
               />
             )}
           </Field>
-          <Field label="Base URL" className="sm:col-span-2" hint={fieldError(errors.baseUrl?.message)}>
+          <Field
+            label="Base URL"
+            className="sm:col-span-2"
+            hint={fieldError(errors.baseUrl?.message)}
+          >
             {(id) => (
               <Input
                 id={id}

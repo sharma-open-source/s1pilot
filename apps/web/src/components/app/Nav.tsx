@@ -15,27 +15,90 @@ export interface NavItemDef {
   href: (key: string | null) => string;
   /** Whether `pathname` belongs to this item. */
   isActive: (pathname: string) => boolean;
+  /** Optional search params for the link (e.g. `?project=KEY` to edit the selected project). */
+  search?: (key: string | null) => Record<string, string> | undefined;
   badge?: 'live' | 'review';
 }
 
-const under = (base: string) => (pathname: string) => pathname === base || pathname.startsWith(`${base}/`);
-const projectPath = (segment: string) => (key: string | null) => (key === null ? '/projects/new' : `/p/${key}/${segment}`);
-const projectActive = (segment: string) => (pathname: string) => /^\/p\/[^/]+\//.test(pathname) && under(`/p/${pathname.split('/')[2]}/${segment}`)(pathname);
+const under = (base: string) => (pathname: string) =>
+  pathname === base || pathname.startsWith(`${base}/`);
+const projectPath = (segment: string) => (key: string | null) =>
+  key === null ? '/projects/new' : `/p/${key}/${segment}`;
+const projectActive = (segment: string) => (pathname: string) =>
+  /^\/p\/[^/]+\//.test(pathname) && under(`/p/${pathname.split('/')[2]}/${segment}`)(pathname);
 
 /** The 12 nav items in wireframe order (design.md 3.1). */
 export const NAV_ITEMS: NavItemDef[] = [
   { id: 'dashboard', label: 'Dashboard', href: () => '/', isActive: (p) => p === '/' },
-  { id: 'setup', label: 'Project setup', href: () => '/projects/new', isActive: under('/projects') },
-  { id: 'environments', label: 'Environments', href: projectPath('environments'), isActive: projectActive('environments') },
-  { id: 'cases', label: 'Test cases', href: projectPath('cases'), isActive: projectActive('cases') },
-  { id: 'plans', label: 'Test plans', href: projectPath('plans'), isActive: projectActive('plans') },
-  { id: 'runs', label: 'Runs', href: projectPath('runs'), isActive: projectActive('runs'), badge: 'live' },
-  { id: 'manual', label: 'Manual testing', href: projectPath('manual'), isActive: projectActive('manual') },
-  { id: 'reports', label: 'Reports', href: projectPath('reports'), isActive: projectActive('reports') },
-  { id: 'review', label: 'Review queue', href: projectPath('review'), isActive: projectActive('review'), badge: 'review' },
-  { id: 'defects', label: 'Defects', href: projectPath('defects'), isActive: projectActive('defects') },
-  { id: 'analytics', label: 'Analytics', href: (k) => (k === null ? '/projects/new' : `/p/${k}/analytics/quality`), isActive: projectActive('analytics') },
-  { id: 'settings', label: 'Settings', href: () => '/settings/general', isActive: under('/settings') },
+  {
+    id: 'setup',
+    label: 'Project setup',
+    href: () => '/projects/new',
+    search: (k) => (k === null ? undefined : { project: k }),
+    isActive: under('/projects'),
+  },
+  {
+    id: 'environments',
+    label: 'Environments',
+    href: projectPath('environments'),
+    isActive: projectActive('environments'),
+  },
+  {
+    id: 'cases',
+    label: 'Test cases',
+    href: projectPath('cases'),
+    isActive: projectActive('cases'),
+  },
+  {
+    id: 'plans',
+    label: 'Test plans',
+    href: projectPath('plans'),
+    isActive: projectActive('plans'),
+  },
+  {
+    id: 'runs',
+    label: 'Runs',
+    href: projectPath('runs'),
+    isActive: projectActive('runs'),
+    badge: 'live',
+  },
+  {
+    id: 'manual',
+    label: 'Manual testing',
+    href: projectPath('manual'),
+    isActive: projectActive('manual'),
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    href: projectPath('reports'),
+    isActive: projectActive('reports'),
+  },
+  {
+    id: 'review',
+    label: 'Review queue',
+    href: projectPath('review'),
+    isActive: projectActive('review'),
+    badge: 'review',
+  },
+  {
+    id: 'defects',
+    label: 'Defects',
+    href: projectPath('defects'),
+    isActive: projectActive('defects'),
+  },
+  {
+    id: 'analytics',
+    label: 'Analytics',
+    href: (k) => (k === null ? '/projects/new' : `/p/${k}/analytics/quality`),
+    isActive: projectActive('analytics'),
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    href: () => '/settings/general',
+    isActive: under('/settings'),
+  },
 ];
 
 export interface NavProps {
@@ -78,10 +141,19 @@ function ProjectSwitcher({
           <span className="flex min-w-0 flex-col leading-tight">
             <span className="text-[11px] uppercase tracking-[0.06em] text-muted">Project</span>
             <span className="truncate font-semibold">
-              {current !== null ? `${current.key} · ${current.name}` : loading ? 'Loading…' : 'No project'}
+              {current !== null
+                ? `${current.key} · ${current.name}`
+                : loading
+                  ? 'Loading…'
+                  : 'No project'}
             </span>
           </span>
-          <ChevronDown size={16} strokeWidth={2} aria-hidden="true" className="shrink-0 text-muted" />
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            aria-hidden="true"
+            className="shrink-0 text-muted"
+          />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
@@ -117,7 +189,12 @@ function ProjectSwitcher({
               ))}
             </ul>
           )}
-          <LinkButton to="/projects/new" variant="secondary" size="sm" onClick={() => setOpen(false)}>
+          <LinkButton
+            to="/projects/new"
+            variant="secondary"
+            size="sm"
+            onClick={() => setOpen(false)}
+          >
             New project
           </LinkButton>
         </Popover.Content>
@@ -128,8 +205,14 @@ function ProjectSwitcher({
 
 function ModelLine({ label, row }: { label: 'S1' | 'S2'; row: ModelRow | null }) {
   const reachable = row?.reachable ?? 'unknown';
-  const dot = reachable === true ? 'bg-success-dot' : reachable === false ? 'bg-danger' : 'bg-line-dashed-strong';
-  const state = reachable === true ? 'reachable' : reachable === false ? 'unreachable' : 'status unknown';
+  const dot =
+    reachable === true
+      ? 'bg-success-dot'
+      : reachable === false
+        ? 'bg-danger'
+        : 'bg-line-dashed-strong';
+  const state =
+    reachable === true ? 'reachable' : reachable === false ? 'unreachable' : 'status unknown';
   return (
     <div className="flex items-center gap-2">
       <span aria-hidden="true" className={cn('h-2 w-2 shrink-0 rounded-pill', dot)} />
@@ -150,7 +233,15 @@ function ModelLine({ label, row }: { label: 'S1' | 'S2'; row: ModelRow | null })
 }
 
 /** Left navigation: logo, project switcher, 12 items with badges, and the Models status box. */
-export function Nav({ pathname, projects, projectsLoading = false, currentProjectKey, onSelectProject, badges, models }: NavProps) {
+export function Nav({
+  pathname,
+  projects,
+  projectsLoading = false,
+  currentProjectKey,
+  onSelectProject,
+  badges,
+  models,
+}: NavProps) {
   const current = projects.find((p) => p.key === currentProjectKey) ?? null;
   const key = current?.key ?? currentProjectKey;
   return (
@@ -159,10 +250,17 @@ export function Nav({ pathname, projects, projectsLoading = false, currentProjec
       className="box-border flex w-full flex-col gap-[22px] border-b border-line bg-surface px-3.5 py-5 text-fg min-[640px]:h-full min-[640px]:min-h-screenmin-[640px]:border-b-0 min-[640px]:border-r"
     >
       <div className="flex items-center gap-2.5 px-1.5">
-        <div className="flex h-7 w-7 items-center justify-center rounded-tag bg-ink font-mono text-[13px] font-semibold text-white">S1</div>
+        <div className="flex h-7 w-7 items-center justify-center rounded-tag bg-ink font-mono text-[13px] font-semibold text-white">
+          S1
+        </div>
         <div className="font-mono text-base font-semibold">s1-pilot</div>
       </div>
-      <ProjectSwitcher projects={projects} loading={projectsLoading} current={current} onSelect={onSelectProject} />
+      <ProjectSwitcher
+        projects={projects}
+        loading={projectsLoading}
+        current={current}
+        onSelect={onSelectProject}
+      />
       <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
         {NAV_ITEMS.map((item) => {
           const active = item.isActive(pathname);
@@ -171,6 +269,7 @@ export function Nav({ pathname, projects, projectsLoading = false, currentProjec
             <li key={item.id}>
               <Link
                 to={item.href(key) as never}
+                {...(item.search?.(key) ? { search: item.search(key) as never } : {})}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'flex min-h-[40px] items-center justify-between rounded-tag px-3 text-sm no-underline',

@@ -18,7 +18,11 @@ export function LoginStep({ draft, patch, go }: StepProps) {
 
   const projectKey = draft.createdKey ?? '';
   const environmentId = draft.envRows?.[0]?.envId;
-  const base = { projectKey, name: 'login-as-customer', ...(environmentId ? { environmentId } : {}) };
+  const base = {
+    projectKey,
+    name: 'login-as-customer',
+    ...(environmentId ? { environmentId } : {}),
+  };
 
   const record = async () => {
     setError(null);
@@ -64,7 +68,9 @@ export function LoginStep({ draft, patch, go }: StepProps) {
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
-        void next(phase === 'saved' ? 'recorded' : showFlow && flowName.trim() !== '' ? 'flow' : 'skipped');
+        void next(
+          phase === 'saved' ? 'recorded' : showFlow && flowName.trim() !== '' ? 'flow' : 'skipped',
+        );
       }}
       className="flex flex-col gap-6"
     >
@@ -72,14 +78,23 @@ export function LoginStep({ draft, patch, go }: StepProps) {
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold text-fg">Login setup</h2>
           <p className="text-sm text-secondary">
-            Optional. Log in once and every run reuses the saved session. You can also set this up later from Environments.
+            Optional. Log in once and every run reuses the saved session. You can also set this up
+            later from Environments.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <Button variant="primary" onClick={() => void record()} disabled={phase === 'starting' || phase === 'recording' || phase === 'finishing'}>
+          <Button
+            variant="primary"
+            onClick={() => void record()}
+            disabled={phase === 'starting' || phase === 'recording' || phase === 'finishing'}
+          >
             Record a login
           </Button>
-          <Button variant="secondary" aria-pressed={showFlow} onClick={() => setShowFlow((s) => !s)}>
+          <Button
+            variant="secondary"
+            aria-pressed={showFlow}
+            onClick={() => setShowFlow((s) => !s)}
+          >
             Use a flow
           </Button>
           <Button variant="secondary" onClick={() => void next('skipped')}>
@@ -87,7 +102,15 @@ export function LoginStep({ draft, patch, go }: StepProps) {
           </Button>
         </div>
         <ResultLine
-          state={phase === 'starting' || phase === 'finishing' ? 'pending' : phase === 'saved' ? 'success' : phase === 'error' ? 'error' : 'idle'}
+          state={
+            phase === 'starting' || phase === 'finishing'
+              ? 'pending'
+              : phase === 'saved'
+                ? 'success'
+                : phase === 'error'
+                  ? 'error'
+                  : 'idle'
+          }
           progress={phase === 'starting' ? 'Opening a browser…' : 'Saving the session…'}
           success="Login saved for the dev environment"
           error={error ?? ''}
@@ -103,7 +126,10 @@ export function LoginStep({ draft, patch, go }: StepProps) {
           </Callout>
         )}
         {showFlow && (
-          <Field label="Shared step or flow name" hint="The flow runs before each case that needs this login.">
+          <Field
+            label="Shared step or flow name"
+            hint="The flow runs before each case that needs this login."
+          >
             {(id) => (
               <Input
                 id={id}
