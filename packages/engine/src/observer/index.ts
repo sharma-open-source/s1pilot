@@ -5,3 +5,4 @@ export * from './locators.js';
 export * from './observation.js';
 export * from './som.js';
 export * from './types.js';
+export { collectInPage, type RawElement } from './page-script.js';

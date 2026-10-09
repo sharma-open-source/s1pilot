@@ -23,7 +23,8 @@
     "@s1pilot/domain": "workspace:*",
     "@s1pilot/engine": "workspace:*",
     "@s1pilot/sync": "workspace:*",
-    "playwright": "^1.63.0"
+    "playwright": "^1.63.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@s1pilot/fixture-sites": "workspace:*",

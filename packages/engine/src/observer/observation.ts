@@ -133,18 +133,32 @@ function shortHash(material: string, len: number): string {
  * fingerprints tolerantly with `fingerprintsMatch` (same path and at least 80% token overlap).
  */
 export function pageFingerprint(obs: Observation): string {
-  const landmarks = new Set<string>();
-  const controls = new Set<string>();
-  for (const e of obs.elements) {
-    if (e.landmark) landmarks.add(e.landmark);
-    controls.add(`${e.role}:${e.name}`);
-  }
+  return fingerprintOfParts({
+    url: obs.context.url,
+    controls: obs.elements.map((e) => `${e.role}:${e.name}`),
+    landmarks: obs.elements.flatMap((e) => (e.landmark ? [e.landmark] : [])),
+    headings: obs.context.headings,
+  });
+}
+
+/** What a {@link pageFingerprint} is made of; lets other code (the recorder, S-060) build one from in-page data. */
+export interface FingerprintParts {
+  url: string;
+  /** `role:name` of every interactive element. */
+  controls: Iterable<string>;
+  /** Landmark labels (`kind:name`) of the elements. */
+  landmarks: Iterable<string>;
+  headings: Iterable<string>;
+}
+
+/** Fingerprint from its raw parts; `pageFingerprint(obs)` is this applied to an observation. */
+export function fingerprintOfParts(parts: FingerprintParts): string {
   const tokens = new Set<string>();
-  for (const l of landmarks) tokens.add(shortHash(`L:${l}`, 6));
-  for (const h of obs.context.headings) tokens.add(shortHash(`H:${h}`, 6));
+  for (const l of new Set(parts.landmarks)) tokens.add(shortHash(`L:${l}`, 6));
+  for (const h of parts.headings) tokens.add(shortHash(`H:${h}`, 6));
   return [
-    shortHash(pathPattern(obs.context.url), 8),
-    shortHash(JSON.stringify([...controls].sort()), 8),
+    shortHash(pathPattern(parts.url), 8),
+    shortHash(JSON.stringify([...new Set(parts.controls)].sort()), 8),
     [...tokens].sort().join(','),
   ].join('.');
 }

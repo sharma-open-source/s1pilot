@@ -444,6 +444,9 @@ importers:
       playwright:
         specifier: ^1.63.0
         version: 1.63.0
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
       '@s1pilot/fixture-sites':
         specifier: workspace:*

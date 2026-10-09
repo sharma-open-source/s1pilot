@@ -25,7 +25,7 @@ export interface PageContext {
 /** Max headings kept in a context. */
 export const MAX_HEADINGS = 10;
 
-interface RawContext {
+export interface RawContext {
   title: string;
   headings: string[];
   alerts: string[];
@@ -34,7 +34,7 @@ interface RawContext {
 }
 
 /** Runs inside the page (must be self-contained). */
-function collectContextInPage(maxHeadings: number): RawContext {
+export function collectContextInPage(maxHeadings: number): RawContext {
   const norm = (s: string | null | undefined): string => (s ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
   const visible = (el: Element): boolean => {
     const style = getComputedStyle(el);

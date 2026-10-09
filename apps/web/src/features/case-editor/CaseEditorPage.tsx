@@ -1,6 +1,8 @@
 import { useBlocker } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { RecorderDialog } from '../recorder/RecorderDialog';
+
 import { CaseAside } from './CaseAside';
 import { ConflictDialog } from './ConflictDialog';
 import { HistoryTab } from './HistoryTab';
@@ -89,6 +91,7 @@ function CaseEditor({ projectKey, caseKey, tab: rawTab, navigate }: CaseEditorPa
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<CaseRecord | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [recordOpen, setRecordOpen] = useState(false);
   const [runOn, setRunOn] = useState('');
 
   const dirty = base !== null && draft !== null && isDirty(base, draft);
@@ -192,6 +195,12 @@ function CaseEditor({ projectKey, caseKey, tab: rawTab, navigate }: CaseEditorPa
     } catch (err) {
       setSaveError(errorMessage(err));
     }
+  };
+
+  /** Saves pending edits, then records new steps after the last one. */
+  const recordFromHere = async () => {
+    if (dirtyRef.current && !(await save())) return;
+    setRecordOpen(true);
   };
 
   const reloadFromServer = (c: CaseRecord) => {
@@ -302,7 +311,14 @@ function CaseEditor({ projectKey, caseKey, tab: rawTab, navigate }: CaseEditorPa
           {tab === 'steps' && (
             <>
               <PreconditionStrip preconditions={draft.preconditions} onChange={(preconditions) => patchDraft({ preconditions })} />
-              <StepGrid steps={draft.steps} params={names} shared={shared} onChange={setSteps} onInsertShared={() => setPickerOpen(true)} />
+              <StepGrid
+                steps={draft.steps}
+                params={names}
+                shared={shared}
+                onChange={setSteps}
+                onInsertShared={() => setPickerOpen(true)}
+                onRecord={() => void recordFromHere()}
+              />
             </>
           )}
           {tab === 'parameters' && <ParametersTab parameters={draft.parameters} onChange={(parameters) => patchDraft({ parameters })} />}
@@ -321,6 +337,15 @@ function CaseEditor({ projectKey, caseKey, tab: rawTab, navigate }: CaseEditorPa
         </section>
         <CaseAside projectKey={projectKey} caseKey={caseKey} draft={draft} learned={data.learned} onChange={patchDraft} parametersHref={`${root}/parameters`} />
       </div>
+
+      <RecorderDialog
+        open={recordOpen}
+        onOpenChange={setRecordOpen}
+        projectKey={projectKey}
+        caseKey={caseKey}
+        fromStep={base.steps.length}
+        onSaved={() => void utils.cases.invalidate()}
+      />
 
       <SharedStepPicker open={pickerOpen} onOpenChange={setPickerOpen} projectKey={projectKey} onPick={insertShared} />
 

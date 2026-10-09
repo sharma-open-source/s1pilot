@@ -14,6 +14,8 @@ export interface RawElement {
   landmark?: string;
   box: Box;
   locators: LocatorCandidate[];
+  /** Set only when `collectInPage` was given a `markAttr` and this element carries it (recorder, S-060). */
+  marked?: boolean;
 }
 
 /**
@@ -21,7 +23,7 @@ export interface RawElement {
  * Finds visible, enabled interactive elements (incl. open shadow roots) in document order and
  * computes role, accessible name, state, landmark and locator candidates for each.
  */
-export function collectInPage(maxText: number): RawElement[] {
+export function collectInPage(maxText: number, markAttr?: string): RawElement[] {
   const INTERACTIVE_ROLES =
     'button|link|tab|menuitem|checkbox|radio|combobox|option|switch|textbox|searchbox|slider|spinbutton|menuitemcheckbox|menuitemradio';
   const SELECTOR = [
@@ -298,6 +300,7 @@ export function collectInPage(maxText: number): RawElement[] {
       d.locators.push({ kind: 'text', value: textKey });
     }
     d.locators.push({ kind: 'css', value: cssPath(el) });
+    if (markAttr && el.hasAttribute(markAttr)) d.marked = true;
     out.push(d);
   }
   return out;

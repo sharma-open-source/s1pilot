@@ -17,12 +17,14 @@ interface StepGridProps {
   shared: SharedOption[];
   onChange: (steps: DraftStep[]) => void;
   onInsertShared: () => void;
+  /** Opens the recorder to add steps after the last one (S-060). Absent: the button is disabled. */
+  onRecord?: () => void;
 }
 
 const HEADERS = ['#', 'Action (plain language)', 'Expected result', 'Checks'];
 
 /** Editable step table: action, expected result and checks per row, with reorder, duplicate and delete. */
-export function StepGrid({ steps, params, shared, onChange, onInsertShared }: StepGridProps) {
+export function StepGrid({ steps, params, shared, onChange, onInsertShared, onRecord }: StepGridProps) {
   const [checkFor, setCheckFor] = useState<number | null>(null);
   const [announce, setAnnounce] = useState('');
   const dragFrom = useRef<number | null>(null);
@@ -262,7 +264,7 @@ export function StepGrid({ steps, params, shared, onChange, onInsertShared }: St
         <Button variant="dashed" className="min-h-[44px]" onClick={onInsertShared}>
           + Insert shared step
         </Button>
-        <Button variant="dashed" className="min-h-[44px]" disabled title="Available with the recorder (S-060)">
+        <Button variant="dashed" className="min-h-[44px]" disabled={onRecord === undefined} onClick={onRecord}>
           Record steps from here
         </Button>
       </div>

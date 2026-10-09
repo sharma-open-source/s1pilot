@@ -6,6 +6,7 @@ import type { ServerConfig } from '../config.js';
 import { HumanControl, type HumanControlOptions } from '../live/control.js';
 import { LiveHub } from '../live/hub.js';
 import { attachNotifications, notifyReviewQueue } from '../notifications/service.js';
+import { RecorderService } from '../recorder/service.js';
 import { PlanScheduler } from '../triggers/scheduler.js';
 
 import { RunEventBus } from './event-bus.js';
@@ -24,6 +25,8 @@ export interface ServerRuntime {
   human: HumanControl;
   /** Saved logins: recording, refresh, validation and the provider workers hand to the runner (S-038). */
   auth: AuthService;
+  /** Browser recorder: captures steps and a learned script from a headed session (S-060). */
+  recorder: RecorderService;
   /** Cron scheduler of plan schedules (S-052); started by `buildApp`. */
   scheduler: PlanScheduler;
 }
@@ -70,9 +73,15 @@ export function createRuntime(opts: RuntimeOptions): ServerRuntime {
     ...(opts.launchHeaded ? { launchHeaded: opts.launchHeaded } : {}),
     ...(opts.workerOptions?.createModels ? { createModels: opts.workerOptions.createModels } : {}),
   });
+  const recorder = new RecorderService({
+    db: opts.db,
+    config: opts.config,
+    ...(opts.launchHeaded ? { launchHeaded: opts.launchHeaded } : {}),
+    ...(opts.workerOptions?.createModels ? { createModels: opts.workerOptions.createModels } : {}),
+  });
   const workers: WorkerPool = new WorkerPool({ human, auth, onPage: (runId, resultId, page) => live.screencast.attach(runId, resultId, page), ...opts.workerOptions, db: opts.db, config: opts.config, log: opts.log, queue, bus, lifecycle });
   const scheduler = new PlanScheduler({ db: opts.db, log: opts.log });
-  const runtime: ServerRuntime = { queue, bus, lifecycle, workers, live, human, auth, scheduler };
+  const runtime: ServerRuntime = { queue, bus, lifecycle, workers, live, human, auth, recorder, scheduler };
   runtimes.set(opts.db, runtime);
   return runtime;
 }

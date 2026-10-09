@@ -87,6 +87,7 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
     stopTrackerSync();
     runtime.scheduler.stop();
     await runtime.auth.close();
+    await runtime.recorder.close();
     await runtime.workers.stop(); // before the db closes
     if (ownsDb) db.close();
   });
