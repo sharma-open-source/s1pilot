@@ -8,11 +8,12 @@ import websocket from '@fastify/websocket';
 import { createVault, openDb, type Db } from '@s1pilot/db';
 import { createLogger } from '@s1pilot/domain/logger';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
-import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyBaseLogger, type FastifyInstance, type FastifyRequest } from 'fastify';
 
 import { startRetentionJob } from './artifacts/retention.js';
 import { registerArtifactRoutes } from './artifacts/routes.js';
 import { FsArtifactStore } from './artifacts/store.js';
+import { registerTokenAuth } from './auth/tokens.js';
 import type { ServerConfig } from './config.js';
 import { registerExportRoutes } from './exports/routes.js';
 import { registerLiveRoutes } from './live/routes.js';
@@ -61,6 +62,8 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
   if (dev) await app.register(cors, { origin: true });
   await app.register(websocket);
 
+  registerTokenAuth(app, db);
+
   app.get('/api/health', async () => ({ ok: true, version: getVersion(), mode: config.mode }));
 
   const runtime = createRuntime({ db, config, log, ...(opts.launchHeaded ? { launchHeaded: opts.launchHeaded } : {}), ...(opts.workerOptions ? { workerOptions: opts.workerOptions } : {}) });
@@ -87,7 +90,7 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
     prefix: '/trpc',
     trpcOptions: {
       router: appRouter,
-      createContext: () => createContext({ db, config, log, runtime }),
+      createContext: ({ req }: { req: FastifyRequest }) => createContext({ db, config, log, runtime, ...(req.apiToken ? { token: req.apiToken } : {}) }),
     },
   });
 

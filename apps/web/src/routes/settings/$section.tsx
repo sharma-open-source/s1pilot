@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { PlaceholderPage } from '@/components/app/PageHeader';
+import { SettingsPage } from '@/features/settings/SettingsPage';
 
 export const Route = createFileRoute('/settings/$section')({
-  component: () => <PlaceholderPage title="Settings" spec="S-059" />,
+  component: function SettingsRoute() {
+    const { section } = Route.useParams();
+    return <SettingsPage section={section} />;
+  },
 });

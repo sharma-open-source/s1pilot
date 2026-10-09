@@ -13,6 +13,7 @@ import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
 
 import { effectiveModelSettings, requireProject } from './helpers.js';
+import { workspaceRetentionDays } from './workspace.js';
 
 export type ProjectStatus = 'none' | 'running' | 'passing' | 'failing';
 
@@ -78,7 +79,10 @@ export const projectsRouter = router({
         name: 'dev',
         baseUrl: input.baseUrl,
       });
-      await repos.projects.update(db, project.id, { defaultEnvironmentId: env.id });
+      await repos.projects.update(db, project.id, {
+        defaultEnvironmentId: env.id,
+        retentionDays: await workspaceRetentionDays(ctx),
+      });
       return withCounts(ctx, await requireProject(ctx, input.key));
     }),
 

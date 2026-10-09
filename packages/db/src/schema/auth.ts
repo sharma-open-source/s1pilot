@@ -22,3 +22,18 @@ export const authSetups = sqliteTable(
   },
   (t) => [unique('auth_setups_env_name_unq').on(t.environmentId, t.name)],
 );
+
+/** API tokens for CLI / CI (S-059). Only a salted scrypt hash is stored; the token itself is shown once at creation. */
+export const apiTokens = sqliteTable('api_tokens', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  /** Public, non-secret lookup part of the token (`s1p_<prefix>_…`); the only part shown after creation. */
+  prefix: text('prefix').notNull().unique(),
+  /** `scrypt$<saltHex>$<hashHex>` of the full token. */
+  hash: text('hash').notNull(),
+  scopes: text('scopes', { mode: 'json' }).$type<string[]>().notNull(),
+  createdBy: text('created_by').notNull(),
+  createdAt: text('created_at').notNull(),
+  lastUsedAt: text('last_used_at'),
+  revokedAt: text('revoked_at'),
+});
