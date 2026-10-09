@@ -85,7 +85,7 @@ export const CaseResultSchema = z.object({
 });
 export type CaseResult = z.infer<typeof CaseResultSchema>;
 
-export const RunTriggerSchema = z.enum(['manual', 'schedule', 'ci', 'webhook']);
+export const RunTriggerSchema = z.enum(['manual', 'schedule', 'ci', 'webhook', 'retest']);
 export type RunTrigger = z.infer<typeof RunTriggerSchema>;
 
 /**

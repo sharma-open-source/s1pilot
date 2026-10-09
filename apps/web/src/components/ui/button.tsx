@@ -45,14 +45,16 @@ export interface LinkButtonProps
   to?: string;
   /** External or plain URL. */
   href?: string;
+  /** Search params of the in-app route. */
+  search?: Record<string, unknown>;
 }
 
 /** `<a>` styled as a Button, for navigation actions ("Run now", "New test case"). */
-export function LinkButton({ variant, size, className, to, href, ...rest }: LinkButtonProps) {
+export function LinkButton({ variant, size, className, to, href, search, ...rest }: LinkButtonProps) {
   const cls = cn(buttonStyles({ variant, size: variant === 'dashed' ? 'sm' : size }), className);
   if (to !== undefined) {
     // `to` is a runtime string; the generated route union is too narrow for shared components.
-    return <Link to={to as never} className={cls} {...rest} />;
+    return <Link to={to as never} {...(search !== undefined ? { search: search as never } : {})} className={cls} {...rest} />;
   }
   return <a href={href} className={cls} {...rest} />;
 }

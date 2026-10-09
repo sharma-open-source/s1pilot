@@ -142,6 +142,8 @@ async function healDetail(ctx: Context, item: ReviewItem, projectKey: string) {
     environment: env?.name ?? '',
     runId: p.runId,
     runFound: run !== undefined,
+    resultId: found?.id ?? null,
+    stepIndex: p.stepIndex,
     browser: found?.browser ?? 'chromium',
     sharedStepName: shared?.name ?? null,
     beforeLabel: labelOf(p.before),

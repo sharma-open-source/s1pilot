@@ -3,6 +3,7 @@ import { getVersion } from '../version.js';
 import { authRouter } from './routers/auth.js';
 import { casesRouter } from './routers/cases.js';
 import { dashboardRouter } from './routers/dashboard.js';
+import { defectsRouter } from './routers/defects.js';
 import { environmentsRouter } from './routers/environments.js';
 import { modelsRouter } from './routers/models.js';
 import { plansRouter } from './routers/plans.js';
@@ -36,6 +37,7 @@ export const appRouter = router({
   runs: runsRouter,
   results: resultsRouter,
   reviews: reviewsRouter,
+  defects: defectsRouter,
   syncStatus: syncStatusProcedure,
   dashboard: dashboardRouter,
   auth: authRouter,

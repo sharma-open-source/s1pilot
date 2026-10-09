@@ -1,5 +1,6 @@
 import type {
   AssertionVerdict,
+  DefectDetails,
   ExitCriterion,
   MatrixEntry,
   PlanChecks,
@@ -40,7 +41,7 @@ export const testRuns = sqliteTable(
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
     planId: text('plan_id').references(() => testPlans.id, { onDelete: 'set null' }),
-    trigger: text('trigger', { enum: ['manual', 'schedule', 'ci', 'webhook'] }).notNull(),
+    trigger: text('trigger', { enum: ['manual', 'schedule', 'ci', 'webhook', 'retest'] }).notNull(),
     buildRef: text('build_ref'),
     status: text('status', {
       enum: ['queued', 'running', 'paused', 'finished', 'aborted', 'passed', 'failed', 'needs-review', 'cancelled', 'error'],
@@ -140,9 +141,11 @@ export const defects = sqliteTable('defects', {
     .notNull()
     .references(() => projects.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
+  seq: integer('seq'),
   description: text('description'),
+  details: text('details', { mode: 'json' }).$type<DefectDetails>(),
   severity: text('severity', { enum: ['S1', 'S2', 'S3', 'S4'] }).notNull(),
-  status: text('status', { enum: ['open', 'in-progress', 'resolved', 'closed'] }).notNull(),
+  status: text('status', { enum: ['draft', 'open', 'in-progress', 'fixed', 'closed'] }).notNull(),
   externalProvider: text('external_provider', { enum: ['jira', 'github', 'linear'] }),
   externalId: text('external_id'),
   externalUrl: text('external_url'),

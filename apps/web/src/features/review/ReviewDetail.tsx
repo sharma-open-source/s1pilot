@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 
 import { approveAllLabel, BROWSER_LABEL, s2Line, shortRun, thresholdText } from './model';
@@ -53,11 +53,21 @@ function DecisionForm({
   onDecided,
 }: {
   data: Detail;
-  buttons: Array<{ label: string; decision: Decision; verdict?: 'passed' | 'failed'; variant: 'success' | 'secondary' | 'danger-outline'; title?: string }>;
+  buttons: Array<{
+    label: string;
+    decision: Decision;
+    verdict?: 'passed' | 'failed';
+    variant: 'success' | 'secondary' | 'danger-outline';
+    title?: string;
+    /** After the decision, open the Defects page with a prefilled new defect (S-054). */
+    defect?: { search: Record<string, unknown> };
+  }>;
   onDecided: (nextId: string | null) => void;
 }) {
   const utils = trpc.useUtils();
+  const navigate = useNavigate();
   const [note, setNote] = useState('');
+  const [defectSearch, setDefectSearch] = useState<Record<string, unknown> | undefined>(undefined);
   const mutation = trpc.reviews.decide.useMutation({
     onSuccess: (out) => {
       void utils.reviews.counts.invalidate();
@@ -67,6 +77,10 @@ function DecisionForm({
       void utils.results.get.invalidate();
       void utils.runs.list.invalidate();
       void utils.dashboard.invalidate();
+      if (defectSearch) {
+        void navigate({ to: `/p/${encodeURIComponent(data.projectKey)}/defects` as never, search: defectSearch as never });
+        return;
+      }
       onDecided(out.nextId);
     },
   });
@@ -96,7 +110,10 @@ function DecisionForm({
             className={cn(b.variant === 'success' && 'bg-success')}
             disabled={mutation.isPending}
             title={b.title}
-            onClick={() => mutation.mutate({ id: item.id, decision: b.decision, note, ...(b.verdict ? { verdict: b.verdict } : {}) })}
+            onClick={() => {
+              setDefectSearch(b.defect?.search);
+              mutation.mutate({ id: item.id, decision: b.decision, note, ...(b.verdict ? { verdict: b.verdict } : {}) });
+            }}
           >
             {b.label}
           </Button>
@@ -197,8 +214,17 @@ function HealDetail({ data, onDecided }: { data: HealData; onDecided: (nextId: s
         buttons={[
           { label: approveAllLabel(data.impactCount), decision: 'approve', variant: 'success' },
           { label: 'Approve for this case only', decision: 'approve-case-only', variant: 'secondary' },
-          // TODO(S-054): create the defect together with the rejection.
-          { label: 'Reject & create defect', decision: 'reject', variant: 'danger-outline', title: 'Rejects the proposal; defect creation arrives with S-054' },
+          {
+            label: 'Reject & create defect',
+            decision: 'reject',
+            variant: 'danger-outline',
+            title: 'Rejects the proposal and opens a prefilled defect',
+            defect: {
+              search: data.resultId
+                ? { fromResult: data.resultId, step: data.stepIndex }
+                : { new: true, title: `${data.caseKey}: step ${data.stepNumber} locator changed`, source: data.caseKey },
+            },
+          },
         ]}
       />
     </section>
