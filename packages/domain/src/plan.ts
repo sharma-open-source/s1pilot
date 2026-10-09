@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { A11yImpactSchema } from './checks.js';
 import { IdSchema, IsoTimestampSchema } from './common.js';
 import { BrowserNameSchema } from './environment.js';
 import { PlanAssignmentSchema } from './manual.js';
@@ -33,6 +34,15 @@ export const PlanChecksSchema = z.object({
   consoleErrors: z.boolean().default(false),
   visual: z.boolean().default(false),
   video: z.boolean().default(false),
+  /** Accessibility impact (axe) at or above which the case fails; lower impacts warn. Default `serious` (S-053). */
+  a11yFailImpact: A11yImpactSchema.optional(),
+  /** axe rule ids not to run. */
+  a11yDisabledRules: z.array(z.string()).optional(),
+  /** Regexes: console messages / failing request URLs matching one are ignored. */
+  consoleAllow: z.array(z.string()).optional(),
+  networkAllow: z.array(z.string()).optional(),
+  /** Also flag failing requests to other origins than the environment's. Default false. */
+  networkThirdParty: z.boolean().optional(),
 });
 export type PlanChecks = z.infer<typeof PlanChecksSchema>;
 

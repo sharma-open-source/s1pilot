@@ -20,3 +20,4 @@ export {
   validateAuthState,
 } from './auth.js';
 export type { AuthCheck, AuthRefresher, AuthSetupStore, FlowRefresherOptions, LoginRecording, StorageState } from './auth.js';
+export { CaseChecks } from './checks.js';

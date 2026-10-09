@@ -21,6 +21,7 @@ const row = (id: string, key: string, verdict: string, over: Record<string, unkn
   attempt: 1,
   durationMs: 10,
   failedStep: verdict === 'failed' ? 3 : null,
+  checks: [] as Array<{ kind: string; severity: string; count: number }>,
   ...over,
 });
 const REPORT = {
@@ -61,6 +62,7 @@ const detail = (id: string) => {
     trace: { artifactId: 'art-trace', size: 10 },
     console: [{ ts: 't', type: 'error', text: 'Boom' }],
     network: [{ url: 'http://x.test/api', method: 'GET', status: 500, durationMs: 12, resourceType: 'fetch' }],
+    checks: [] as Array<Record<string, unknown>>,
     overrides: [],
   };
 };
@@ -151,6 +153,47 @@ describe('RunReportPage', () => {
     expect(screen.getByText('http://x.test/api')).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Video' }));
     expect(document.querySelector('video')).toHaveAttribute('src', '/api/artifacts/art-video');
+  });
+
+  it('shows a warning pill on results with warning checks and the Accessibility tab with violations', async () => {
+    const user = userEvent.setup();
+    const a11yCheck = {
+      kind: 'a11y',
+      severity: 'fail',
+      items: [
+        { summary: 'Form elements must have labels', severity: 'fail', ruleId: 'label', impact: 'critical', target: 'input[name="email"]', helpUrl: 'https://dequeuniversity.com/rules/axe/4.10/label', stepIndex: 0 },
+        { summary: 'Heading levels should only increase by one', severity: 'warn', ruleId: 'heading-order', impact: 'moderate', target: 'h4', helpUrl: 'https://dequeuniversity.com/rules/axe/4.10/heading-order' },
+      ],
+    };
+    const consoleCheck = { kind: 'console', severity: 'warn', items: [{ summary: 'Boom', severity: 'warn', type: 'error', stepIndex: 1 }] };
+    const report = {
+      ...REPORT,
+      results: REPORT.results.map((r) => (r.id === 'r2' ? { ...r, checks: [{ kind: 'a11y', severity: 'fail', count: 2 }, { kind: 'console', severity: 'warn', count: 1 }] } : r)),
+    };
+    renderPage({}, {
+      'runs.report': () => report,
+      'results.get': (id) => (id === 'r2' ? { ...detail('r2'), checks: [a11yCheck, consoleCheck] } : detail(id as string)),
+    });
+    const list = await screen.findByRole('list', { name: 'Result list' });
+    expect(within(list).getByText('1 warning')).toBeInTheDocument();
+    await screen.findByRole('heading', { name: /SHOP-TC-44/ });
+    await user.click(screen.getByRole('tab', { name: 'Accessibility · 2' }));
+    const violations = screen.getByRole('list', { name: 'Accessibility violations' });
+    expect(within(violations).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(violations).getByText('label')).toBeInTheDocument();
+    expect(within(violations).getByText('critical')).toBeInTheDocument();
+    expect(within(violations).getByText('input[name="email"]')).toBeInTheDocument();
+    expect(within(violations).getAllByRole('link', { name: 'How to fix' })[0]).toHaveAttribute('href', 'https://dequeuniversity.com/rules/axe/4.10/label');
+    await user.click(screen.getByRole('tab', { name: 'Console · 1' }));
+    expect(screen.getByRole('list', { name: 'Flagged console errors' })).toHaveTextContent('Boom (step 2)');
+  });
+
+  it('explains an Accessibility tab without a scan', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('heading', { name: /SHOP-TC-44/ });
+    await user.click(screen.getByRole('tab', { name: 'Accessibility' }));
+    expect(screen.getByText(/accessibility scan was not enabled/)).toBeInTheDocument();
   });
 
   it('overrides a verdict and refreshes the report', async () => {

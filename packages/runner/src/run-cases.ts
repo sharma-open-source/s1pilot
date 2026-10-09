@@ -8,6 +8,8 @@ import {
   type CaptureFile,
   type CaseMode,
   type CaseRunResult,
+  type CheckConfig,
+  type CheckResult,
   type DecisionModel,
   type Environment,
   type ExecutionMode,
@@ -44,6 +46,7 @@ import type { LearnedScriptRef, LearnedScriptStore } from '@s1pilot/sync';
 import { chromium, devices, firefox, webkit, type Browser, type BrowserContextOptions, type Page } from 'playwright';
 
 import { CaseCapture, type CaptureOptions } from './capture.js';
+import { CaseChecks } from './checks.js';
 
 /** Full result of a run; the reporters render exactly this. */
 export type RunSummary = RunReport;
@@ -135,6 +138,11 @@ export interface RunCasesInput {
   onPage?: (page: Page, info: { runId: string; caseResultId: string }) => (() => unknown) | undefined;
   /** Evidence capture (screenshots, video, trace, logs). Defaults: screenshots, trace and logs on; video off. */
   capture?: CaptureOptions;
+  /**
+   * Accessibility / console / network health checks (S-053). Results land on `CaseRunResult.checks` and in
+   * `checks.json`; a `fail` severity turns a passed case into `failed`. Absent: no checks run.
+   */
+  checks?: CheckConfig;
 }
 
 /**
@@ -293,6 +301,7 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
     emit({ type: 'step.finished', caseResultId, key: testCase.key, step });
   };
   let files: CaptureFile[] = [];
+  let checksOfCase: CheckResult[] = [];
   const finishCase = async (verdict: Verdict, mode: CaseMode): Promise<CaseRunResult> => {
     const result: CaseRunResult = {
       runId,
@@ -315,6 +324,7 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
       healProposals: proposals,
       steps,
       ...(files.length > 0 ? { files } : {}),
+      ...(checksOfCase.length > 0 ? { checks: checksOfCase } : {}),
     };
     const safe = redactor.redactDeep(result);
     if (input.signal?.aborted) cancelledResults.add(safe);
@@ -376,6 +386,8 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
     ...(input.capture?.video ? { recordVideo: { dir: evidence.videoDir, size: { width: 1280, height: 720 } } } : {}),
   });
   await evidence.start(context);
+  const health = input.checks ? new CaseChecks(input.checks, environment.baseUrl, redactor) : undefined;
+  health?.attach(context);
   const guards: InstalledGuard[] = [];
   const onEvent = (e: { method?: string; url?: string; reason: string }): void => {
     note(`! blocked ${e.method ?? ''} ${r(e.url ?? '')}: ${e.reason}`.replace(/\s+/g, ' '));
@@ -539,6 +551,7 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
       } finally {
         capture.dispose();
       }
+      await health?.afterStep(ctx.page, index);
       const screenshot = await evidence.screenshot(ctx.page, index);
       finishStep(screenshot ? { ...record, screenshot } : record);
       if (record.verdict === 'failed' || record.verdict === 'blocked') {
@@ -560,9 +573,17 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
     await context.close();
   }
   files = await evidence.finish();
+  const checkResults: CheckResult[] = health?.results() ?? [];
+  if (health) {
+    await writeFile(join(caseDir, 'checks.json'), `${JSON.stringify(redactor.redactDeep(checkResults), null, 2)}\n`);
+    files.push({ kind: 'a11y', file: 'checks.json', contentType: 'application/json' });
+  }
   files.push({ kind: 'log', file: 'trace.jsonl', contentType: 'application/x-ndjson' });
 
-  const verdict = preconditionBroken ? 'blocked' : caseVerdict(steps.map((s) => s.verdict));
+  const stepVerdict = preconditionBroken ? 'blocked' : caseVerdict(steps.map((s) => s.verdict));
+  // A failing check (serious a11y violation, console error with "fail on console errors", 5xx) fails a passing case.
+  const verdict: Verdict = stepVerdict === 'passed' && checkResults.some((c) => c.severity === 'fail') ? 'failed' : stepVerdict;
+  checksOfCase = checkResults;
   // A passing explore run (first run, or a stale / environment-changed script) is learned.
   if (!replaying && input.stores?.scripts) {
     const learned = buildLearnedScript({

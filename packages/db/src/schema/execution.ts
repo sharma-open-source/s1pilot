@@ -1,5 +1,6 @@
 import type {
   AssertionVerdict,
+  CheckSummary,
   DefectDetails,
   ExitCriterion,
   ManualStepRecord,
@@ -78,6 +79,7 @@ export const caseResults = sqliteTable(
     mode: text('mode', { enum: ['replay', 'healed', 'explore', 'manual'] }).notNull(),
     escalations: integer('escalations').notNull(),
     reason: text('reason'),
+    checks: text('checks', { mode: 'json' }).$type<CheckSummary[]>(),
   },
   (t) => [index('case_results_run_idx').on(t.runId), index('case_results_case_idx').on(t.caseId)],
 );

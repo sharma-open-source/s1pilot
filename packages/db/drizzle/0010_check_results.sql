@@ -1,0 +1,1 @@
+ALTER TABLE `case_results` ADD `checks` text;

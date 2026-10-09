@@ -11,6 +11,7 @@ import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 type ResultDetailData = RouterOutputs['results']['get'];
 type DetailStep = ResultDetailData['steps'][number];
+type CheckResultData = ResultDetailData['checks'][number];
 type EvidenceTab = 'decisions' | 'video' | 'trace' | 'console' | 'network' | 'a11y';
 
 const artifactUrl = (id: string): string => `/api/artifacts/${encodeURIComponent(id)}`;
@@ -91,6 +92,17 @@ export function ResultDetail({ resultId, projectKey, onChanged }: { resultId: st
       {d.overrides.length > 0 && (
         <Callout tone="info-ai">
           Verdict overridden: {d.overrides.at(-1)?.note ?? ''}
+        </Callout>
+      )}
+
+      {d.checks.some((c) => c.severity === 'warn') && (
+        <Callout tone="warning">
+          Check warnings: {d.checks.filter((c) => c.severity === 'warn').map((c) => `${c.kind} (${c.items.length})`).join(', ')}. The verdict is unchanged.
+        </Callout>
+      )}
+      {d.checks.some((c) => c.severity === 'fail') && (
+        <Callout tone="danger">
+          Failed checks: {d.checks.filter((c) => c.severity === 'fail').map((c) => `${c.kind} (${c.items.filter((i) => i.severity === 'fail').length})`).join(', ')}.
         </Callout>
       )}
 
@@ -209,13 +221,16 @@ function OverrideDialog({
 
 function Evidence({ data }: { data: ResultDetailData }) {
   const [tab, setTab] = useState<EvidenceTab>('decisions');
+  const a11y = data.checks.find((c) => c.kind === 'a11y');
+  const consoleCheck = data.checks.find((c) => c.kind === 'console');
+  const networkCheck = data.checks.find((c) => c.kind === 'network');
   const tabs: Array<{ id: EvidenceTab; label: string }> = [
     { id: 'decisions', label: 'Decisions' },
     { id: 'video', label: 'Video' },
     { id: 'trace', label: 'Playwright trace' },
     { id: 'console', label: `Console · ${data.console.length}` },
     { id: 'network', label: `Network · ${data.network.length}` },
-    { id: 'a11y', label: 'Accessibility' },
+    { id: 'a11y', label: a11y ? `Accessibility · ${a11y.items.length}` : 'Accessibility' },
   ];
   const move = (dir: number, i: number): void => {
     const next = tabs[(i + dir + tabs.length) % tabs.length];
@@ -261,6 +276,7 @@ function Evidence({ data }: { data: ResultDetailData }) {
             <Empty>No video was recorded for this result.</Empty>
           ))}
         {tab === 'trace' && <Trace trace={data.trace} />}
+        {tab === 'console' && <Flagged check={consoleCheck} what="console errors" />}
         {tab === 'console' &&
           (data.console.length === 0 ? (
             <Empty>No console messages.</Empty>
@@ -274,6 +290,7 @@ function Evidence({ data }: { data: ResultDetailData }) {
               ))}
             </div>
           ))}
+        {tab === 'network' && <Flagged check={networkCheck} what="failing requests" />}
         {tab === 'network' &&
           (data.network.length === 0 ? (
             <Empty>No network requests were captured.</Empty>
@@ -303,9 +320,57 @@ function Evidence({ data }: { data: ResultDetailData }) {
               </table>
             </div>
           ))}
-        {tab === 'a11y' && <Empty>Accessibility findings appear here once accessibility checks are available.</Empty>}
+        {tab === 'a11y' && <A11yFindings check={a11y} />}
       </div>
     </div>
+  );
+}
+
+/** Items flagged by the console / network health check, above the raw log. */
+function Flagged({ check, what }: { check: CheckResultData | undefined; what: string }) {
+  if (!check || check.items.length === 0) return null;
+  const failing = check.severity === 'fail';
+  return (
+    <Callout tone={failing ? 'danger' : 'warning'}>
+      <strong>
+        {check.items.length} {what} {failing ? 'failed this case' : 'flagged (warning)'}
+      </strong>
+      <ul aria-label={`Flagged ${what}`} className="m-0 mt-1.5 list-disc pl-5 font-mono text-xs">
+        {check.items.map((item, i) => (
+          <li key={i} className="break-words">
+            {item.summary}
+            {item.stepIndex !== undefined ? ` (step ${item.stepIndex + 1})` : ''}
+          </li>
+        ))}
+      </ul>
+    </Callout>
+  );
+}
+
+/** Violations found by the axe scan: rule, impact, target selector and help link. */
+function A11yFindings({ check }: { check: CheckResultData | undefined }) {
+  if (!check) return <Empty>The accessibility scan was not enabled for this run (turn on "Accessibility scan" in the plan checks).</Empty>;
+  if (check.items.length === 0) return <Empty>No accessibility violations were found.</Empty>;
+  return (
+    <ul aria-label="Accessibility violations" className="m-0 flex list-none flex-col gap-2 p-0 text-sm">
+      {check.items.map((item, i) => (
+        <li key={i} className="flex flex-col gap-1 rounded-control border border-divider px-3 py-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Tag tone={item.severity === 'fail' ? 'danger' : 'warning'}>{item.severity === 'fail' ? 'fails' : 'warning'}</Tag>
+            <Tag mono>{item.ruleId}</Tag>
+            <span className="font-semibold">{item.impact}</span>
+            <span>{item.summary}</span>
+            {item.stepIndex !== undefined && <span className="text-xs text-muted">after step {item.stepIndex + 1}</span>}
+          </div>
+          <code className="break-all font-mono text-xs text-secondary">{item.target}</code>
+          {item.helpUrl && (
+            <a href={item.helpUrl} target="_blank" rel="noreferrer" className="text-xs text-primary-text">
+              How to fix
+            </a>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 

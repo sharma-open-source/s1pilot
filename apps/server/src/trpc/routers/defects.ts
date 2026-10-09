@@ -17,10 +17,13 @@ import {
 } from '@s1pilot/domain';
 import { z } from 'zod';
 
+import { FsArtifactStore } from '../../artifacts/store.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
 
+
 import { requireProject } from './helpers.js';
+import { loadChecks } from './run-report.js';
 import { startRun } from './runs.js';
 
 /** Statuses that trigger the automatic re-test. */
@@ -88,16 +91,26 @@ export async function draftFromResult(ctx: Context, resultId: string, stepIndex?
     const a = artifacts.find((x) => x.kind === kind);
     if (a) evidence.push({ artifactId: a.id, kind, label: kind === 'trace' ? 'Playwright trace' : 'Video' });
   }
+  // A result that only failed because of its accessibility scan (no failing step) is drafted "from accessibility scan".
+  const a11yFindings = picked && (picked.status === 'failed' || picked.status === 'blocked')
+    ? []
+    : (await loadChecks(new FsArtifactStore(ctx.db, ctx.config.artifactsDir), artifacts.find((a) => a.kind === 'a11y')?.id))
+        .filter((c) => c.kind === 'a11y')
+        .flatMap((c) => c.items.filter((i) => i.severity === 'fail'));
+  const fromA11y = a11yFindings.length > 0;
+  const checksFile = artifacts.find((a) => a.kind === 'a11y');
+  if (fromA11y && checksFile) evidence.push({ artifactId: checksFile.id, kind: 'a11y', label: 'Accessibility scan' });
+  const a11yTitle = `Accessibility: ${a11yFindings[0]?.summary ?? 'violation'}${a11yFindings.length > 1 ? ` (+${a11yFindings.length - 1} more)` : ''}`;
   const details: DefectDetails = DefectDetailsSchema.parse({
     stepsToReproduce: reproduce,
-    expected,
-    actual,
+    expected: fromA11y ? 'No serious accessibility violations' : expected,
+    actual: fromA11y ? a11yFindings.map((i) => `${i.ruleId ?? 'rule'} (${i.impact ?? 'n/a'}): ${i.summary} [${i.target ?? ''}]`).join('\n') : actual,
     ...(env ? { environment: env.name } : {}),
     browser: result.browser ?? 'chromium',
     ...(run.buildRef ? { buildRef: run.buildRef } : {}),
     evidence,
-    sourceKind: 'result',
-    sourceLabel: caseKey,
+    sourceKind: fromA11y ? 'a11y' : 'result',
+    sourceLabel: fromA11y ? 'accessibility scan' : caseKey,
     stepIndex: index,
     retest: true,
   });
@@ -105,7 +118,7 @@ export async function draftFromResult(ctx: Context, resultId: string, stepIndex?
     projectKey: project.key,
     resultId: result.id,
     stepNumber: index + 1,
-    title: `${testCase?.title ?? caseKey}${message ? `: ${message}` : ''}`.slice(0, 200),
+    title: (fromA11y ? a11yTitle : `${testCase?.title ?? caseKey}${message ? `: ${message}` : ''}`).slice(0, 200),
     severity: 'S2' as const,
     details,
   };
