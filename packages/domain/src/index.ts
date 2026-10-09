@@ -26,3 +26,4 @@ export * from './shared-step.js';
 export * from './test-case.js';
 export * from './workspace.js';
 export * from './exit-criteria.js';
+export * from './calibration.js';

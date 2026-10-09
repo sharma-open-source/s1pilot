@@ -216,3 +216,17 @@ describe('gate: option ids are matched as own keys only', () => {
     await expect(gate(answer('a', 0.3), base({ human: human.hook }))).rejects.toMatchObject({ code: 'HUMAN_INVALID_CHOICE' });
   });
 });
+
+describe('gate: calibration (S-058)', () => {
+  it('gates on the calibrated confidence and records the raw output next to it', async () => {
+    const calibrated: DecideAnswer = {
+      ...answer('a', 0.7),
+      raw: { probabilities: { a: 0.95, b: 0.02, c: 0.02, stuck: 0.01 }, confidence: 0.95 },
+    };
+    const result = await gate(calibrated, base({ attended: false }));
+    // 0.95 raw would have acted; the calibrated 0.7 is below `act`, so the gate does not act on it.
+    expect(result.outcome).not.toBe('act');
+    expect(result.record.confidence).toBe(0.7);
+    expect(result.record.raw?.confidence).toBe(0.95);
+  });
+});

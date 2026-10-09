@@ -1,5 +1,6 @@
 import {
   S1PilotError,
+  type Calibrator,
   type AdapterKind,
   type DecisionModel,
   type ModelEndpoint,
@@ -14,6 +15,7 @@ import { createOpenAiLogprobsModel } from './adapters/openai-logprobs.js';
 import { createSystemOneModel } from './adapters/systemone.js';
 import type { ChatModel } from './contract.js';
 import { loadProfile } from './profiles.js';
+import { calibratedDecisionModel } from './util/calibrated.js';
 import { guardDecisionModel } from './util/guard.js';
 
 export interface CreateModelOptions {
@@ -35,6 +37,8 @@ export interface CreateModelOptions {
   /** Use this instance for `adapter: 'mock'` so tests can inspect its recorded calls. */
   mock?: MockDecisionModel;
   mockChat?: MockChatModel;
+  /** Temperature calibration applied to every System 1 answer (S-058); the raw output stays on `answer.raw`. */
+  calibrator?: Calibrator;
 }
 
 /** A non-fatal problem an adapter noticed (never contains secrets). */
@@ -94,7 +98,8 @@ export function createDecisionModel(endpoint: ModelEndpoint, options: CreateMode
   }
   const profile = endpoint.profileId !== undefined ? loadProfile(endpoint.profileId) : undefined;
   const model = factory({ endpoint, ...(profile ? { profile } : {}), options });
-  return guardDecisionModel(model, {
+  const calibrated = options.calibrator ? calibratedDecisionModel(model, endpoint.model, options.calibrator) : model;
+  return guardDecisionModel(calibrated, {
     timeoutMs: options.timeoutMs ?? 30_000,
     ...(options.retries !== undefined ? { retries: options.retries } : {}),
     ...(options.retryDelayMs !== undefined ? { retryDelayMs: options.retryDelayMs } : {}),

@@ -1,7 +1,8 @@
 import { histogramPercentile, nextDay, type AnalyticsDayRow, type AnalyticsFilter } from '@s1pilot/db';
-import { IdSchema, ProjectKeySchema, type CaseResult, type ReviewItem } from '@s1pilot/domain';
+import { Calibrator, IdSchema, ProjectKeySchema, type CaseResult, type ReviewItem } from '@s1pilot/domain';
 import { z } from 'zod';
 
+import { collectSamples, evaluate, loadCalibrationState } from '../../calibration/service.js';
 import { evaluateExitCriteria } from '../../exit-criteria/evaluate.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
@@ -171,7 +172,7 @@ export const analyticsRouter = router({
 
   /**
    * System 1 quality. Rates are percentages (`null` = no data). Overrides and ECE come from reviewed verdicts
-   * (`review_items.outcome`); the raw ECE is replaced by the calibrated one when S-058 lands (`TODO(S-058)`).
+   * (`review_items.outcome`); `eceCalibrated` is the same data after the fitted temperatures (null until a fit).
    */
   aiQuality: publicProcedure.input(AnalyticsInput).query(async ({ ctx, input }) => {
     const { filter, project } = await resolveFilter(ctx, input);
@@ -210,6 +211,13 @@ export const analyticsRouter = router({
     const healRejected = healRows.find((r) => r.status === 'rejected')?.n ?? 0;
 
     const settings = await effectiveModelSettings(ctx, project);
+    // Calibrated ECE (S-058): the same reviewed outcomes seen through the project's fitted temperatures.
+    const state = await loadCalibrationState(ctx.db, project.id);
+    const calibrator = new Calibrator(state?.models ?? []);
+    const eceCalibrated =
+      state === undefined
+        ? null
+        : (evaluate(await collectSamples(ctx.db, project.id, reviewed), calibrator).eceAfter ?? null);
     return {
       model: settings?.system1.model ?? null,
       decisions,
@@ -217,12 +225,15 @@ export const analyticsRouter = router({
       needsReviewRate: pct(sumRows(rows, 'review'), results),
       overrideRate: pct(overridden, outcomes.length),
       ece,
+      eceCalibrated,
+      /** Stored threshold suggestion of the last fit; applied only by `calibration.applyThresholds`. */
+      suggestion: state?.suggestion ?? null,
       reviewedDecisions: reviewed.length,
       latencyP50: histogramPercentile(hist, 0.5),
       latencyP95: histogramPercentile(hist, 0.95),
       healSuccessRate: pct(healApproved, healApproved + healRejected),
-      /** Set by S-058 when thresholds are tuned. */
-      lastTunedAt: null as string | null,
+      /** When the user last applied suggested thresholds (`calibration.applyThresholds`). */
+      lastTunedAt: state?.lastTunedAt ?? (null as string | null),
     };
   }),
 

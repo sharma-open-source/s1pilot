@@ -32,6 +32,8 @@ const AI = {
   needsReviewRate: 8,
   overrideRate: 30,
   ece: 0.123,
+  eceCalibrated: null,
+  suggestion: null,
   reviewedDecisions: 42,
   latencyP50: 180,
   latencyP95: 1200,
@@ -161,9 +163,26 @@ describe('AnalyticsPage', () => {
     expect(screen.getByText('12.5%')).toBeInTheDocument();
     expect(screen.getByText('0.123')).toBeInTheDocument();
     expect(screen.getByText('180 ms / 1.2 s')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Recalibrate from 42 reviewed decisions' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Recalibrate from 42 reviewed decisions' })).toBeEnabled();
     expect(screen.getByText('Thresholds have not been tuned yet.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Compare models' })).toBeInTheDocument();
+  });
+
+  it('recalibrates and applies a suggestion only on click', async () => {
+    const user = userEvent.setup();
+    const suggestion = { pass: 0.97, fail: 0.1, n: 140, falsePassRate: 0, falseFailRate: 0 };
+    const { fake } = renderPage('quality', {}, {
+      'analytics.aiQuality': () => ({ ...AI, eceCalibrated: 0.021, suggestion }),
+      'calibration.fit': () => ({}),
+      'calibration.applyThresholds': () => ({}),
+    });
+    expect(await screen.findByText('0.021')).toBeInTheDocument();
+    expect(screen.getByText(/Not applied until you confirm/)).toBeInTheDocument();
+    expect(fake.calls.some((c) => c.path === 'calibration.applyThresholds')).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'Recalibrate from 42 reviewed decisions' }));
+    await waitFor(() => expect(fake.calls.find((c) => c.path === 'calibration.fit')?.input).toEqual({ projectKey: 'SHOP' }));
+    await user.click(screen.getByRole('button', { name: 'Apply suggested thresholds' }));
+    await waitFor(() => expect(fake.calls.some((c) => c.path === 'calibration.applyThresholds')).toBe(true));
   });
 
   it('sends the filters with every query and changes them from the header menus', async () => {

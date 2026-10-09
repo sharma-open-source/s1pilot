@@ -49,6 +49,8 @@ export const DecideAnswerSchema = z.object({
   noul: ProbabilitySchema.optional(),
   probabilities: ProbabilitiesSchema,
   confidence: ProbabilitySchema,
+  /** Model output before calibration (S-058); present only when a calibrator changed the probabilities. */
+  raw: z.object({ probabilities: ProbabilitiesSchema, confidence: ProbabilitySchema }).optional(),
 });
 export type DecideAnswer = z.infer<typeof DecideAnswerSchema>;
 

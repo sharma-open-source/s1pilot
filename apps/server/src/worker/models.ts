@@ -1,9 +1,9 @@
-import { S1PilotError, type ModelSettings, type Redactor } from '@s1pilot/domain';
+import { S1PilotError, type Calibrator, type ModelSettings, type Redactor } from '@s1pilot/domain';
 import { createChatModel, createDecisionModel } from '@s1pilot/providers';
 import type { RunnerModels } from '@s1pilot/runner';
 
 /** Builds the models of a run from the effective model settings. Tests inject their own (mock) factory. */
-export type ModelFactory = (settings: ModelSettings, redactor: Redactor) => RunnerModels;
+export type ModelFactory = (settings: ModelSettings, redactor: Redactor, calibrator?: Calibrator) => RunnerModels;
 
 function resolveKey(ref: string | undefined, env: NodeJS.ProcessEnv, fallbackVar: string): string | undefined {
   if (ref?.startsWith('env:')) {
@@ -19,9 +19,9 @@ function resolveKey(ref: string | undefined, env: NodeJS.ProcessEnv, fallbackVar
  * `env:NAME` references (falling back to `S1PILOT_API_KEY` / `S1PILOT_S2_API_KEY`), never from the database.
  */
 export function createModelFactory(env: NodeJS.ProcessEnv = process.env): ModelFactory {
-  return (settings, redactor) => {
+  return (settings, redactor, calibrator) => {
     const key1 = resolveKey(settings.system1.apiKeyRef, env, 'S1PILOT_API_KEY');
-    const s1 = createDecisionModel(settings.system1, { ...(key1 ? { apiKey: key1 } : {}), redactor });
+    const s1 = createDecisionModel(settings.system1, { ...(key1 ? { apiKey: key1 } : {}), redactor, ...(calibrator ? { calibrator } : {}) });
     let s2;
     if (settings.system2) {
       const key2 = resolveKey(settings.system2.apiKeyRef, env, 'S1PILOT_S2_API_KEY');
