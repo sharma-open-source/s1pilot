@@ -278,6 +278,37 @@ export const casesRouter = router({
       return { action: input.action, affected: cases.length, keys: cases.map((c) => c.key) };
     }),
 
+  /**
+   * Quarantines a case: plan runs skip it (reported as `skipped (quarantined)`) unless they include quarantined
+   * cases. Listed at `cases.list({ query: 'quarantined:yes' })`. Does not change the case version.
+   */
+  quarantine: publicProcedure
+    .input(z.object({ key: z.string().min(1), reason: z.string().trim().min(1, 'A reason is required').max(500) }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role === 'viewer') throw new S1PilotError('FORBIDDEN', 'Viewers cannot quarantine cases');
+      const c = await requireCase(ctx, input.key);
+      return ctx.repos.cases.setQuarantine(ctx.db, c.id, input.reason);
+    }),
+
+  /** Lifts the quarantine of a case. `reason` (optional) is kept in the server log only. */
+  unquarantine: publicProcedure
+    .input(z.object({ key: z.string().min(1), reason: z.string().max(500).optional() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role === 'viewer') throw new S1PilotError('FORBIDDEN', 'Viewers cannot change quarantine');
+      const c = await requireCase(ctx, input.key);
+      ctx.log?.info({ key: c.key, reason: input.reason }, 'case unquarantined');
+      return ctx.repos.cases.setQuarantine(ctx.db, c.id, null);
+    }),
+
+  /** Flakiest cases of a project (score over the last 20 executions per environment and browser), most flaky first. */
+  flaky: publicProcedure
+    .input(z.object({ projectKey: ProjectKeySchema, limit: z.number().int().min(1).max(200).default(20) }))
+    .query(async ({ ctx, input }) => {
+      const project = await requireProject(ctx, input.projectKey);
+      const list = await ctx.repos.cases.listFlaky(ctx.db, project.id, input.limit);
+      return list.map((c) => ({ id: c.id, key: c.key, title: c.title, priority: c.priority, status: c.status, flakiness: c.flakiness ?? 0, quarantined: c.quarantined ?? false }));
+    }),
+
   /** All versions of a case, newest first (full snapshots). */
   history: publicProcedure.input(z.object({ key: z.string().min(1) })).query(async ({ ctx, input }) => {
     const c = await requireCase(ctx, input.key);

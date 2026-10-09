@@ -73,6 +73,7 @@ export const caseResults = sqliteTable(
     durationMs: real('duration_ms').notNull(),
     mode: text('mode', { enum: ['replay', 'healed', 'explore', 'manual'] }).notNull(),
     escalations: integer('escalations').notNull(),
+    reason: text('reason'),
   },
   (t) => [index('case_results_run_idx').on(t.runId), index('case_results_case_idx').on(t.caseId)],
 );

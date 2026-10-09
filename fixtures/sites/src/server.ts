@@ -53,6 +53,7 @@ export async function startFixtureServer(options: FixtureOptions = {}): Promise<
   const baseVariants = parseList(options.variant, VARIANT_IDS, true);
   const state: ServerState = {
     settings: { name: 'Alex Doe', email: 'alex@example.com', notifications: true, darkMode: false, deleted: false },
+    flakySessions: 0,
   };
 
   const server = createServer((req, res) => {
@@ -63,12 +64,22 @@ export async function startFixtureServer(options: FixtureOptions = {}): Promise<
       const bugsRaw = queryBugs ?? (req.headers['x-fixture-bugs'] as string | undefined) ?? readCookie(req.headers.cookie, 'fx_bugs');
       const variantRaw =
         queryVariant ?? (req.headers['x-fixture-variant'] as string | undefined) ?? readCookie(req.headers.cookie, 'fx_variant');
+      const bugs = new Set([...baseBugs, ...parseList(bugsRaw, BUG_IDS, false)]);
       const flags: Flags = {
-        bugs: new Set([...baseBugs, ...parseList(bugsRaw, BUG_IDS, false)]),
+        bugs,
         variants: new Set([...baseVariants, ...parseList(variantRaw, VARIANT_IDS, false)]),
       };
 
       const cookies: string[] = [];
+      if (bugs.has('shop.flaky-badge') && url.pathname.startsWith('/shop')) {
+        // 50% flaky: every second browser session (cookie jar) gets the wrong badge count.
+        let phase = readCookie(req.headers.cookie, 'fx_flaky');
+        if (phase !== 'bad' && phase !== 'ok') {
+          phase = state.flakySessions++ % 2 === 0 ? 'bad' : 'ok';
+          cookies.push(`fx_flaky=${phase}; Path=/`);
+        }
+        if (phase === 'bad') bugs.add('shop.badge-wrong-count');
+      }
       if (queryBugs !== null) cookies.push(`fx_bugs=${encodeURIComponent(queryBugs)}; Path=/`);
       if (queryVariant !== null) cookies.push(`fx_variant=${encodeURIComponent(queryVariant)}; Path=/`);
 

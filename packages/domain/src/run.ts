@@ -80,6 +80,8 @@ export const CaseResultSchema = z.object({
   durationMs: z.number().min(0),
   mode: CaseModeSchema,
   escalations: z.number().int().min(0).default(0),
+  /** Why the case did not run, e.g. `quarantined` for a `skipped` result (S-051). */
+  reason: z.string().optional(),
 });
 export type CaseResult = z.infer<typeof CaseResultSchema>;
 

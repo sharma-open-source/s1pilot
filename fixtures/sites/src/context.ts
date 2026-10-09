@@ -5,6 +5,8 @@ import type { Flags } from './flags.js';
 /** Mutable state of one running fixture server (resets when the server restarts). */
 export interface ServerState {
   settings: { name: string; email: string; notifications: boolean; darkMode: boolean; deleted: boolean };
+  /** Browser sessions seen by `shop.flaky-badge` so far. */
+  flakySessions: number;
 }
 
 /** Everything a site handler needs for one request. */

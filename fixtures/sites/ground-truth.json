@@ -68,6 +68,7 @@
         { "case": "SHOP-TC-3", "bugs": [], "variants": [], "verdict": "passed" },
         { "case": "SHOP-TC-4", "bugs": [], "variants": [], "verdict": "passed" },
         { "case": "SHOP-TC-1", "bugs": ["shop.badge-wrong-count"], "variants": [], "verdict": "failed" },
+        { "case": "SHOP-TC-1", "bugs": ["shop.flaky-badge"], "variants": [], "verdict": "failed", "note": "nondeterministic: fails in every second browser session, so the first run fails and a retry passes (flaky)" },
         { "case": "SHOP-TC-3", "bugs": ["shop.zip-validation-missing"], "variants": [], "verdict": "failed" },
         { "case": "SHOP-TC-4", "bugs": ["shop.cart-empties-on-reload"], "variants": [], "verdict": "failed" },
         { "case": "SHOP-TC-1", "bugs": [], "variants": ["shop.guest-button-renamed"], "verdict": "passed", "expectHealing": true },

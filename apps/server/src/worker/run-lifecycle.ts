@@ -1,11 +1,13 @@
-import { repos, type Db, type JobQueue } from '@s1pilot/db';
+import { finalAttempts, repos, type Db, type JobQueue } from '@s1pilot/db';
 import {
   BrowserNameSchema,
   ExecutionModeSchema,
   IdSchema,
   PlanChecksSchema,
   newId,
+  type BrowserName,
   type CaseRunResult,
+  type ExecutionMode,
   type RunStatus,
   type RunSummary,
   type StepReport,
@@ -28,12 +30,13 @@ export const RunCaseJobPayloadSchema = z.object({
   browser: BrowserNameSchema,
   mode: ExecutionModeSchema,
   attended: z.boolean().default(false),
-  /** Plan-run settings (S-049). Carried on the job for later specs; the worker does not act on them yet. */
+  /** Plan-run settings (S-049). */
   planId: IdSchema.optional(),
+  /** Playwright device descriptor name (S-051). */
   device: z.string().optional(),
-  /** TODO(S-051): retry flaky/failed cases. */
+  /** Failed instances are retried up to this many times; a pass after a retry is `flaky` (S-051). */
   retries: z.number().int().min(0).optional(),
-  /** TODO(S-051): per-run parallelism cap. */
+  /** Most jobs of this run executing at once, further capped by the number of server workers (S-051). */
   parallelism: z.number().int().min(1).optional(),
   /** TODO(S-053): a11y / console / visual checks. */
   checks: PlanChecksSchema.optional(),
@@ -54,8 +57,13 @@ export interface RunLifecycle {
   lock<T>(runId: string, fn: () => Promise<T>): Promise<T>;
   /** `queued → running` (sets `startedAt`, emits `run.started`) when the first job starts. */
   markRunning(runId: string, totalCases: number): Promise<void>;
-  /** Drops results of a case from an earlier attempt of the same run, then refreshes the summary. */
-  discardCase(runId: string, caseId: string): Promise<void>;
+  /**
+   * Drops results of a case from an earlier attempt of the same run, then refreshes the summary. With `target`
+   * only the results of that environment and browser go (matrix runs hold several per case).
+   */
+  discardCase(runId: string, caseId: string, target?: { environmentId: string; browser: string }): Promise<void>;
+  /** Records a case that was not executed (`skipped`, e.g. quarantined) with the reason, then refreshes the summary. */
+  recordSkipped(input: { runId: string; testCase: TestCase; environmentId: string; browser: BrowserName; mode: ExecutionMode; reason: string }): Promise<RunSummary>;
   /** Persists a finished case instance (case, steps, decisions) and updates the summary counts. */
   recordCase(input: { runId: string; testCase: TestCase; environmentId: string; attempt: number; result: CaseRunResult }): Promise<RunSummary>;
   /** Sets the final status once every job of the run is terminal. Returns the status when it was set. */
@@ -84,7 +92,8 @@ export function createRunLifecycle(deps: { db: Db; queue: JobQueue; bus: RunEven
   };
 
   const refreshSummary = async (runId: string): Promise<RunSummary> => {
-    const cases = await repos.results.listCases(db, runId);
+    // Retried instances count once, by their final attempt.
+    const cases = finalAttempts(await repos.results.listCases(db, runId));
     const count = (v: string): number => cases.filter((c) => c.verdict === v).length;
     const summary: RunSummary = {
       passed: count('passed'),
@@ -109,15 +118,36 @@ export function createRunLifecycle(deps: { db: Db; queue: JobQueue; bus: RunEven
         bus.emit({ type: 'run.started', runId, ts: ts(), totalCases });
       }),
 
-    discardCase: (runId, caseId) =>
+    recordSkipped: ({ runId, testCase, environmentId, browser, mode, reason }) =>
       lock(runId, async () => {
+        await repos.results.createCase(db, {
+          id: newId(),
+          runId,
+          caseId: testCase.id,
+          caseVersion: testCase.version,
+          environmentId,
+          browser,
+          attempt: 1,
+          verdict: 'skipped',
+          durationMs: 0,
+          mode: mode === 'explore' ? 'explore' : 'replay',
+          escalations: 0,
+          reason,
+        });
+        return refreshSummary(runId);
+      }),
+
+    discardCase: (runId, caseId, target) =>
+      lock(runId, async () => {
+        const scope = target ? ' AND environment_id = ? AND browser = ?' : '';
+        const scopeArgs = target ? [target.environmentId, target.browser] : [];
         // A retried attempt replaces the discarded result, so its pending review item goes with it.
         db.sqlite
           .prepare(
-            "DELETE FROM review_items WHERE kind = 'verdict' AND status = 'pending' AND ref_id IN (SELECT id FROM case_results WHERE run_id = ? AND case_id = ?)",
+            `DELETE FROM review_items WHERE kind = 'verdict' AND status = 'pending' AND ref_id IN (SELECT id FROM case_results WHERE run_id = ? AND case_id = ?${scope})`,
           )
-          .run(runId, caseId);
-        db.sqlite.prepare('DELETE FROM case_results WHERE run_id = ? AND case_id = ?').run(runId, caseId);
+          .run(runId, caseId, ...scopeArgs);
+        db.sqlite.prepare(`DELETE FROM case_results WHERE run_id = ? AND case_id = ?${scope}`).run(runId, caseId, ...scopeArgs);
         await refreshSummary(runId);
       }),
 

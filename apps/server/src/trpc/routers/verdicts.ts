@@ -1,3 +1,4 @@
+import { finalAttempts } from '@s1pilot/db';
 import { S1PilotError, newId, type CaseResult, type ReviewItem, type ReviewOutcome, type RunSummary, type StepResult, type Verdict } from '@s1pilot/domain';
 
 import type { Context } from '../context.js';
@@ -50,7 +51,7 @@ export async function applyVerdict(
   if (!run) throw new S1PilotError('RUN_NOT_FOUND', `Run not found: ${result.runId}`, { runId: result.runId });
   const updated = await ctx.repos.results.updateCase(ctx.db, result.id, { verdict });
   const all = await ctx.repos.results.listCases(ctx.db, run.id);
-  const summary = summarize(all.map((r) => r.verdict));
+  const summary = summarize(finalAttempts(all).map((r) => r.verdict));
   const status =
     run.status === 'needs-review' && summary.needsReview === 0
       ? summary.failed + summary.blocked + summary.flaky > 0

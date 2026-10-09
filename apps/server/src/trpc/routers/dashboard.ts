@@ -58,6 +58,8 @@ export function dashboardSummary(ctx: Context, now = new Date()) {
       `SELECT r.started_at AS startedAt, c.verdict AS verdict, COUNT(*) AS n
          FROM case_results c JOIN test_runs r ON r.id = c.run_id
         WHERE r.started_at >= ? AND c.verdict != 'skipped'
+          AND NOT EXISTS (SELECT 1 FROM case_results c2 WHERE c2.run_id = c.run_id AND c2.case_id = c.case_id
+            AND COALESCE(c2.environment_id, '') = COALESCE(c.environment_id, '') AND COALESCE(c2.browser, '') = COALESCE(c.browser, '') AND c2.attempt > c.attempt)
         GROUP BY r.started_at, c.verdict`,
     )
     .all(iso(windowStart)) as Array<{ startedAt: string; verdict: string; n: number }>;
@@ -102,8 +104,7 @@ export function dashboardSummary(ctx: Context, now = new Date()) {
         WHERE c.verdict = 'flaky' AND r.started_at >= ?`,
       iso(windowStart),
     ),
-    // TODO(S-051): count quarantined cases once quarantine exists.
-    quarantined: 0,
+    quarantined: one('SELECT COUNT(*) AS n FROM test_cases WHERE quarantined = 1'),
     modeMix7d: { replay, heal, explore } satisfies ModeMix,
   };
 }

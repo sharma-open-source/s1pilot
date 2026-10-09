@@ -7,7 +7,10 @@ import {
   RunStatusSchema,
   S1PilotError,
   newId,
+  type BrowserName,
+  type ExecutionMode,
   type Project,
+  type TestCase,
   type TestRun,
 } from '@s1pilot/domain';
 import { z } from 'zod';
@@ -34,6 +37,7 @@ async function startRun(
   jobs: { caseId: string; config: Omit<RunCaseJobPayload, 'runId' | 'projectId' | 'caseId'> }[],
   buildRef: string | undefined,
   planId?: string,
+  skipped: { testCase: TestCase; environmentId: string; browser: BrowserName; mode: ExecutionMode; reason: string }[] = [],
 ): Promise<TestRun> {
   const run = await ctx.repos.runs.create(ctx.db, {
     id: newId(),
@@ -43,6 +47,7 @@ async function startRun(
     status: 'queued',
     ...(buildRef ? { buildRef } : {}),
   });
+  for (const s of skipped) await ctx.runtime.lifecycle.recordSkipped({ runId: run.id, ...s });
   for (const { caseId, config } of jobs) {
     await ctx.runtime.queue.enqueue({
       type: RUN_CASE_JOB,
@@ -150,7 +155,17 @@ export const runsRouter = router({
           },
         })),
       );
-      return startRun(ctx, project, jobs, input.buildRef, plan.id);
+      // Quarantined cases do not run; they show up as `skipped (quarantined)` once per environment/browser.
+      const skipped = x.skippedQuarantined.flatMap((testCase) =>
+        x.combos.map((combo) => ({
+          testCase,
+          environmentId: combo.environmentId,
+          browser: combo.browser,
+          mode: plan.mode,
+          reason: 'quarantined',
+        })),
+      );
+      return startRun(ctx, project, jobs, input.buildRef, plan.id, skipped);
     }
     if (!input.caseKeys || !input.environment) {
       throw new S1PilotError('INVALID_INPUT', 'Provide planId, or caseKeys and environment');

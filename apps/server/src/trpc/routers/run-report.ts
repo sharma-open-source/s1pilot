@@ -62,6 +62,7 @@ export const reportProcedure = publicProcedure.input(IdSchema).query(async ({ ct
         browser: r.browser ?? DEFAULT_BROWSER,
         mode: r.mode,
         attempt: r.attempt,
+        ...(r.reason ? { reason: r.reason, note: `${r.verdict} (${r.reason})` } : {}),
         durationMs: r.durationMs,
         failedStep: failedStepNo(steps),
       };

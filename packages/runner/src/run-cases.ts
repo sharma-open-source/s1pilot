@@ -2,6 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import {
+  S1PilotError,
   newId,
   type BrowserName,
   type CaptureFile,
@@ -40,7 +41,7 @@ import {
 } from '@s1pilot/engine';
 import type { ChatModel } from '@s1pilot/providers';
 import type { LearnedScriptRef, LearnedScriptStore } from '@s1pilot/sync';
-import { chromium, firefox, webkit, type Browser, type BrowserContextOptions, type Page } from 'playwright';
+import { chromium, devices, firefox, webkit, type Browser, type BrowserContextOptions, type Page } from 'playwright';
 
 import { CaseCapture, type CaptureOptions } from './capture.js';
 
@@ -94,6 +95,8 @@ export interface RunCasesInput {
   /** Launched browser; every case gets a fresh context on it. */
   browser: Browser;
   browserName: BrowserName;
+  /** Playwright device descriptor name (`iPhone 13`, `Pixel 5`); applies viewport, user agent and touch to every context. */
+  device?: string;
   /** `replay-heal` (default): replay learned scripts, heal broken steps; `replay-only`: never call a model; `explore`: always explore. */
   mode?: ExecutionMode;
   models: RunnerModels;
@@ -132,6 +135,19 @@ export interface RunCasesInput {
   onPage?: (page: Page, info: { runId: string; caseResultId: string }) => (() => unknown) | undefined;
   /** Evidence capture (screenshots, video, trace, logs). Defaults: screenshots, trace and logs on; video off. */
   capture?: CaptureOptions;
+}
+
+/**
+ * Context options of a Playwright device descriptor (viewport, user agent, scale factor, touch). Throws
+ * `DEVICE_UNKNOWN` for names Playwright does not know. `isMobile` is dropped for Firefox, which does not support it.
+ */
+export function deviceContextOptions(name: string, browser: BrowserName): BrowserContextOptions {
+  const descriptor = (devices as Record<string, BrowserContextOptions & { defaultBrowserType?: string }>)[name];
+  if (!descriptor) throw new S1PilotError('DEVICE_UNKNOWN', `Unknown device: ${name}`, { device: name });
+  const { defaultBrowserType: _ignored, ...options } = descriptor;
+  void _ignored;
+  if (browser === 'firefox') delete options.isMobile;
+  return options;
 }
 
 const bind = (text: string, params: Record<string, string>): string => text.replace(/\{([\w.-]+)\}/g, (whole, name: string) => params[name] ?? whole);
@@ -353,6 +369,7 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
   }
   const evidence = new CaseCapture(caseDir, CaseCapture.options(input.capture), redactor, input.vars.secretValues());
   const context = await input.browser.newContext({
+    ...(input.device ? deviceContextOptions(input.device, input.browserName) : {}),
     locale: environment.locale,
     timezoneId: environment.timezone,
     ...(storageState ? { storageState } : {}),
