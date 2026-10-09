@@ -125,7 +125,7 @@ export function DefectsPage({ projectKey, search, onSearch }: DefectsPageProps) 
 
         {creating ? (
           <NewDefect
-            key={`${search.fromResult ?? ''}:${search.step ?? ''}:${search.title ?? ''}`}
+            key={`${search.fromResult ?? ''}:${search.fromManual ?? ''}:${search.step ?? ''}:${search.title ?? ''}`}
             projectKey={projectKey}
             search={search}
             onCreated={(id) => open({ defect: id })}
@@ -262,11 +262,16 @@ function PushToTracker() {
 /* ---------------------------------------------------------------- new defect */
 
 function NewDefect({ projectKey, search, onCreated }: { projectKey: string; search: DefectsSearch; onCreated: (id: string) => void }) {
-  const draft = trpc.defects.createFromResult.useQuery(
+  const fromResult = trpc.defects.createFromResult.useQuery(
     { resultId: search.fromResult as string, ...(search.step !== undefined ? { stepIndex: search.step } : {}) },
     { enabled: search.fromResult !== undefined },
   );
-  if (search.fromResult !== undefined) {
+  const fromManual = trpc.manual.defectDraft.useQuery(
+    { itemId: search.fromManual as string, stepIndex: search.step ?? 0 },
+    { enabled: search.fromManual !== undefined && search.fromResult === undefined },
+  );
+  const draft = search.fromResult !== undefined ? fromResult : fromManual;
+  if (search.fromResult !== undefined || search.fromManual !== undefined) {
     if (draft.isLoading) {
       return (
         <aside aria-label="Create defect" className={ASIDE}>
@@ -327,7 +332,7 @@ function NewDefectForm({
           ...(sourceLabel ? { sourceLabel } : {}),
           retest,
         };
-    create.mutate({ projectKey, title: title.trim(), severity, details: base, resultIds: draft ? [draft.resultId] : [] });
+    create.mutate({ projectKey, title: title.trim(), severity, details: base, resultIds: draft?.resultId ? [draft.resultId] : [] });
   };
 
   return (

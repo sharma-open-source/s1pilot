@@ -1,7 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { PlaceholderPage } from '@/components/app/PageHeader';
+import { ManualQueuePage } from '@/features/manual/ManualQueuePage';
 
 export const Route = createFileRoute('/p/$key/manual/')({
-  component: () => <PlaceholderPage title="Manual testing" spec="S-055" />,
+  component: ManualQueueRoute,
 });
+
+function ManualQueueRoute() {
+  const { key } = Route.useParams();
+  return <ManualQueuePage projectKey={key} />;
+}

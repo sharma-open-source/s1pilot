@@ -2,7 +2,9 @@ import type {
   AssertionVerdict,
   DefectDetails,
   ExitCriterion,
+  ManualStepRecord,
   MatrixEntry,
+  PlanAssignment,
   PlanChecks,
   PlanSelection,
   ReviewOutcome,
@@ -29,6 +31,7 @@ export const testPlans = sqliteTable('test_plans', {
   schedule: text('schedule'),
   exitCriteria: text('exit_criteria', { mode: 'json' }).$type<ExitCriterion[]>().notNull(),
   checks: text('checks', { mode: 'json' }).$type<PlanChecks>().notNull(),
+  assignments: text('assignments', { mode: 'json' }).$type<Record<string, PlanAssignment>>().notNull().default({}),
   createdAt: text('created_at'),
   updatedAt: text('updated_at'),
 });
@@ -234,4 +237,37 @@ export const artifacts = sqliteTable(
     createdAt: text('created_at').notNull(),
   },
   (t) => [index('artifacts_project_idx').on(t.projectId, t.createdAt), index('artifacts_result_idx').on(t.caseResultId)],
+);
+
+/** Manual / hybrid execution item: one tester working through one case in one run (S-055). */
+export const manualItems = sqliteTable(
+  'manual_items',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    runId: text('run_id')
+      .notNull()
+      .references(() => testRuns.id, { onDelete: 'cascade' }),
+    caseId: text('case_id')
+      .notNull()
+      .references(() => testCases.id, { onDelete: 'cascade' }),
+    environmentId: text('environment_id'),
+    browser: text('browser', { enum: ['chromium', 'firefox', 'webkit'] }),
+    device: text('device'),
+    assignee: text('assignee').notNull(),
+    hybrid: integer('hybrid', { mode: 'boolean' }).notNull(),
+    position: integer('position').notNull(),
+    status: text('status', { enum: ['todo', 'in-progress', 'done', 'skipped'] }).notNull(),
+    steps: text('steps', { mode: 'json' }).$type<ManualStepRecord[]>().notNull(),
+    confirmedSteps: text('confirmed_steps', { mode: 'json' }).$type<number[]>().notNull(),
+    notes: text('notes').notNull(),
+    elapsedMs: real('elapsed_ms').notNull(),
+    timerStartedAt: text('timer_started_at'),
+    startedAt: text('started_at'),
+    finishedAt: text('finished_at'),
+    caseResultId: text('case_result_id'),
+  },
+  (t) => [index('manual_items_assignee_idx').on(t.assignee, t.status), index('manual_items_run_idx').on(t.runId)],
 );

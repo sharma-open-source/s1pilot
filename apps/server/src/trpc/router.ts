@@ -5,6 +5,7 @@ import { casesRouter } from './routers/cases.js';
 import { dashboardRouter } from './routers/dashboard.js';
 import { defectsRouter } from './routers/defects.js';
 import { environmentsRouter } from './routers/environments.js';
+import { manualRouter } from './routers/manual.js';
 import { modelsRouter } from './routers/models.js';
 import { plansRouter } from './routers/plans.js';
 import { projectsRouter } from './routers/projects.js';
@@ -40,6 +41,7 @@ export const appRouter = router({
   results: resultsRouter,
   reviews: reviewsRouter,
   defects: defectsRouter,
+  manual: manualRouter,
   syncStatus: syncStatusProcedure,
   dashboard: dashboardRouter,
   auth: authRouter,

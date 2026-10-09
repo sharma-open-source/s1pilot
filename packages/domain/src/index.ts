@@ -9,6 +9,7 @@ export * from './flaky.js';
 export * from './ids.js';
 export * from './learned-script.js';
 export * from './logger.js';
+export * from './manual.js';
 export * from './model-settings.js';
 export * from './plan.js';
 export * from './probe.js';

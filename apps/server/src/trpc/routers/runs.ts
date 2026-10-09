@@ -42,6 +42,7 @@ export async function startRun(
   planId?: string,
   trigger: RunTrigger = 'manual',
   skipped: { testCase: TestCase; environmentId: string; browser: BrowserName; mode: ExecutionMode; reason: string }[] = [],
+  manual: ManualSeed[] = [],
 ): Promise<TestRun> {
   const run = await ctx.repos.runs.create(ctx.db, {
     id: newId(),
@@ -51,6 +52,9 @@ export async function startRun(
     status: 'queued',
     ...(buildRef ? { buildRef } : {}),
   });
+  for (const [position, m] of manual.entries()) {
+    await ctx.repos.manual.create(ctx.db, { id: newId(), projectId: project.id, runId: run.id, position, ...m });
+  }
   for (const s of skipped) await ctx.runtime.lifecycle.recordSkipped({ runId: run.id, ...s });
   for (const { caseId, config } of jobs) {
     await ctx.runtime.queue.enqueue({
@@ -61,6 +65,16 @@ export async function startRun(
   }
   ctx.runtime.workers.wake();
   return run;
+}
+
+/** A manual execution item created together with a run (S-055). */
+export interface ManualSeed {
+  caseId: string;
+  environmentId: string;
+  browser: BrowserName;
+  device?: string;
+  assignee: string;
+  hybrid: boolean;
 }
 
 /** How a plan run is started (manual, schedule, webhook). */
@@ -91,7 +105,19 @@ export async function startPlanRun(ctx: Context, project: Project, plan: TestPla
       skippedCombos: x.skippedCombos.length,
     });
   }
-  const jobs = x.runnable.flatMap((c) =>
+  // Cases marked manual in the plan become manual session items; hybrid ones are also pre-run by the AI.
+  const isManual = (caseId: string): boolean => plan.assignments[caseId]?.manual === true;
+  const manual: ManualSeed[] = x.runnable.filter((c) => isManual(c.id)).flatMap((c) =>
+    x.combos.map((combo) => ({
+      caseId: c.id,
+      environmentId: combo.environmentId,
+      browser: combo.browser,
+      ...(combo.device !== undefined ? { device: combo.device } : {}),
+      assignee: plan.assignments[c.id]?.assignee ?? ctx.user.id,
+      hybrid: plan.assignments[c.id]?.hybrid === true,
+    })),
+  );
+  const jobs = x.runnable.filter((c) => !isManual(c.id) || plan.assignments[c.id]?.hybrid === true).flatMap((c) =>
     x.combos.map((combo) => ({
       caseId: c.id,
       config: {
@@ -118,7 +144,7 @@ export async function startPlanRun(ctx: Context, project: Project, plan: TestPla
       reason: 'quarantined',
     })),
   );
-  return startRun(ctx, project, jobs, input.buildRef, plan.id, opts.trigger, skipped);
+  return startRun(ctx, project, jobs, input.buildRef, plan.id, opts.trigger, skipped, manual);
 }
 
 /** Run configuration and job states, derived from the run's jobs. */

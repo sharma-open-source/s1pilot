@@ -16,6 +16,7 @@ import { FsArtifactStore } from './artifacts/store.js';
 import type { ServerConfig } from './config.js';
 import { registerExportRoutes } from './exports/routes.js';
 import { registerLiveRoutes } from './live/routes.js';
+import { registerManualRoutes } from './manual/routes.js';
 import { firePlan } from './triggers/fire.js';
 import { registerWebhookRoutes } from './triggers/routes.js';
 import { createContext } from './trpc/context.js';
@@ -69,6 +70,7 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
   registerExportRoutes(app, { db, runtime, config });
   const deps = { db, config, log, runtime };
   registerWebhookRoutes(app, deps);
+  registerManualRoutes(app, deps);
   if (opts.scheduler ?? true) await runtime.scheduler.start((planId) => firePlan(createContext(deps), planId, 'schedule'));
   const stopRetention = startRetentionJob({ db, store: artifacts, log });
   app.addHook('onClose', async () => {
