@@ -29,6 +29,8 @@ export interface Observation {
 /** Options for {@link observer.capture}. */
 export interface CaptureOptions {
   history?: ActionHistory;
+  /** Capture page text blocks (`texts`). Default true; fingerprint-only captures turn it off. */
+  texts?: boolean;
   /** Take a Set-of-Marks screenshot. Only honoured when both flags below are true. */
   som?: boolean;
   /** Model profile `supportsImages`. */
@@ -56,11 +58,15 @@ export const MAX_PAGE_TEXT = 3000;
 export const observer = {
   /** Captures elements, page context, recent history and (if allowed) a Set-of-Marks screenshot. */
   async capture(page: Page, opts: CaptureOptions = {}): Promise<Observation> {
-    const [context, elements, texts] = await Promise.all([capturePageContext(page), captureElements(page), captureTexts(page)]);
+    const [context, elements, texts] = await Promise.all([
+      capturePageContext(page),
+      captureElements(page),
+      opts.texts === false ? undefined : captureTexts(page),
+    ]);
     const obs: Observation = {
       context,
       elements,
-      texts,
+      ...(texts ? { texts } : {}),
       elementMap: indexElements(elements),
       history: opts.history?.recent() ?? [],
     };

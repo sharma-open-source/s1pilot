@@ -129,7 +129,7 @@ export async function startRecorder(opts: RecorderOptions): Promise<RecorderHand
 
   const fingerprint = async (): Promise<string> => {
     try {
-      return pageFingerprint(await observer.capture(page, {}));
+      return pageFingerprint(await observer.capture(page, { texts: false }));
     } catch {
       return 'start';
     }

@@ -155,7 +155,7 @@ export async function replayStep(
     const deadline = performance.now() + SETTLE_BUDGET_MS;
     for (;;) {
       try {
-        matched = fingerprintsMatch(a.fingerprint, pageFingerprint(await observer.capture(ctx.page, {})));
+        matched = fingerprintsMatch(a.fingerprint, pageFingerprint(await observer.capture(ctx.page, { texts: false })));
       } catch (error) {
         if (performance.now() >= deadline) {
           return fail(a, 'action-error', `Could not observe the page: ${error instanceof Error ? error.message : String(error)}`);

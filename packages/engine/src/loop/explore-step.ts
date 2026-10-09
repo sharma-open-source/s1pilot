@@ -524,7 +524,7 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
     if (ctx.recorder && outcome.ok) {
       let postFingerprint = fingerprint;
       try {
-        postFingerprint = pageFingerprint(await observer.capture(ctx.page, {}));
+        postFingerprint = pageFingerprint(await observer.capture(ctx.page, { texts: false }));
       } catch {
         // Page closed or mid-navigation: fall back to the pre fingerprint.
       }

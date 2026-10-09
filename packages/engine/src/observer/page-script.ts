@@ -242,36 +242,85 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
     const SKIP_TAGS = new Set([
       'script', 'style', 'template', 'noscript', 'svg', 'canvas', 'iframe', 'head', 'title', 'option', 'optgroup', 'datalist',
     ]);
+    // Computed styles and control text lengths are cached: the pass must stay linear on deep pages.
+    const styles = new Map<Element, CSSStyleDeclaration>();
+    const style = (el: Element): CSSStyleDeclaration => {
+      let cs = styles.get(el);
+      if (!cs) {
+        cs = getComputedStyle(el);
+        styles.set(el, cs);
+      }
+      return cs;
+    };
     const isInline = (el: Element): boolean => {
-      const d = getComputedStyle(el).display;
+      const d = style(el).display;
       return d.startsWith('inline') || d === 'contents';
     };
-    const hasOwnText = (el: Element): boolean =>
-      Array.from(el.childNodes).some((n) => n.nodeType === Node.TEXT_NODE && /\S/.test(n.textContent ?? ''));
-    const emitted = new Set<Element>();
+    const controlLength = new Map<Element, number>();
+    /**
+     * Text of a block's own inline content; stops at block-level children (blocks of their own) and
+     * form fields. `own` leaves out controls and labels too: a block only counts when it says
+     * something besides the controls it holds, while `full` keeps link text inside a sentence.
+     */
+    const inlineText = (nodes: Iterable<Node>, inControl = false): { full: string; own: string } => {
+      let full = '';
+      let own = '';
+      for (const n of nodes) {
+        if (n.nodeType === Node.TEXT_NODE) {
+          const t = n.textContent ?? '';
+          full += t;
+          if (!inControl) own += t;
+          continue;
+        }
+        if (n.nodeType !== Node.ELEMENT_NODE) continue;
+        const c = n as Element;
+        const tag = c.tagName.toLowerCase();
+        if (SKIP_TAGS.has(tag) || tag === 'input' || tag === 'select' || tag === 'textarea' || tag === 'label') continue;
+        const cs = style(c);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || c.getAttribute('aria-hidden') === 'true') continue;
+        if (tag === 'img') {
+          full += ` ${c.getAttribute('alt') ?? ''} `;
+          continue;
+        }
+        if (tag !== 'slot' && !isInline(c)) {
+          full += ' ';
+          own += ' ';
+          continue;
+        }
+        const kids = tag === 'slot' ? (c as HTMLSlotElement).assignedNodes({ flatten: true }) : Array.from(c.shadowRoot?.childNodes ?? c.childNodes);
+        const inner = inlineText(kids, inControl || c.matches(SELECTOR));
+        full += inner.full;
+        own += inner.own;
+      }
+      return { full, own };
+    };
     const blocks: RawElement[] = [];
     const visit = (root: Document | ShadowRoot): void => {
       for (const el of Array.from(root.querySelectorAll('*'))) {
         if (blocks.length >= maxBlocks) return;
         if (el.shadowRoot) visit(el.shadowRoot);
         const tag = el.tagName.toLowerCase();
-        if (SKIP_TAGS.has(tag) || !hasOwnText(el)) continue;
+        // Inline runs (<b>, <span>, <a>) are part of their nearest block's text.
+        if (SKIP_TAGS.has(tag) || tag === 'html' || isInline(el)) continue;
         if (el.closest('label')) continue; // a label is its control's name, already listed with the control
         // Text inside a small control is already that control's name; a huge `[onclick]` wrapper does not count.
         const control = el.closest(SELECTOR);
-        if (control && norm(control.textContent ?? '').length <= maxText) continue;
-        // Inline runs (<b>, <span>) are covered by the nearest block ancestor when that one was emitted.
-        if (isInline(el)) {
-          let block = el.parentElement;
-          while (block && isInline(block)) block = block.parentElement;
-          if (block && emitted.has(block)) continue;
+        if (control) {
+          let len = controlLength.get(control);
+          if (len === undefined) {
+            len = norm(control.textContent ?? '').length;
+            controlLength.set(control, len);
+          }
+          if (len <= maxText) continue;
         }
+        const content = inlineText(Array.from(el.shadowRoot?.childNodes ?? el.childNodes));
+        if (!/[\p{L}\p{N}]/u.test(content.own)) continue;
+        const full = norm(content.full);
+        if (full.length < 2) continue;
         if (!(el as HTMLElement).checkVisibility({ checkVisibilityCSS: true } as CheckVisibilityOptions)) continue;
         if (el.closest('[aria-hidden="true"]')) continue;
         const rect = el.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) continue;
-        const full = norm(subtreeText(el, new Set()));
-        if (full.length < 2 || !/[\p{L}\p{N}]/u.test(full)) continue;
         const text = full.length > maxText ? full.slice(0, maxText) : full;
         const isHeading = /^h[1-6]$/.test(tag) || el.getAttribute('role') === 'heading';
         const d: RawElement = {
@@ -283,7 +332,7 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
           locators: [],
           inView: rect.bottom > 0 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth,
         };
-        if (getComputedStyle(el).cursor === 'pointer') d.clickable = true;
+        if (style(el).cursor === 'pointer') d.clickable = true;
         const lm = landmarkOf(el);
         if (lm) d.landmark = lm;
         if (isHeading && full.length <= maxText) d.locators.push({ kind: 'role', value: 'heading', name: full });
@@ -298,7 +347,6 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
           d.locators.push({ kind: 'text', value: full });
         }
         d.locators.push({ kind: 'css', value: cssPath(el) });
-        emitted.add(el);
         blocks.push(d);
       }
     };

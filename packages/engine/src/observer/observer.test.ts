@@ -240,6 +240,7 @@ describe('captureTexts', () => {
       <main>
         <h2>Customer reviews</h2>
         <p>Get <b>free</b> shipping on orders over $50</p>
+        <p>Read our <a href="#t">terms</a> first</p>
         <label for="q">Search</label><input id="q">
         <button>Buy <span>now</span></button>
         <div id="promo" style="cursor:pointer">Show promo</div>
@@ -254,8 +255,9 @@ describe('captureTexts', () => {
     expect(texts.map((t) => `${t.id} ${t.role} ${JSON.stringify(t.name)}${t.clickable ? ' clickable' : ''}${t.inView === false ? ' offscreen' : ''}`)).toEqual([
       't1 heading "Customer reviews"',
       't2 text "Get free shipping on orders over $50"',
-      't3 text "Show promo" clickable',
-      't4 text "Terms and conditions apply" offscreen',
+      't3 text "Read our terms first"',
+      't4 text "Show promo" clickable',
+      't5 text "Terms and conditions apply" offscreen',
     ]);
     expect(texts[0]?.locators[0]).toEqual({ kind: 'role', value: 'heading', name: 'Customer reviews' });
     expect(texts[0]?.landmark).toBe('main');
