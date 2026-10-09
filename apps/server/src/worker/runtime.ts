@@ -5,6 +5,7 @@ import { AuthService } from '../auth/service.js';
 import type { ServerConfig } from '../config.js';
 import { HumanControl, type HumanControlOptions } from '../live/control.js';
 import { LiveHub } from '../live/hub.js';
+import { attachNotifications, notifyReviewQueue } from '../notifications/service.js';
 import { PlanScheduler } from '../triggers/scheduler.js';
 
 import { RunEventBus } from './event-bus.js';
@@ -45,7 +46,9 @@ const runtimes = new WeakMap<Db, ServerRuntime>();
 export function createRuntime(opts: RuntimeOptions): ServerRuntime {
   const queue = createSqliteJobQueue(opts.db);
   const bus = new RunEventBus();
-  const lifecycle = createRunLifecycle({ db: opts.db, queue, bus });
+  const notifyDeps = { db: opts.db, config: opts.config, log: opts.log };
+  const lifecycle = createRunLifecycle({ db: opts.db, queue, bus, onReviewCreated: (projectId) => void notifyReviewQueue(notifyDeps, projectId).catch(() => undefined) });
+  attachNotifications(notifyDeps, bus);
   const live = new LiveHub({ db: opts.db, bus, ...(opts.screencast ? { screencast: opts.screencast } : {}) });
   const human = new HumanControl({
     db: opts.db,

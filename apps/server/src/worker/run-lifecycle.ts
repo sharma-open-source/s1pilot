@@ -105,7 +105,7 @@ export interface RunLifecycle {
 }
 
 /** Creates the run lifecycle over the database, the job queue and the event bus. */
-export function createRunLifecycle(deps: { db: Db; queue: JobQueue; bus: RunEventBus }): RunLifecycle {
+export function createRunLifecycle(deps: { db: Db; queue: JobQueue; bus: RunEventBus; onReviewCreated?: (projectId: string) => void }): RunLifecycle {
   const { db, queue, bus } = deps;
   const tails = new Map<string, Promise<unknown>>();
   const ts = (): string => new Date().toISOString();
@@ -202,7 +202,10 @@ export function createRunLifecycle(deps: { db: Db; queue: JobQueue; bus: RunEven
         if (result.verdict === 'needs-review') {
           // Uncertain verdicts wait in the review queue (S-047); the workspace count follows `case.finished`.
           const run = await repos.runs.get(db, runId);
-          if (run) await repos.reviews.create(db, { id: newId(), projectId: run.projectId, kind: 'verdict', refId: result.caseResultId, status: 'pending' });
+          if (run) {
+            await repos.reviews.create(db, { id: newId(), projectId: run.projectId, kind: 'verdict', refId: result.caseResultId, status: 'pending' });
+            deps.onReviewCreated?.(run.projectId);
+          }
         }
         for (const s of result.steps) {
           await repos.results.addStep(db, {

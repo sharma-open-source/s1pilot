@@ -2,16 +2,6 @@ import { ROLES } from './model';
 
 import { Card, EmptyState } from '@/components/ui';
 
-/** Notifications: placeholder until S-065. */
-export function NotificationsSection() {
-  return (
-    <Card aria-label="Notifications" className="flex flex-col gap-3 p-5">
-      <h2 className="text-[17px] font-semibold text-fg">Notifications</h2>
-      <EmptyState>Run finished, approval needed and review queue notifications arrive with the integrations. Not connected yet.</EmptyState>
-    </Card>
-  );
-}
-
 /** Audit log: placeholder until S-067. */
 export function AuditSection() {
   return (
