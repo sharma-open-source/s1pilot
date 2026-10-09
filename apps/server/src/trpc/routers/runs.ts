@@ -10,7 +10,9 @@ import {
   type BrowserName,
   type ExecutionMode,
   type Project,
+  type RunTrigger,
   type TestCase,
+  type TestPlan,
   type TestRun,
 } from '@s1pilot/domain';
 import { z } from 'zod';
@@ -37,13 +39,14 @@ async function startRun(
   jobs: { caseId: string; config: Omit<RunCaseJobPayload, 'runId' | 'projectId' | 'caseId'> }[],
   buildRef: string | undefined,
   planId?: string,
+  trigger: RunTrigger = 'manual',
   skipped: { testCase: TestCase; environmentId: string; browser: BrowserName; mode: ExecutionMode; reason: string }[] = [],
 ): Promise<TestRun> {
   const run = await ctx.repos.runs.create(ctx.db, {
     id: newId(),
     projectId: project.id,
     ...(planId ? { planId } : {}),
-    trigger: 'manual',
+    trigger,
     status: 'queued',
     ...(buildRef ? { buildRef } : {}),
   });
@@ -57,6 +60,64 @@ async function startRun(
   }
   ctx.runtime.workers.wake();
   return run;
+}
+
+/** How a plan run is started (manual, schedule, webhook). */
+export interface PlanRunOptions {
+  trigger: RunTrigger;
+  includeQuarantined?: boolean;
+  attended?: boolean;
+  buildRef?: string;
+  /** Restrict the matrix to one environment (name or id), e.g. from a webhook payload. */
+  environment?: string;
+}
+
+/** Expands a plan into jobs and queues a run with the given trigger. Throws `INVALID_STATE` when nothing is runnable. */
+export async function startPlanRun(ctx: Context, project: Project, plan: TestPlan, opts: PlanRunOptions): Promise<TestRun> {
+  const input = { includeQuarantined: opts.includeQuarantined ?? false, attended: opts.attended ?? false, buildRef: opts.buildRef };
+  const x = await expandPlan(ctx, project, plan, { includeQuarantined: input.includeQuarantined });
+  if (opts.environment !== undefined) {
+    const envs = await ctx.repos.environments.listByProject(ctx.db, project.id);
+    const env = envs.find((e) => e.name === opts.environment || e.id === opts.environment);
+    if (!env) throw new S1PilotError('ENVIRONMENT_NOT_FOUND', `Environment not found: ${opts.environment}`, { environment: opts.environment });
+    x.combos = x.combos.filter((c) => c.environmentId === env.id);
+    x.jobs = x.runnable.length * x.combos.length;
+  }
+  if (x.jobs === 0) {
+    throw new S1PilotError('INVALID_STATE', 'The plan matches no runnable cases or has no allowed matrix entries', {
+      planId: plan.id,
+      matched: x.matched.length,
+      skippedCombos: x.skippedCombos.length,
+    });
+  }
+  const jobs = x.runnable.flatMap((c) =>
+    x.combos.map((combo) => ({
+      caseId: c.id,
+      config: {
+        environmentId: combo.environmentId,
+        browser: combo.browser,
+        ...(combo.device !== undefined ? { device: combo.device } : {}),
+        mode: plan.mode,
+        // 'block' = nobody is watching, escalations block the step; 'pause' waits for a human.
+        attended: input.attended || plan.unattended === 'pause',
+        planId: plan.id,
+        retries: plan.retries,
+        parallelism: plan.parallelism,
+        checks: plan.checks,
+      },
+    })),
+  );
+  // Quarantined cases do not run; they show up as `skipped (quarantined)` once per environment/browser.
+  const skipped = x.skippedQuarantined.flatMap((testCase) =>
+    x.combos.map((combo) => ({
+      testCase,
+      environmentId: combo.environmentId,
+      browser: combo.browser,
+      mode: plan.mode,
+      reason: 'quarantined',
+    })),
+  );
+  return startRun(ctx, project, jobs, input.buildRef, plan.id, opts.trigger, skipped);
 }
 
 /** Run configuration and job states, derived from the run's jobs. */
@@ -130,42 +191,12 @@ export const runsRouter = router({
     const project = await requireProject(ctx, input.projectKey);
     if (input.planId !== undefined) {
       const plan = await requirePlan(ctx, input.planId, project.id);
-      const x = await expandPlan(ctx, project, plan, { includeQuarantined: input.includeQuarantined });
-      if (x.jobs === 0) {
-        throw new S1PilotError('INVALID_STATE', 'The plan matches no runnable cases or has no allowed matrix entries', {
-          planId: plan.id,
-          matched: x.matched.length,
-          skippedCombos: x.skippedCombos.length,
-        });
-      }
-      const jobs = x.runnable.flatMap((c) =>
-        x.combos.map((combo) => ({
-          caseId: c.id,
-          config: {
-            environmentId: combo.environmentId,
-            browser: combo.browser,
-            ...(combo.device !== undefined ? { device: combo.device } : {}),
-            mode: plan.mode,
-            // 'block' = nobody is watching, escalations block the step; 'pause' waits for a human.
-            attended: input.attended || plan.unattended === 'pause',
-            planId: plan.id,
-            retries: plan.retries,
-            parallelism: plan.parallelism,
-            checks: plan.checks,
-          },
-        })),
-      );
-      // Quarantined cases do not run; they show up as `skipped (quarantined)` once per environment/browser.
-      const skipped = x.skippedQuarantined.flatMap((testCase) =>
-        x.combos.map((combo) => ({
-          testCase,
-          environmentId: combo.environmentId,
-          browser: combo.browser,
-          mode: plan.mode,
-          reason: 'quarantined',
-        })),
-      );
-      return startRun(ctx, project, jobs, input.buildRef, plan.id, skipped);
+      return startPlanRun(ctx, project, plan, {
+        trigger: 'manual',
+        includeQuarantined: input.includeQuarantined,
+        attended: input.attended,
+        ...(input.buildRef !== undefined ? { buildRef: input.buildRef } : {}),
+      });
     }
     if (!input.caseKeys || !input.environment) {
       throw new S1PilotError('INVALID_INPUT', 'Provide planId, or caseKeys and environment');

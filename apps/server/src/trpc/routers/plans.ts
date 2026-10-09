@@ -14,6 +14,8 @@ import {
 } from '@s1pilot/domain';
 import { z } from 'zod';
 
+import { deleteTriggerConfig } from '../../triggers/config.js';
+import { isValidCron } from '../../triggers/scheduler.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
 
@@ -93,6 +95,9 @@ async function resolveSelection(ctx: Context, project: Project, plan: PlanDraft,
 
 /** Validates the parts of a draft that depend on the project: query syntax, case ids, environments, matrix. */
 export async function validatePlanDraft(ctx: Context, project: Project, plan: PlanDraft): Promise<Map<string, Environment>> {
+  if (plan.schedule !== undefined && plan.schedule.trim() !== '' && !isValidCron(plan.schedule)) {
+    throw new S1PilotError('INVALID_INPUT', `Invalid cron expression: ${plan.schedule}`, { schedule: plan.schedule });
+  }
   if (plan.selection.kind === 'query') parseQuery(plan.selection.query);
   else {
     for (const id of plan.selection.caseIds) {
@@ -239,7 +244,9 @@ export const plansRouter = router({
     const project = await requireProject(ctx, projectKey);
     await validatePlanDraft(ctx, project, draft);
     await assertNameFree(ctx, project.id, draft.name);
-    return ctx.repos.plans.create(ctx.db, { ...draft, id: newId(), projectId: project.id });
+    const created = await ctx.repos.plans.create(ctx.db, { ...draft, id: newId(), projectId: project.id });
+    await ctx.runtime.scheduler.reload(created.id);
+    return created;
   }),
 
   update: publicProcedure
@@ -252,13 +259,17 @@ export const plansRouter = router({
       const merged = PlanDraftSchema.parse({ ...PlanDraftSchema.parse(existing), ...input.patch });
       await validatePlanDraft(ctx, project, merged);
       if (merged.name !== existing.name) await assertNameFree(ctx, project.id, merged.name, existing.id);
-      return ctx.repos.plans.update(ctx.db, existing.id, merged);
+      const updated = await ctx.repos.plans.update(ctx.db, existing.id, merged);
+      await ctx.runtime.scheduler.reload(updated.id);
+      return updated;
     }),
 
   delete: publicProcedure.input(IdSchema).mutation(async ({ ctx, input }) => {
     requireWriter(ctx);
     await requirePlan(ctx, input);
     await ctx.repos.plans.delete(ctx.db, input);
+    ctx.runtime.scheduler.remove(input);
+    await deleteTriggerConfig(ctx.db, input);
     return { ok: true as const };
   }),
 

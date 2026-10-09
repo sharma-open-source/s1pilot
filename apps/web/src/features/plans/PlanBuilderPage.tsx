@@ -73,6 +73,25 @@ interface BuilderProps {
   plan?: StoredPlan;
 }
 
+/** Webhook URL of a saved plan with a button to issue a new token (S-052). */
+function WebhookInfo({ planId }: { planId: string }) {
+  const utils = trpc.useUtils();
+  const info = trpc.triggers.get.useQuery(planId, { retry: false });
+  const regenerate = trpc.triggers.regenerateToken.useMutation({ onSuccess: () => utils.triggers.get.invalidate(planId) });
+  if (info.isLoading) return <span className="text-xs text-muted">Loading webhook URL…</span>;
+  if (info.data === undefined) return <span className="text-xs text-danger">Could not load the webhook URL.</span>;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return (
+    <>
+      <code className="break-all font-mono text-xs text-fg">POST {origin}{info.data.webhookPath}</code>
+      <span className="text-xs text-muted">Optional JSON body: buildRef, environment, commit.</span>
+      <Button variant="secondary" className="self-start" disabled={regenerate.isPending} onClick={() => regenerate.mutate(planId)}>
+        Regenerate token
+      </Button>
+    </>
+  );
+}
+
 function PlanBuilder({ projectKey, projectLabel, envs, plan }: BuilderProps) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
@@ -403,13 +422,7 @@ function PlanBuilder({ projectKey, projectLabel, envs, plan }: BuilderProps) {
               {planId === undefined ? (
                 <span className="text-xs text-muted">The URL appears after you save the plan.</span>
               ) : (
-                <>
-                  <code className="break-all font-mono text-xs text-fg">
-                    POST {typeof window !== 'undefined' ? window.location.origin : ''}/api/hooks/plans/{planId}/:token
-                  </code>
-                  {/* TODO(S-052): the endpoint and per-plan token arrive with the scheduler spec. */}
-                  <span className="text-xs text-muted">The token is issued when webhooks go live.</span>
-                </>
+                <WebhookInfo planId={planId} />
               )}
             </div>
             <div className="flex flex-col gap-1">

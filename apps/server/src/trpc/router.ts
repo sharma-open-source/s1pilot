@@ -14,6 +14,7 @@ import { runsRouter } from './routers/runs.js';
 import { sharedStepsRouter } from './routers/shared-steps.js';
 import { suitesRouter } from './routers/suites.js';
 import { syncStatusProcedure } from './routers/sync-status.js';
+import { triggersRouter } from './routers/triggers.js';
 import { createCallerFactory, publicProcedure, router, trpcCodeFor } from './trpc.js';
 
 export { createCallerFactory, publicProcedure, router, trpcCodeFor };
@@ -34,6 +35,7 @@ export const appRouter = router({
   requirements: requirementsRouter,
   plans: plansRouter,
   runs: runsRouter,
+  triggers: triggersRouter,
   results: resultsRouter,
   reviews: reviewsRouter,
   syncStatus: syncStatusProcedure,

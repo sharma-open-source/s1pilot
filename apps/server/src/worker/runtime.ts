@@ -5,6 +5,7 @@ import { AuthService } from '../auth/service.js';
 import type { ServerConfig } from '../config.js';
 import { HumanControl, type HumanControlOptions } from '../live/control.js';
 import { LiveHub } from '../live/hub.js';
+import { PlanScheduler } from '../triggers/scheduler.js';
 
 import { RunEventBus } from './event-bus.js';
 import { createRunLifecycle, type RunLifecycle } from './run-lifecycle.js';
@@ -22,6 +23,8 @@ export interface ServerRuntime {
   human: HumanControl;
   /** Saved logins: recording, refresh, validation and the provider workers hand to the runner (S-038). */
   auth: AuthService;
+  /** Cron scheduler of plan schedules (S-052); started by `buildApp`. */
+  scheduler: PlanScheduler;
 }
 
 export interface RuntimeOptions {
@@ -65,7 +68,8 @@ export function createRuntime(opts: RuntimeOptions): ServerRuntime {
     ...(opts.workerOptions?.createModels ? { createModels: opts.workerOptions.createModels } : {}),
   });
   const workers: WorkerPool = new WorkerPool({ human, auth, onPage: (runId, resultId, page) => live.screencast.attach(runId, resultId, page), ...opts.workerOptions, db: opts.db, config: opts.config, log: opts.log, queue, bus, lifecycle });
-  const runtime: ServerRuntime = { queue, bus, lifecycle, workers, live, human, auth };
+  const scheduler = new PlanScheduler({ db: opts.db, log: opts.log });
+  const runtime: ServerRuntime = { queue, bus, lifecycle, workers, live, human, auth, scheduler };
   runtimes.set(opts.db, runtime);
   return runtime;
 }

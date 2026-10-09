@@ -16,6 +16,8 @@ import { FsArtifactStore } from './artifacts/store.js';
 import type { ServerConfig } from './config.js';
 import { registerExportRoutes } from './exports/routes.js';
 import { registerLiveRoutes } from './live/routes.js';
+import { firePlan } from './triggers/fire.js';
+import { registerWebhookRoutes } from './triggers/routes.js';
 import { createContext } from './trpc/context.js';
 import { appRouter } from './trpc/router.js';
 import { getVersion } from './version.js';
@@ -34,6 +36,8 @@ export interface BuildAppOptions {
   launchHeaded?: RuntimeOptions['launchHeaded'];
   /** Number of in-process workers. Default `config.workers`. */
   workers?: number;
+  /** Start the cron scheduler of plan schedules. Default true. */
+  scheduler?: boolean;
 }
 
 /**
@@ -63,9 +67,13 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
   const artifacts = new FsArtifactStore(db, config.artifactsDir);
   registerArtifactRoutes(app, artifacts);
   registerExportRoutes(app, { db, runtime, config });
+  const deps = { db, config, log, runtime };
+  registerWebhookRoutes(app, deps);
+  if (opts.scheduler ?? true) await runtime.scheduler.start((planId) => firePlan(createContext(deps), planId, 'schedule'));
   const stopRetention = startRetentionJob({ db, store: artifacts, log });
   app.addHook('onClose', async () => {
     stopRetention();
+    runtime.scheduler.stop();
     await runtime.auth.close();
     await runtime.workers.stop(); // before the db closes
     if (ownsDb) db.close();

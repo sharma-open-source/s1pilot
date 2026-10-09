@@ -47,6 +47,7 @@ function makeHandlers(store: Store): Record<string, Handler> {
       store.plans[i] = { ...store.plans[i], ...patch };
       return store.plans[i];
     },
+    'triggers.get': (id) => ({ planId: id, token: 'tok123', webhookPath: `/api/hooks/plans/${String(id)}/tok123`, timezone: null, effectiveTimezone: 'UTC', skipIfRunning: true }),
     'plans.preview': (input) => {
       const i = input as { selection: { kind: string; query?: string; caseIds?: string[] }; matrix: unknown[]; parallelism: number };
       if (i.selection.kind === 'query' && i.selection.query?.includes('((')) throw new FakeTrpcError('Unbalanced parenthesis at position 1', 'BAD_REQUEST');
@@ -142,7 +143,7 @@ describe('PlanBuilderPage', () => {
     expect(screen.getByLabelText('Cron expression')).toHaveValue('0 2 * * 1-5');
     expect(screen.getByText('At 02:00, Mon–Fri')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: '100% of P0 cases passed' })).toBeInTheDocument();
-    expect(screen.getByText(/\/api\/hooks\/plans\/plan1/)).toBeInTheDocument();
+    expect(await screen.findByText(/\/api\/hooks\/plans\/plan1\/tok123/)).toBeInTheDocument();
     expect(await screen.findByText('2 cases match')).toBeInTheDocument();
   });
 
