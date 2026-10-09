@@ -1,4 +1,5 @@
 import { analytics } from './analytics.js';
+import { apiTokens } from './api-tokens.js';
 import { artifacts } from './artifacts.js';
 import { authSetups } from './auth-setups.js';
 import { cases } from './cases.js';
@@ -37,7 +38,10 @@ export const repos = {
   artifacts,
   authSetups,
   analytics,
+  apiTokens,
 };
+
+export type { ApiTokenRecord, ApiTokensRepo } from './api-tokens.js';
 
 export type { AuthSetupsRepo, NewAuthSetup } from './auth-setups.js';
 export type { ArtifactKind, ArtifactRecord, ArtifactsRepo, NewArtifactRecord } from './artifacts.js';

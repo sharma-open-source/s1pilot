@@ -125,6 +125,17 @@ export class WorkerPool {
     return this.workers.filter((w) => !w.stopped).length;
   }
 
+  /** Workers with their state and current job (Settings → Workers). */
+  snapshot(): Array<{ id: string; status: 'idle' | 'busy' | 'stopped'; jobId?: string; runId?: string }> {
+    return this.workers.map((w) => {
+      const job = [...this.active.values()].find((a) => a.workerId === w.id);
+      if (w.stopped) return { id: w.id, status: 'stopped' as const };
+      return job
+        ? { id: w.id, status: 'busy' as const, jobId: job.jobId, ...(job.runId ? { runId: job.runId } : {}) }
+        : { id: w.id, status: 'idle' as const };
+    });
+  }
+
   /** Nudges idle workers to look for new jobs now. */
   wake(): void {
     for (const w of this.workers) w.wake?.();

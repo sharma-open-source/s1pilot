@@ -1,6 +1,7 @@
 import { repos, type Db } from '@s1pilot/db';
 import type { FastifyBaseLogger } from 'fastify';
 
+import type { TokenPrincipal } from '../auth/tokens.js';
 import type { ServerConfig } from '../config.js';
 import { runtimeFor, type ServerRuntime } from '../worker/runtime.js';
 
@@ -21,6 +22,8 @@ export interface Context {
   log: FastifyBaseLogger;
   /** Job queue, event bus, run lifecycle and workers. */
   runtime: ServerRuntime;
+  /** Set when the request authenticated with an API token (S-059) instead of the local session. */
+  token?: TokenPrincipal;
 }
 
 export interface ServerDeps {
@@ -29,6 +32,8 @@ export interface ServerDeps {
   log: FastifyBaseLogger;
   /** Defaults to the runtime registered for `db` (a queue without workers when none was created). */
   runtime?: ServerRuntime;
+  /** API token principal of the request, if any. */
+  token?: TokenPrincipal;
 }
 
 /** Builds the request context. TODO(S-067): resolve the user from a session in team mode. */
@@ -36,9 +41,10 @@ export function createContext(deps: ServerDeps): Context {
   return {
     db: deps.db,
     repos,
-    user: LOCAL_USER,
+    user: deps.token ? { id: `token:${deps.token.id}`, role: 'tester' } : LOCAL_USER,
     config: deps.config,
     log: deps.log,
     runtime: deps.runtime ?? runtimeFor({ db: deps.db, config: deps.config, log: deps.log }),
+    ...(deps.token ? { token: deps.token } : {}),
   };
 }

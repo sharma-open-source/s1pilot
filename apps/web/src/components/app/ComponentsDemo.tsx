@@ -2,6 +2,7 @@ import type { MatrixEntry } from '@s1pilot/domain';
 import { useState, type ReactNode } from 'react';
 
 import { CapabilityGrid } from './CapabilityGrid';
+import { CodeBlock } from './CodeBlock';
 import { DecisionPanel, EventLog, ProbabilityBar, RunProgressBar, StepStatusList } from './live';
 import { MatrixTable } from './MatrixTable';
 import { ModeMixBar } from './ModeMixBar';
@@ -309,6 +310,12 @@ export function ComponentsDemo() {
             <DiffLine kind="removed">{"getByRole('button', {name: 'Guest checkout'})"}</DiffLine>
             <DiffLine kind="added">{"getByRole('button', {name: 'Checkout as guest'})"}</DiffLine>
           </div>
+        </div>
+      </Demo>
+
+      <Demo title="CodeBlock">
+        <div className="w-full">
+          <CodeBlock code={'npx s1pilot run --plan "Checkout regression" --env staging \\\n  --server https://s1pilot.local --token $S1P_TOKEN'} label="CLI command" />
         </div>
       </Demo>
 

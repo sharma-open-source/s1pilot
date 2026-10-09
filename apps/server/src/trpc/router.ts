@@ -17,7 +17,9 @@ import { runsRouter } from './routers/runs.js';
 import { sharedStepsRouter } from './routers/shared-steps.js';
 import { suitesRouter } from './routers/suites.js';
 import { syncStatusProcedure } from './routers/sync-status.js';
+import { tokensRouter } from './routers/tokens.js';
 import { triggersRouter } from './routers/triggers.js';
+import { workspaceRouter } from './routers/workspace.js';
 import { createCallerFactory, publicProcedure, router, trpcCodeFor } from './trpc.js';
 
 export { createCallerFactory, publicProcedure, router, trpcCodeFor };
@@ -47,6 +49,8 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   analytics: analyticsRouter,
   auth: authRouter,
+  tokens: tokensRouter,
+  workspace: workspaceRouter,
 });
 
 export type AppRouter = typeof appRouter;
