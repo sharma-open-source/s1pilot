@@ -63,7 +63,7 @@ describe('API tokens', () => {
     expect((await trpcGet(app)).statusCode).toBe(200); // local session
     expect((await trpcGet(app, token)).statusCode).toBe(200);
     expect((await app.inject({ method: 'GET', url: '/api/health', headers: { authorization: `Bearer ${token}` } })).statusCode).toBe(200);
-    expect((await trpcGet(app, `${token.slice(0, -1)}0`)).statusCode).toBe(401);
+    expect((await trpcGet(app, `${token.slice(0, -1)}${token.endsWith('0') ? '1' : '0'}`)).statusCode).toBe(401);
     expect((await trpcGet(app, 'garbage')).statusCode).toBe(401);
 
     await api.tokens.revoke({ id: record.id });

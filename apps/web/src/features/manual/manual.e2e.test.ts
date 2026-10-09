@@ -151,7 +151,7 @@ describe('manual run (headless Chromium)', () => {
     await step2.getByLabel('Actual result').fill('Page reloads but the cart is empty');
     await step2.getByRole('button', { name: 'Fail' }).click();
     await page.waitForFunction(() => document.querySelector('[aria-label="Step 2 result"] [aria-pressed="true"]')?.textContent === 'Fail');
-    expect(recorded.at(-1)).toMatchObject({ stepIndex: 1, verdict: 'fail', actual: 'Page reloads but the cart is empty' });
+    await expect.poll(() => recorded.at(-1), { timeout: 5_000 }).toMatchObject({ stepIndex: 1, verdict: 'fail', actual: 'Page reloads but the cart is empty' });
     await step2.getByRole('link', { name: 'Create defect from this step' }).click();
     await page.waitForURL(/\/p\/SHOP\/defects\?.*fromManual=m2.*step=1|\/p\/SHOP\/defects\?.*step=1.*fromManual=m2/);
     await page.close();
