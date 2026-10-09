@@ -10,15 +10,19 @@ import { trpc } from '@/lib/trpc';
 
 const LIVE = ['queued', 'running', 'paused'];
 
-/** Runs list (`/p/:key/runs`): one row per run with status and counts, linking to the report (or live view). */
-export function RunsListPage({ projectKey }: { projectKey: string }) {
+/**
+ * Runs list (`/p/:key/runs`): one row per run with status and counts, linking to the report (or live view).
+ * With `reports` (`/p/:key/reports`) it lists finished runs only, with an Export column (JUnit, HTML, JSON, PDF).
+ */
+export function RunsListPage({ projectKey, reports = false }: { projectKey: string; reports?: boolean }) {
   const query = trpc.runs.list.useQuery({ projectKey }, { refetchInterval: 5000 });
   const base = `/p/${encodeURIComponent(projectKey)}/runs`;
-  const runs = query.data ?? [];
+  const runs = (query.data ?? []).filter((r) => !reports || !LIVE.includes(r.status));
+  const title = reports ? 'Reports' : 'Runs';
 
   return (
     <>
-      <PageHeader title="Runs" />
+      <PageHeader title={title} />
       {query.isError && <Callout tone="danger">Could not load runs: {errorMessage(query.error)}</Callout>}
       {query.isLoading ? (
         <div className="flex flex-col gap-3">
@@ -28,15 +32,15 @@ export function RunsListPage({ projectKey }: { projectKey: string }) {
         </div>
       ) : runs.length === 0 && !query.isError ? (
         <EmptyState action={<LinkButton to={`/p/${encodeURIComponent(projectKey)}/cases`}>Go to test cases</LinkButton>}>
-          No runs yet. Select test cases and choose Run to start one.
+          {reports ? 'No finished runs yet. Reports appear here once a run completes.' : 'No runs yet. Select test cases and choose Run to start one.'}
         </EmptyState>
       ) : (
         <div className="overflow-x-auto rounded-card border border-line bg-surface">
           <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-            <caption className="sr-only">Runs, newest first</caption>
+            <caption className="sr-only">{title}, newest first</caption>
             <thead className="bg-surface-subtle text-xs uppercase tracking-[0.05em] text-muted">
               <tr>
-                {['Run', 'Plan / cases', 'Env', 'Trigger', 'Status', 'Counts', 'Started'].map((h) => (
+                {['Run', 'Plan / cases', 'Env', 'Trigger', 'Status', 'Counts', 'Started', ...(reports ? ['Export'] : [])].map((h) => (
                   <th key={h} scope="col" className="px-3.5 py-2.5 font-semibold">
                     {h}
                   </th>
@@ -71,6 +75,20 @@ export function RunsListPage({ projectKey }: { projectKey: string }) {
                     <td className="whitespace-nowrap px-3.5 py-3 text-secondary">
                       <time dateTime={r.startedAt}>{relativeTime(r.startedAt)}</time>
                     </td>
+                    {reports && (
+                      <td className="whitespace-nowrap px-3.5 py-3 text-xs">
+                        {[
+                          ['JUnit', `export/junit`],
+                          ['HTML', `export/html`],
+                          ['JSON', `export/json`],
+                          ['PDF', `export.pdf`],
+                        ].map(([label, path]) => (
+                          <a key={label} href={`/api/runs/${encodeURIComponent(r.id)}/${path}`} className="mr-2 inline-flex min-h-[44px] items-center text-primary-text" download>
+                            {label}
+                          </a>
+                        ))}
+                      </td>
+                    )}
                   </tr>
                 );
               })}

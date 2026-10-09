@@ -1,7 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { PlaceholderPage } from '@/components/app/PageHeader';
+import { RunsListPage } from '@/features/run-report/RunsListPage';
 
 export const Route = createFileRoute('/p/$key/reports/')({
-  component: () => <PlaceholderPage title="Reports" spec="S-046" />,
+  component: ReportsRoute,
 });
+
+function ReportsRoute() {
+  const { key } = Route.useParams();
+  return <RunsListPage projectKey={key} reports />;
+}
