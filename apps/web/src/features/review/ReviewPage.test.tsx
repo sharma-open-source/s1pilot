@@ -194,7 +194,70 @@ describe('ReviewPage', () => {
 
   it('shows placeholders for tabs without items and an error state', async () => {
     renderPage({ tab: 'drafts' });
-    expect(await screen.findByText(/Generated drafts arrive with AI test generation/)).toBeInTheDocument();
+    expect(await screen.findByText(/No generated drafts/)).toBeInTheDocument();
+  });
+
+  it('lists generated drafts with a read-only steps grid and accepts, edits or discards them', async () => {
+    const user = userEvent.setup();
+    const draft = {
+      id: 'd1',
+      tab: 'drafts',
+      status: 'pending',
+      createdAt: null,
+      resolvedAt: null,
+      caseKey: 'SHOP-TC-7',
+      title: 'Add a product to the cart',
+      stepNumber: null,
+      confidence: null,
+      sharedStepName: null,
+      impactCount: null,
+      environment: '',
+      browser: null,
+      source: 'story',
+      stepCount: 2,
+    };
+    const { fake, onSearch } = renderPage(
+      { tab: 'drafts' },
+      {
+        'reviews.counts': () => ({ verdicts: 0, heals: 0, drafts: 1, visual: 0 }),
+        'reviews.list': () => ({ page: 1, pageSize: 20, total: 1, items: [draft] }),
+        'generate.metrics': () => ({ generated: 4, pending: 1, acceptedAsIs: 1, acceptedEdited: 1, discarded: 1, acceptanceRate: 0.5 }),
+        'generate.draft': () => ({
+          id: 'd1',
+          projectKey: 'SHOP',
+          caseKey: 'SHOP-TC-7',
+          title: 'Add a product to the cart',
+          source: 'story',
+          requirementKey: 'SHOP-REQ-1',
+          outcome: null,
+          resolvedAt: null,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          edited: false,
+          priority: 'P1',
+          type: 'smoke',
+          tags: ['cart', 's2-generated'],
+          steps: [
+            { action: 'Open the shop', expected: null },
+            { action: 'Add the first product', expected: 'The badge shows 1' },
+          ],
+        }),
+        'generate.accept': () => ({ record: {}, nextId: null }),
+        'generate.discard': () => ({ record: {}, nextId: null }),
+      },
+    );
+    const list = await screen.findByRole('list', { name: 'Review items' });
+    expect(within(list).getByText('SHOP-TC-7 · from a story · 2 steps')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Draft metrics')).toHaveTextContent('4 generated · 1 accepted as-is · 1 accepted after edits · 1 discarded · 50% accepted');
+    const detail = await screen.findByRole('region', { name: 'Draft detail' });
+    const grid = within(detail).getByRole('table', { name: 'Generated steps' });
+    expect(within(grid).getByText('Add the first product')).toBeInTheDocument();
+    expect(within(grid).getByText('The badge shows 1')).toBeInTheDocument();
+    expect(within(detail).getByRole('link', { name: 'Edit' })).toHaveAttribute('href', '/p/SHOP/cases/SHOP-TC-7');
+    await user.click(within(detail).getByRole('button', { name: 'Accept' }));
+    await waitFor(() => expect(fake.calls.find((c) => c.path === 'generate.accept')?.input).toEqual({ id: 'd1' }));
+    await waitFor(() => expect(onSearch).toHaveBeenCalled());
+    await user.click(within(detail).getByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(fake.calls.find((c) => c.path === 'generate.discard')?.input).toEqual({ id: 'd1' }));
   });
 
   it('shows a decided item without action buttons', async () => {

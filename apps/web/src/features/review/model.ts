@@ -54,7 +54,13 @@ export function itemMeta(i: {
   impactCount: number | null;
   environment: string;
   browser: string | null;
+  source?: string;
+  stepCount?: number;
 }): string {
+  if (i.tab === 'drafts') {
+    const steps = i.stepCount ?? 0;
+    return [i.caseKey, i.source === 'crawl' ? 'from site exploration' : 'from a story', `${steps} ${steps === 1 ? 'step' : 'steps'}`].join(' · ');
+  }
   const conf = i.confidence !== null ? `${i.tab === 'heals' ? 'conf' : 'P(true)'} ${i.confidence.toFixed(2)}` : '';
   if (i.tab === 'heals') {
     const where =
@@ -85,4 +91,21 @@ export function thresholdText(t: { pass: number; fail: number } | null): string 
   return t
     ? `Fail at or below ${t.fail.toFixed(2)}, pass at or above ${t.pass.toFixed(2)}; in between a person decides.`
     : 'No thresholds are configured for this project.';
+}
+
+/** Where a generated draft came from. */
+export function draftSourceText(source: string): string {
+  return source === 'crawl' ? 'suggested by exploring the site' : 'generated from a story';
+}
+
+/** Outcome sentence of a decided draft. */
+export function draftOutcomeText(outcome: string | null): string {
+  if (outcome === 'accepted-as-is') return 'Accepted as generated';
+  if (outcome === 'accepted-edited') return 'Accepted after edits';
+  return 'Discarded';
+}
+
+/** Metrics line shown above the Generated drafts list. */
+export function draftMetricsText(m: { generated: number; acceptedAsIs: number; acceptedEdited: number; discarded: number }): string {
+  return `${m.generated} generated · ${m.acceptedAsIs} accepted as-is · ${m.acceptedEdited} accepted after edits · ${m.discarded} discarded`;
 }

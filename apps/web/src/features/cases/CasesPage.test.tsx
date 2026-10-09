@@ -111,6 +111,42 @@ describe('CasesPage', () => {
     expect(within(screen.getByRole('complementary', { name: 'Suites' })).getByText('Checkout')).toBeInTheDocument();
   });
 
+  it('generates drafts from a story when System 2 is configured', async () => {
+    const user = userEvent.setup();
+    const fake = createFakeTrpc(
+      handlers({
+        'generate.status': () => ({ s2Configured: true, model: 'm' }),
+        'requirements.list': () => [{ key: 'SHOP-REQ-1', title: 'Cart', caseKeys: [], coverage: 0 }],
+        'generate.fromStory': () => ({ cases: [{ key: 'SHOP-TC-10' }, { key: 'SHOP-TC-11' }] }),
+      }),
+    );
+    const navigate = vi.fn();
+    render(<Host fake={fake} navigate={navigate} />);
+    const button = await screen.findByRole('button', { name: 'Generate from story · S2' });
+    await waitFor(() => expect(button).toBeEnabled());
+    await user.click(button);
+    const dialog = await screen.findByRole('dialog');
+    const submit = within(dialog).getByRole('button', { name: 'Generate drafts' });
+    expect(submit).toBeDisabled();
+    await user.type(within(dialog).getByLabelText('User story or acceptance criteria'), 'As a shopper I can add to cart');
+    await user.selectOptions(within(dialog).getByLabelText('Requirement (optional)'), 'SHOP-REQ-1');
+    await user.selectOptions(within(dialog).getByLabelText('Number of test cases'), '5');
+    await user.click(submit);
+    await waitFor(() => expect(callsTo(fake, 'generate.fromStory')).toHaveLength(1));
+    expect(callsTo(fake, 'generate.fromStory')[0]?.input).toEqual({ projectKey: 'SHOP', storyText: 'As a shopper I can add to cart', count: 5, requirementKey: 'SHOP-REQ-1' });
+    expect(await within(dialog).findByText(/2 draft test cases were added to the review queue/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Review drafts' }));
+    expect(navigate).toHaveBeenCalledWith('/p/SHOP/review?tab=drafts');
+  });
+
+  it('disables generation with a tooltip when System 2 is missing', async () => {
+    const fake = createFakeTrpc(handlers({ 'generate.status': () => ({ s2Configured: false, model: null }) }));
+    render(<Host fake={fake} />);
+    const button = await screen.findByRole('button', { name: 'Generate from story · S2' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('title', expect.stringContaining('System 2'));
+  });
+
   it('debounces the filter into the URL and sends it to cases.list', async () => {
     const user = userEvent.setup();
     const fake = createFakeTrpc(handlers());

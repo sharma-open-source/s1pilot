@@ -1,13 +1,16 @@
 import { IdSchema, S1PilotError, type HealProposal, type LocatorCandidate, type ResolvedAction, type ReviewItem, type Verdict } from '@s1pilot/domain';
 import { z } from 'zod';
 
+import { pendingDraftCount, syncRecords } from '../../generation/service.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
 
+
+import { draftRow } from './generate.js';
 import { effectiveModelSettings, requireProject } from './helpers.js';
 import { applyVerdict } from './verdicts.js';
 
-/** Queue tabs. `drafts` (S-061) and `visual` (later) have no items yet. */
+/** Queue tabs. `drafts` (S-061) comes from the generation records; `visual` (later) has no items yet. */
 export const REVIEW_TABS = ['verdicts', 'heals', 'drafts', 'visual'] as const;
 const TabSchema = z.enum(REVIEW_TABS);
 type Tab = z.infer<typeof TabSchema>;
@@ -207,7 +210,7 @@ export const reviewsRouter = router({
     const project = await requireProject(ctx, input.projectKey);
     const pending = await ctx.repos.reviews.list(ctx.db, { projectId: project.id, status: 'pending' });
     const n = (k: ReviewItem['kind']): number => pending.filter((i) => i.kind === k).length;
-    return { verdicts: n('verdict'), heals: n('heal'), drafts: 0, visual: 0 };
+    return { verdicts: n('verdict'), heals: n('heal'), drafts: await pendingDraftCount(ctx, project.id), visual: 0 };
   }),
 
   /** One page of a tab. `status` `pending` (default) is the queue; `resolved` is the decided history. */
@@ -224,6 +227,12 @@ export const reviewsRouter = router({
       const project = await requireProject(ctx, input.projectKey);
       const kind = KIND_OF_TAB[input.tab];
       const base = { page: input.page, pageSize: REVIEW_PAGE_SIZE };
+      if (input.tab === 'drafts') {
+        const records = (await syncRecords(ctx, project.id)).filter((r) => (input.status === 'pending' ? !r.outcome : r.outcome !== undefined));
+        const rows = input.status === 'pending' ? records : [...records].reverse();
+        const items = await Promise.all(pageOf(rows, input.page).map((r) => draftRow(ctx, r)));
+        return { ...base, total: rows.length, items };
+      }
       if (!kind) return { ...base, total: 0, items: [] };
       const all = await ctx.repos.reviews.list(ctx.db, { projectId: project.id, kind });
       const rows = all.filter((i) => (input.status === 'pending' ? i.status === 'pending' : i.status !== 'pending'));

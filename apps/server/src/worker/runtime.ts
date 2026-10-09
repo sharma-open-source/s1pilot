@@ -1,4 +1,5 @@
 import { createSqliteJobQueue, type Db, type JobQueue } from '@s1pilot/db';
+import { launchBrowser } from '@s1pilot/runner';
 import type { FastifyBaseLogger } from 'fastify';
 
 import { AuthService } from '../auth/service.js';
@@ -9,6 +10,7 @@ import { attachNotifications, notifyReviewQueue } from '../notifications/service
 import { PlanScheduler } from '../triggers/scheduler.js';
 
 import { RunEventBus } from './event-bus.js';
+import { createModelFactory, type ModelFactory } from './models.js';
 import { createRunLifecycle, type RunLifecycle } from './run-lifecycle.js';
 import { WorkerPool, type WorkerPoolOptions } from './worker.js';
 
@@ -26,6 +28,10 @@ export interface ServerRuntime {
   auth: AuthService;
   /** Cron scheduler of plan schedules (S-052); started by `buildApp`. */
   scheduler: PlanScheduler;
+  /** Builds System 1/2 from model settings (System 2 test generation, S-061). */
+  createModels: ModelFactory;
+  /** Headless browser launcher (crawl for test generation, S-061). */
+  launch: typeof launchBrowser;
 }
 
 export interface RuntimeOptions {
@@ -72,7 +78,18 @@ export function createRuntime(opts: RuntimeOptions): ServerRuntime {
   });
   const workers: WorkerPool = new WorkerPool({ human, auth, onPage: (runId, resultId, page) => live.screencast.attach(runId, resultId, page), ...opts.workerOptions, db: opts.db, config: opts.config, log: opts.log, queue, bus, lifecycle });
   const scheduler = new PlanScheduler({ db: opts.db, log: opts.log });
-  const runtime: ServerRuntime = { queue, bus, lifecycle, workers, live, human, auth, scheduler };
+  const runtime: ServerRuntime = {
+    queue,
+    bus,
+    lifecycle,
+    workers,
+    live,
+    human,
+    auth,
+    scheduler,
+    createModels: opts.workerOptions?.createModels ?? createModelFactory(),
+    launch: opts.workerOptions?.launch ?? launchBrowser,
+  };
   runtimes.set(opts.db, runtime);
   return runtime;
 }

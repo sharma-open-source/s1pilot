@@ -425,6 +425,31 @@ describe('First tests step', () => {
     expect(window.sessionStorage.getItem('s1pilot.wizard.draft')).toBeNull();
   });
 
+  it('suggests tests by exploring the site when System 2 is configured', async () => {
+    seedDraft();
+    const user = userEvent.setup();
+    const onFinish = vi.fn();
+    const fake = createFakeTrpc({
+      ...baseHandlers(),
+      'generate.status': () => ({ s2Configured: true, model: 'm' }),
+      'generate.fromCrawl': () => ({ cases: [{ key: 'SHOP-TC-2' }, { key: 'SHOP-TC-3' }], pagesVisited: 4, skipped: 0 }),
+    });
+    render(<Host fake={fake} initial="first-tests" onFinish={onFinish} />);
+    const button = await screen.findByRole('button', { name: 'Suggest tests' });
+    await waitFor(() => expect(button).toBeEnabled());
+    await user.click(button);
+    expect(await screen.findByText('2 draft tests from 4 pages')).toBeInTheDocument();
+    expect(callsTo(fake, 'generate.fromCrawl')[0]?.input).toEqual({ projectKey: 'SHOP', maxPages: 20 });
+    await user.click(screen.getByRole('button', { name: 'Review drafts' }));
+    expect(onFinish).toHaveBeenCalledWith('/p/SHOP/review?tab=drafts');
+  });
+
+  it('disables site exploration without System 2', async () => {
+    seedDraft();
+    render(<Host fake={createFakeTrpc(baseHandlers())} initial="first-tests" />);
+    expect(await screen.findByRole('button', { name: 'Suggest tests' })).toBeDisabled();
+  });
+
   it('Finish goes to the cases list', async () => {
     seedDraft();
     const user = userEvent.setup();

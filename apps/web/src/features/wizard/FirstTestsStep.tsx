@@ -23,6 +23,9 @@ export function FirstTestsStep({ draft, patch, go, onFinish }: StepProps) {
   const empty = text.trim() === '';
   const createCase = trpc.cases.create.useMutation();
   const createRun = trpc.runs.create.useMutation();
+  const s2 = trpc.generate.status.useQuery({ projectKey }, { enabled: projectKey !== '' });
+  const crawl = trpc.generate.fromCrawl.useMutation();
+  const s2Ready = s2.data?.s2Configured === true;
 
   /** Creates the draft case once per description; returns its key. */
   const ensureCase = async (): Promise<string> => {
@@ -122,6 +125,35 @@ export function FirstTestsStep({ draft, patch, go, onFinish }: StepProps) {
           />
         </div>
         {phase === 'error' && error !== null && <Callout tone="danger">{error}</Callout>}
+      </Card>
+      <Card aria-label="Suggest tests" className="flex flex-col gap-[14px] p-[22px]">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-lg font-semibold text-fg">Suggest tests by exploring the site</h2>
+          <p className="text-sm text-secondary">
+            System 2 reads up to 20 pages of the first environment without submitting any form and drafts smoke tests for you to review.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button
+            variant="secondary"
+            disabled={!s2Ready || crawl.isPending}
+            title={s2Ready ? undefined : 'Suggesting tests needs a System 2 model. Configure one in the models step.'}
+            onClick={() => crawl.mutate({ projectKey, maxPages: 20 })}
+          >
+            {crawl.isPending ? 'Exploring…' : 'Suggest tests'}
+          </Button>
+          {crawl.isSuccess && (
+            <>
+              <span role="status" className="text-sm font-medium text-success">
+                {crawl.data.cases.length} draft {crawl.data.cases.length === 1 ? 'test' : 'tests'} from {crawl.data.pagesVisited} {crawl.data.pagesVisited === 1 ? 'page' : 'pages'}
+              </span>
+              <Button variant="secondary" onClick={() => onFinish(`/p/${projectKey}/review?tab=drafts`)}>
+                Review drafts
+              </Button>
+            </>
+          )}
+        </div>
+        {crawl.isError && <Callout tone="danger">{errorMessage(crawl.error)}</Callout>}
       </Card>
       <WizardFooter onBack={() => go('login')} continueLabel="Finish" />
     </form>
