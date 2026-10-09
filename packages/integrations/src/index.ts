@@ -1,2 +1,4 @@
-/** Package name; placeholder export until integrations land (S-064). */
+/** Package name. */
 export const INTEGRATIONS_PACKAGE = '@s1pilot/integrations';
+
+export * from './notify.js';

@@ -3,7 +3,8 @@ import { Link, Navigate } from '@tanstack/react-router';
 import { IntegrationsSection } from './IntegrationsSection';
 import { parseSection, SETTINGS_SECTIONS, type SettingsSlug } from './model';
 import { ModelsSection } from './ModelsSection';
-import { AuditSection, NotificationsSection, UsersSection } from './PlaceholderSections';
+import { NotificationsSection } from './NotificationsSection';
+import { AuditSection, UsersSection } from './PlaceholderSections';
 import { TokensSection } from './TokensSection';
 import { DataSection, GeneralSection, WorkersSection } from './WorkspaceSections';
 

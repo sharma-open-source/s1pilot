@@ -92,6 +92,39 @@ function WebhookInfo({ planId }: { planId: string }) {
   );
 }
 
+/** One checkbox per notification channel: "Notify <channel> on finish" adds or removes a plan-scoped rule (S-065). */
+function NotifyOnFinish({ planId, projectKey }: { planId: string; projectKey: string }) {
+  const utils = trpc.useUtils();
+  const channels = trpc.notifications.channels.list.useQuery();
+  const rules = trpc.notifications.rules.list.useQuery();
+  const save = trpc.notifications.rules.save.useMutation({ onSuccess: () => utils.notifications.rules.list.invalidate() });
+  const del = trpc.notifications.rules.delete.useMutation({ onSuccess: () => utils.notifications.rules.list.invalidate() });
+  if (channels.data === undefined || rules.data === undefined) return <span className="text-xs text-muted">Loading notification channels…</span>;
+  if (channels.data.length === 0) {
+    return (
+      <Link to="/settings/$section" params={{ section: 'notifications' }} className="text-[13px] text-primary-text">
+        Add a Slack, Teams or email channel in Settings › Notifications to be notified on finish
+      </Link>
+    );
+  }
+  return (
+    <>
+      {channels.data.map((c) => {
+        const rule = rules.data.find((r) => r.planId === planId && r.channelId === c.id && r.events.includes('run.finished'));
+        return (
+          <Checkbox
+            key={c.id}
+            label={`Notify ${c.name} on finish`}
+            checked={rule !== undefined}
+            disabled={save.isPending || del.isPending}
+            onChange={(e) => (e.target.checked ? save.mutate({ channelId: c.id, projectKey, planId, events: ['run.finished'], onlyOnFailure: false, reviewThreshold: 10 }) : rule && del.mutate({ id: rule.id }))}
+          />
+        );
+      })}
+    </>
+  );
+}
+
 function PlanBuilder({ projectKey, projectLabel, envs, plan }: BuilderProps) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
@@ -431,7 +464,11 @@ function PlanBuilder({ projectKey, projectLabel, envs, plan }: BuilderProps) {
                 Create an API token in Settings › API tokens
               </Link>
             </div>
-            <Checkbox label="Notify Slack on finish (needs the Slack integration)" checked={false} disabled />
+            {planId === undefined ? (
+              <Checkbox label="Notify a channel on finish (save the plan first)" checked={false} disabled />
+            ) : (
+              <NotifyOnFinish planId={planId} projectKey={projectKey} />
+            )}
           </Card>
 
           <Card className="flex flex-col gap-2.5 p-[18px] text-sm">

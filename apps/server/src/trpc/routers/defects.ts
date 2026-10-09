@@ -18,6 +18,7 @@ import {
 import { z } from 'zod';
 
 import { FsArtifactStore } from '../../artifacts/store.js';
+import { notify, publicBaseUrl } from '../../notifications/service.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
 
@@ -252,6 +253,10 @@ export const defectsRouter = router({
         linkedResultIds: [...new Set(input.resultIds)],
       });
       ctx.runtime.live.notifyWorkspace();
+      if (defect.status !== 'draft') {
+        const base = await publicBaseUrl(ctx.db, ctx.config);
+        void notify(ctx, { type: 'defect.created', projectKey: project.key, defectKey: defectKey(defect), title: defect.title, severity: defect.severity, url: `${base}/p/${project.key}/defects` });
+      }
       return defect;
     }),
 

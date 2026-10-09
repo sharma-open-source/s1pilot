@@ -71,6 +71,9 @@ importers:
       nanoid:
         specifier: ^5.0.9
         version: 5.1.16
+      nodemailer:
+        specifier: ^6.10.1
+        version: 6.10.1
       pino:
         specifier: ^9.5.0
         version: 9.14.0
@@ -135,6 +138,9 @@ importers:
       '@s1pilot/engine':
         specifier: workspace:^
         version: link:../../packages/engine
+      '@s1pilot/integrations':
+        specifier: workspace:^
+        version: link:../../packages/integrations
       '@s1pilot/providers':
         specifier: workspace:^
         version: link:../../packages/providers
@@ -387,7 +393,15 @@ importers:
         specifier: workspace:*
         version: link:../../fixtures/sites
 
-  packages/integrations: {}
+  packages/integrations:
+    dependencies:
+      nodemailer:
+        specifier: ^6
+        version: 6.10.1
+    devDependencies:
+      '@types/nodemailer':
+        specifier: ^6
+        version: 6.4.24
 
   packages/providers:
     dependencies:
@@ -2145,6 +2159,9 @@ packages:
   '@types/node@20.19.43':
     resolution: {integrity: sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA==}
 
+  '@types/nodemailer@6.4.24':
+    resolution: {integrity: sha512-Ww4u0rT9wQNXh4JiQaIwx3QWdcOFXzOjQA2zc+jtFYNmQiT4mIUqcDin51bDFdkzKubFnQCZNK7FIHlPKQ/q9w==}
+
   '@types/prop-types@15.7.15':
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
 
@@ -3504,6 +3521,10 @@ packages:
   node-releases@2.0.57:
     resolution: {integrity: sha512-kQK9LGGFiHtrWiNhZtA7Qbw17AQz+dmsEKODRIVTXA9+e5MS/2gZEBhYJt13GrAz5/IOZKddH/0Z3TP/Zgo+yw==}
     engines: {node: '>=18'}
+
+  nodemailer@6.10.1:
+    resolution: {integrity: sha512-Z+iLaBGVaSjbIzQ4pX6XV41HrooLsQ10ZWPUehGmuantvzWoDVBnmsdUcOIDM1t+yPor5pDhVlDESgOMEGxhHA==}
+    engines: {node: '>=6.0.0'}
 
   normalize-path@3.0.0:
     resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
@@ -5773,6 +5794,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/nodemailer@6.4.24':
+    dependencies:
+      '@types/node': 20.19.43
+
   '@types/prop-types@15.7.15': {}
 
   '@types/react-dom@18.3.7(@types/react@18.3.31)':
@@ -7288,6 +7313,8 @@ snapshots:
       semver: 6.3.1
 
   node-releases@2.0.57: {}
+
+  nodemailer@6.10.1: {}
 
   normalize-path@3.0.0: {}
 

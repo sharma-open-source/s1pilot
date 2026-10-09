@@ -18,6 +18,9 @@ function renderPage(section: string, over: Record<string, Handler> = {}): { fake
     'projects.list': () => [{ key: 'SHOP', name: 'Storefront' }],
     'plans.list': () => [{ id: 'pl1', name: 'Checkout regression' }],
     'environments.list': () => [{ id: 'e1', name: 'staging' }],
+    'notifications.channels.list': () => [],
+    'notifications.rules.list': () => [],
+    'notifications.log': () => [],
     ...over,
   });
   const queryClient = createQueryClient();
@@ -84,6 +87,32 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('button', { name: /Configure GitHub Actions/ })).toBeDisabled();
     expect(await screen.findByRole('region', { name: 'CLI command' })).toHaveTextContent('--server http://localhost');
     expect(screen.getByText('Available in team mode (Postgres + SSO)')).toBeInTheDocument();
+  });
+
+  it('adds a Slack channel without echoing the secret back, tests it and lists the delivery log', async () => {
+    const user = userEvent.setup();
+    let channels: Array<Record<string, unknown>> = [];
+    const { fake } = renderPage('notifications', {
+      'notifications.channels.list': () => channels,
+      'notifications.channels.save': (input) => {
+        const i = input as { name: string };
+        channels = [{ id: 'c1', name: i.name, kind: 'slack', config: {}, secretsSet: { webhookUrl: true, botToken: false } }];
+        return channels[0];
+      },
+      'notifications.channels.test': () => ({ ok: true, attempts: 1 }),
+      'notifications.log': () => [{ id: 'l1', at: '2026-10-09T10:00:00.000Z', channelId: 'c1', channelName: 'Slack #qa', event: 'run.finished', ok: false, attempts: 4, error: 'HTTP 500' }],
+    });
+    expect(await screen.findByText(/No channels yet/)).toBeInTheDocument();
+    expect(await screen.findByText(/4 attempts: HTTP 500/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Add channel' }));
+    await user.type(await screen.findByLabelText('Name'), 'Slack #qa');
+    await user.type(screen.getByLabelText('Incoming webhook URL'), 'https://hooks.slack.test/T/B/x');
+    await user.click(screen.getByRole('button', { name: 'Save channel' }));
+    expect(await screen.findByText('Slack #qa')).toBeInTheDocument();
+    expect(fake.calls.find((c) => c.path === 'notifications.channels.save')?.input).toMatchObject({ config: { kind: 'slack', webhookUrl: 'https://hooks.slack.test/T/B/x' } });
+    expect(document.body.textContent).not.toContain('hooks.slack.test');
+    await user.click(screen.getByRole('button', { name: 'Send test to Slack #qa' }));
+    expect(await screen.findByText('Test message delivered.')).toBeInTheDocument();
   });
 
   it('shows the token once at creation and only the prefix afterwards', async () => {
