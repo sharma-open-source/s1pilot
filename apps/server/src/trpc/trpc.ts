@@ -15,6 +15,8 @@ export function trpcCodeFor(code: string): TrpcCode {
   if (code.startsWith('AUTH_')) return 'PRECONDITION_FAILED';
   if (code === 'INVALID_STATE') return 'PRECONDITION_FAILED';
   if (code.startsWith('MODEL_')) return 'BAD_GATEWAY';
+  if (['TRACKER_CONFIG', 'TRACKER_NOT_MAPPED', 'TRACKER_NOT_CONNECTED'].includes(code)) return 'PRECONDITION_FAILED';
+  if (code.startsWith('TRACKER_')) return 'BAD_GATEWAY';
   if (code === 'CONFIG_ERROR') return 'INTERNAL_SERVER_ERROR';
   if (/^(INVALID_|MISSING_)|(_INVALID|_ERROR)$/.test(code)) return 'BAD_REQUEST';
   return 'INTERNAL_SERVER_ERROR';

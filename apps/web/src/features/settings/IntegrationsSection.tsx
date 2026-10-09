@@ -2,8 +2,9 @@ import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { CiSetup } from './CiSetup';
-import { CI_CARDS, INTEGRATIONS, ago, githubWorkflowSnippet, gitlabSnippet } from './model';
+import { CI_CARDS, INTEGRATIONS, TRACKER_PLACEHOLDERS, ago, githubWorkflowSnippet, gitlabSnippet } from './model';
 import { UsersSection } from './PlaceholderSections';
+import { TrackerCards } from './TrackersSection';
 
 import { CodeBlock } from '@/components/app/CodeBlock';
 import { Button } from '@/components/ui';
@@ -32,7 +33,8 @@ export function IntegrationsSection() {
   return (
     <>
       <section aria-label="Integrations" className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3.5">
-        {INTEGRATIONS.map((i) => {
+        <TrackerCards />
+        {INTEGRATIONS.filter((i) => !TRACKER_PLACEHOLDERS.includes(i.name)).map((i) => {
           const provider = (CI_CARDS as Record<string, 'github' | 'gitlab'>)[i.name];
           const u = provider ? usage.data?.[provider] : undefined;
           const live = statusOf(i.name);

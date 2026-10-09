@@ -27,6 +27,7 @@ type Row = RouterOutputs['defects']['list']['items'][number];
 type Draft = RouterOutputs['defects']['createFromResult'];
 type Details = Draft['details'];
 
+const PROVIDER_NAMES = { jira: 'Jira', github: 'GitHub Issues', linear: 'Linear' } as const;
 const artifactUrl = (id: string): string => `/api/artifacts/${encodeURIComponent(id)}`;
 const ASIDE = 'flex min-w-0 flex-[1_1_340px] flex-col gap-3.5 rounded-card border border-line bg-surface p-5 text-sm';
 
@@ -45,6 +46,7 @@ export function DefectsPage({ projectKey, search, onSearch }: DefectsPageProps) 
   useEffect(() => setText(q), [q]);
   useEffect(() => () => clearTimeout(timer.current), []);
   const list = trpc.defects.list.useQuery({ projectKey, query: q }, { placeholderData: keepPreviousData });
+  const tracker = trpc.trackers.mapping.useQuery({ projectKey });
   const items = list.data?.items ?? [];
 
   const onFilter = (value: string) => {
@@ -58,7 +60,7 @@ export function DefectsPage({ projectKey, search, onSearch }: DefectsPageProps) 
   return (
     <>
       <PageHeader
-        eyebrow={`${projectName !== undefined ? `${projectKey} · ${projectName}` : projectKey} · Local defects`}
+        eyebrow={`${projectName !== undefined ? `${projectKey} · ${projectName}` : projectKey} · ${tracker.data?.connected ? `synced with ${tracker.data.label}` : 'Local defects'}`}
         title="Defects"
         actions={
           <>
@@ -246,16 +248,26 @@ function SeveritySelect({ value, onChange }: { value: string; onChange: (v: 'S1'
   );
 }
 
-function PushToTracker() {
+/** "Push to <tracker>" checkbox; disabled until a tracker is connected and mapped for the project. */
+function PushToTracker({ projectKey, checked, onChange }: { projectKey: string; checked: boolean; onChange: (v: boolean) => void }) {
+  const mapping = trpc.trackers.mapping.useQuery({ projectKey });
+  const m = mapping.data;
+  const ready = m?.connected === true;
   return (
-    <Checkbox
-      label="Push to tracker"
-      disabled
-      checked={false}
-      readOnly
-      title="Issue tracker sync arrives with S-064"
-      aria-describedby="push-hint"
-    />
+    <div className="flex flex-col gap-0.5">
+      <Checkbox
+        label={m && ready ? `Push to ${PROVIDER_NAMES[m.provider]} · ${m.label}` : 'Push to tracker'}
+        disabled={!ready}
+        checked={ready && checked}
+        onChange={(e) => onChange(e.target.checked)}
+        aria-describedby="push-hint"
+      />
+      {!ready && (
+        <span id="push-hint" className="pl-7 text-xs text-muted">
+          {m ? 'The mapped tracker is not connected.' : 'Connect an issue tracker in Settings, Integrations.'}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -308,11 +320,16 @@ function NewDefectForm({
   const [title, setTitle] = useState(draft?.title ?? manual?.title ?? '');
   const [severity, setSeverity] = useState<'S1' | 'S2' | 'S3' | 'S4'>(draft?.severity ?? 'S3');
   const [retest, setRetest] = useState(true);
+  const [push, setPush] = useState(true);
+  const mapped = trpc.trackers.mapping.useQuery({ projectKey }).data;
+  const pushDefect = trpc.trackers.push.useMutation();
   const [steps, setSteps] = useState('');
   const [expected, setExpected] = useState('');
   const [actual, setActual] = useState('');
   const create = trpc.defects.create.useMutation({
-    onSuccess: (d) => {
+    onSuccess: async (d) => {
+      // A failed push keeps the defect; it can be pushed again from the detail panel.
+      if (push && mapped?.connected) await pushDefect.mutateAsync(d.id).catch(() => undefined);
       void utils.defects.list.invalidate();
       void utils.defects.get.invalidate();
       onCreated(d.id);
@@ -374,15 +391,10 @@ function NewDefectForm({
             <Attachments details={{ evidence: [], environment: undefined, browser: undefined, buildRef: undefined }} />
           </>
         )}
-        <div className="flex flex-col gap-0.5">
-          <PushToTracker />
-          <span id="push-hint" className="pl-7 text-xs text-muted">
-            Available once an issue tracker is connected (S-064).
-          </span>
-        </div>
+        <PushToTracker projectKey={projectKey} checked={push} onChange={setPush} />
         <Checkbox label="Re-test automatically when closed" checked={retest} onChange={(e) => setRetest(e.target.checked)} />
         {create.isError && <Callout tone="danger">{errorMessage(create.error)}</Callout>}
-        <Button type="submit" variant="primary" className="bg-danger" disabled={create.isPending || title.trim() === ''}>
+        <Button type="submit" variant="primary" className="bg-danger" disabled={create.isPending || pushDefect.isPending || title.trim() === ''}>
           Create defect
         </Button>
       </form>
@@ -422,6 +434,8 @@ function DefectEditor({ data, onNew, onSaved }: { data: RouterOutputs['defects']
   const [status, setStatus] = useState(defect.status);
   const [retest, setRetest] = useState(details?.retest ?? false);
   const update = trpc.defects.update.useMutation({ onSuccess: onSaved });
+  const mapped = trpc.trackers.mapping.useQuery({ projectKey }).data;
+  const pushDefect = trpc.trackers.push.useMutation({ onSuccess: onSaved });
   const dirty = title !== defect.title || severity !== defect.severity || status !== defect.status || retest !== (details?.retest ?? false);
   const queued = update.data?.details?.retestRunId ?? details?.retestRunId;
 
@@ -483,6 +497,28 @@ function DefectEditor({ data, onNew, onSaved }: { data: RouterOutputs['defects']
               ))}
             </ul>
           )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-medium">Tracker</span>
+          {defect.external ? (
+            <span className="text-[13px]">
+              {PROVIDER_NAMES[defect.external.provider]}{' '}
+              {defect.external.url ? (
+                <a href={defect.external.url} target="_blank" rel="noreferrer" className="font-mono text-primary-text">
+                  {defect.external.id} ↗
+                </a>
+              ) : (
+                <span className="font-mono">{defect.external.id}</span>
+              )}
+            </span>
+          ) : mapped?.connected ? (
+            <Button className="self-start" disabled={pushDefect.isPending} onClick={() => pushDefect.mutate(defect.id)}>
+              Push to {PROVIDER_NAMES[mapped.provider]}
+            </Button>
+          ) : (
+            <span className="text-[13px] text-secondary">Not pushed. Connect an issue tracker in Settings, Integrations.</span>
+          )}
+          {pushDefect.isError && <Callout tone="danger">{errorMessage(pushDefect.error)}</Callout>}
         </div>
         <Checkbox label="Re-test automatically when closed" checked={retest} onChange={(e) => setRetest(e.target.checked)} />
         {queued && (

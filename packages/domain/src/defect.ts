@@ -45,6 +45,8 @@ export const DefectDetailsSchema = z.object({
   retest: z.boolean().default(false),
   /** Run queued by the last automatic re-test. */
   retestRunId: IdSchema.optional(),
+  /** Last tracker status category seen by the sync (S-064); a change of it drives local status updates. */
+  trackerState: z.string().optional(),
 });
 export type DefectDetails = z.infer<typeof DefectDetailsSchema>;
 

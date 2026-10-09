@@ -36,11 +36,11 @@ const FAILING = ['failed', 'blocked', 'flaky'];
 const DetailsInput = DefectDetailsSchema.partial();
 
 /** Writers only: viewers cannot change defects. */
-function requireWriter(ctx: Context): void {
+export function requireWriter(ctx: Context): void {
   if (ctx.user.role === 'viewer') throw new S1PilotError('FORBIDDEN', 'Viewers cannot change defects');
 }
 
-async function requireDefect(ctx: Context, id: string): Promise<Defect> {
+export async function requireDefect(ctx: Context, id: string): Promise<Defect> {
   const d = await ctx.repos.defects.get(ctx.db, id);
   if (!d) throw new S1PilotError('DEFECT_NOT_FOUND', `Defect not found: ${id}`, { id });
   return d;
@@ -169,7 +169,7 @@ export async function queueRetest(ctx: Context, defect: Defect): Promise<string 
 }
 
 /** Applies a patch; a transition to fixed / closed with re-test on queues the re-test run. */
-async function applyUpdate(
+export async function applyUpdate(
   ctx: Context,
   id: string,
   patch: Partial<Pick<Defect, 'title' | 'severity' | 'status' | 'description'>> & { details?: Partial<DefectDetails> },

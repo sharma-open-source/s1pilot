@@ -151,6 +151,36 @@ describe('DefectsPage', () => {
     await waitFor(() => expect(onSearch).toHaveBeenCalledWith({ defect: 'dNew' }));
   });
 
+  it('pushes a new defect to the mapped tracker and shows the sync eyebrow', async () => {
+    const user = userEvent.setup();
+    const mapping = { provider: 'jira', jiraProject: 'SHOP', connected: true, label: 'Jira project SHOP' };
+    const { fake } = renderPage(
+      { fromResult: 'cr1', step: 2 },
+      { 'defects.create': () => ({ id: 'dNew' }), 'trackers.mapping': () => mapping, 'trackers.push': () => ({ id: 'dNew' }) },
+    );
+    expect(await screen.findByText(/synced with Jira project SHOP/)).toBeInTheDocument();
+    const aside = await screen.findByRole('complementary', { name: 'Create defect' });
+    const box = await within(aside).findByRole('checkbox', { name: 'Push to Jira · Jira project SHOP' });
+    expect(box).toBeEnabled();
+    expect(box).toBeChecked();
+    await user.click(within(aside).getByRole('button', { name: 'Create defect' }));
+    await waitFor(() => expect(fake.calls.find((c) => c.path === 'trackers.push')?.input).toBe('dNew'));
+  });
+
+  it('offers a Push button for an unpushed defect', async () => {
+    const mapping = { provider: 'jira', jiraProject: 'SHOP', connected: true, label: 'Jira project SHOP' };
+    renderPage({ defect: 'd1' }, { 'trackers.mapping': () => mapping });
+    expect(await screen.findByRole('button', { name: 'Push to Jira' })).toBeEnabled();
+  });
+
+  it('links the pushed issue in the detail panel', async () => {
+    const pushed = { ...DETAIL, defect: { ...DETAIL.defect, external: { provider: 'jira', id: 'SHOP-12', url: 'https://jira.test/SHOP-12' } } };
+    renderPage({ defect: 'd1' }, { 'defects.get': () => pushed });
+    await screen.findByRole('button', { name: 'Close defect' });
+    const aside = screen.getByRole('complementary', { name: 'Defect detail' });
+    expect(within(aside).getByRole('link', { name: 'SHOP-12 ↗' })).toHaveAttribute('href', 'https://jira.test/SHOP-12');
+  });
+
   it('creates a manual defect without a result', async () => {
     const user = userEvent.setup();
     const { fake } = renderPage({ new: true }, { 'defects.create': () => ({ id: 'dNew' }) });

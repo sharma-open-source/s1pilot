@@ -100,3 +100,15 @@ export function gitlabSnippet(opts: { server: string; plan?: string | undefined;
     '    # S1PILOT_TOKEN: set as a masked CI/CD variable',
   ].join('\n');
 }
+
+export type TrackerProvider = 'jira' | 'github' | 'linear';
+
+/** Issue tracker cards (S-064); they replace the Jira and "Linear · GitHub Issues" placeholders of `INTEGRATIONS`. */
+export const TRACKERS = [
+  { provider: 'jira', name: 'Jira', description: 'Push defects, sync status, link requirements', tokenLabel: 'API token', help: 'Jira Cloud. Create an API token in your Atlassian account and enter it with the account email.' },
+  { provider: 'github', name: 'GitHub Issues', description: 'Push defects to a repository, close to re-test', tokenLabel: 'Personal access token', help: 'Token with permission to create issues in the repository.' },
+  { provider: 'linear', name: 'Linear', description: 'Push defects to a team, sync status', tokenLabel: 'API key', help: 'Personal API key from Linear settings.' },
+] as const satisfies ReadonlyArray<{ provider: TrackerProvider; name: string; description: string; tokenLabel: string; help: string }>;
+
+/** Placeholder names in `INTEGRATIONS` replaced by the tracker cards. */
+export const TRACKER_PLACEHOLDERS: readonly string[] = ['Jira', 'Linear · GitHub Issues'];

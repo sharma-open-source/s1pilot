@@ -20,6 +20,7 @@ import { sharedStepsRouter } from './routers/shared-steps.js';
 import { suitesRouter } from './routers/suites.js';
 import { syncStatusProcedure } from './routers/sync-status.js';
 import { tokensRouter } from './routers/tokens.js';
+import { trackersRouter } from './routers/trackers.js';
 import { triggersRouter } from './routers/triggers.js';
 import { workspaceRouter } from './routers/workspace.js';
 import { createCallerFactory, publicProcedure, router, trpcCodeFor } from './trpc.js';
@@ -53,6 +54,7 @@ export const appRouter = router({
   calibration: calibrationRouter,
   auth: authRouter,
   tokens: tokensRouter,
+  trackers: trackersRouter,
   workspace: workspaceRouter,
   notifications: notificationsRouter,
 });

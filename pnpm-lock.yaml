@@ -398,9 +398,15 @@ importers:
 
   packages/integrations:
     dependencies:
+      '@s1pilot/domain':
+        specifier: workspace:^
+        version: link:../domain
       nodemailer:
         specifier: ^6
         version: 6.10.1
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
       '@types/nodemailer':
         specifier: ^6

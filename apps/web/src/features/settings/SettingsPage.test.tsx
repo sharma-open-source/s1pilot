@@ -83,8 +83,7 @@ describe('SettingsPage', () => {
     expect(links[0]).toHaveTextContent('General');
     expect(links[2]).toHaveAttribute('aria-current', 'page');
     expect(links[4]).toHaveTextContent('team mode');
-    expect(screen.getAllByText('Not connected')).toHaveLength(8);
-    expect(screen.getByRole('button', { name: /Configure Jira/ })).toBeDisabled();
+    expect(screen.getAllByText('Not connected')).toHaveLength(9);
     expect(await screen.findByRole('region', { name: 'CLI command' })).toHaveTextContent('--server http://localhost');
     expect(screen.getByText('Available in team mode (Postgres + SSO)')).toBeInTheDocument();
   });
@@ -99,7 +98,7 @@ describe('SettingsPage', () => {
       }),
     });
     expect(await screen.findByText('Connected')).toBeInTheDocument();
-    expect(screen.getAllByText('Not connected')).toHaveLength(7);
+    expect(screen.getAllByText('Not connected')).toHaveLength(8);
     const buttons = screen.getAllByRole('button', { name: 'Configure' });
     await user.click(buttons[0] as HTMLElement);
     const snippet = await screen.findByRole('region', { name: 'GitHub Actions workflow' });
@@ -197,5 +196,31 @@ describe('SettingsPage', () => {
     expect(await screen.findByText('worker-1')).toBeInTheDocument();
     expect(screen.getByText('job j1 · run r1')).toBeInTheDocument();
     expect(screen.getByText('Idle')).toBeInTheDocument();
+  });
+
+  it('connects GitHub Issues with a write-only token and lists the connected tracker', async () => {
+    const user = userEvent.setup();
+    const list = [
+      { provider: 'jira', connected: true, baseUrl: 'https://acme.atlassian.net', email: 'qa@acme.test', webhookEnabled: false, updatedAt: 't' },
+      { provider: 'github', connected: false, baseUrl: null, email: null, webhookEnabled: false, updatedAt: null },
+      { provider: 'linear', connected: false, baseUrl: null, email: null, webhookEnabled: false, updatedAt: null },
+    ];
+    const { fake } = renderPage('integrations', {
+      'trackers.list': () => list,
+      'trackers.test': () => ({ ok: true, detail: 'Signed in as quinn' }),
+      'trackers.connect': () => ({ ...list[1], connected: true, detail: 'Signed in as quinn' }),
+    });
+    expect(await screen.findByRole('button', { name: 'Configure Jira' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Connect GitHub Issues' }));
+    const token = await screen.findByLabelText('Personal access token');
+    expect(token).toHaveAttribute('type', 'password');
+    await user.type(token, 'ghp_secret');
+    await user.click(screen.getByRole('button', { name: 'Test connection' }));
+    expect(await screen.findByText('Signed in as quinn')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save connection' }));
+    await waitFor(() => expect(fake.calls.find((c) => c.path === 'trackers.connect')?.input).toEqual({ provider: 'github', token: 'ghp_secret' }));
+    expect(await screen.findByText('Connected. Signed in as quinn')).toBeInTheDocument();
+    // The token is cleared from the form after saving.
+    expect(screen.getByLabelText('Personal access token')).toHaveValue('');
   });
 });
