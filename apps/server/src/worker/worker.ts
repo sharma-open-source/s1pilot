@@ -10,14 +10,17 @@ import {
   type JobQueue,
 } from '@s1pilot/db';
 import {
+  FLAKY_WINDOW,
   ModelSettingsSchema,
   S1PilotError,
   createRedactor,
+  flakinessScore,
+  type CaseRunResult,
   type Environment,
   type RunEvent,
   type SharedStep,
 } from '@s1pilot/domain';
-import { launchBrowser, runCases, type RunCasesInput, type RunnerEvent } from '@s1pilot/runner';
+import { deviceContextOptions, launchBrowser, runCases, type RunCasesInput, type RunnerEvent } from '@s1pilot/runner';
 import type { FastifyBaseLogger } from 'fastify';
 
 import { ingestCaseArtifacts } from '../artifacts/ingest.js';
@@ -93,6 +96,8 @@ export class WorkerPool {
   private readonly browsers = new Map<string, Promise<Browser>>();
   private readonly opts: Required<Pick<WorkerPoolOptions, 'pollMs' | 'leaseMs' | 'heartbeatMs'>> &
     WorkerPoolOptions;
+  private readonly runSlots = new Map<string, { active: number; cap: number }>();
+  private claimChain: Promise<unknown> = Promise.resolve();
   private seq = 0;
 
   constructor(opts: WorkerPoolOptions) {
@@ -178,7 +183,7 @@ export class WorkerPool {
           );
           if (job.status === 'failed' && job.runId) await lifecycle.finalize(job.runId);
         }
-        const job = await queue.claim(w.id, { types: [RUN_CASE_JOB], leaseMs: this.opts.leaseMs });
+        const job = await this.claimNext(w);
         if (!job) {
           await this.sleep(w, this.opts.pollMs);
           continue;
@@ -189,6 +194,42 @@ export class WorkerPool {
         await this.sleep(w, this.opts.pollMs);
       }
     }
+  }
+
+  /**
+   * Claims the next job whose run is below its parallelism cap (plan `parallelism`, further capped by the number
+   * of server workers). Claims are serialised so the slot is taken before another worker looks.
+   */
+  private claimNext(w: WorkerState): Promise<Job | undefined> {
+    const claim = this.claimChain.then(async () => {
+      const full = [...this.runSlots].filter(([, s]) => s.active >= s.cap).map(([id]) => id);
+      const job = await this.opts.queue.claim(w.id, {
+        types: [RUN_CASE_JOB],
+        leaseMs: this.opts.leaseMs,
+        ...(full.length > 0 ? { excludeRunIds: full } : {}),
+      });
+      if (job?.runId) {
+        const parsed = RunCaseJobPayloadSchema.safeParse(job.payload);
+        const cap = Math.max(1, Math.min(parsed.success ? (parsed.data.parallelism ?? Infinity) : Infinity, this.size));
+        const slot = this.runSlots.get(job.runId) ?? { active: 0, cap };
+        slot.active++;
+        slot.cap = cap;
+        this.runSlots.set(job.runId, slot);
+      }
+      return job;
+    });
+    this.claimChain = claim.then(
+      () => undefined,
+      () => undefined,
+    );
+    return claim;
+  }
+
+  private releaseSlot(runId: string | undefined): void {
+    const slot = runId ? this.runSlots.get(runId) : undefined;
+    if (!runId || !slot) return;
+    slot.active--;
+    if (slot.active <= 0) this.runSlots.delete(runId);
   }
 
   private async process(w: WorkerState, job: Job): Promise<void> {
@@ -222,6 +263,7 @@ export class WorkerPool {
     } finally {
       clearInterval(heartbeat);
       this.active.delete(job.id);
+      this.releaseSlot(job.runId);
     }
     if (!w.crashed && job.runId) await lifecycle.finalize(job.runId);
   }
@@ -234,6 +276,14 @@ export class WorkerPool {
       browser.catch(() => this.browsers.delete(name));
     }
     return browser;
+  }
+
+  /** Recomputes and stores the flakiness score of a case: the worst score over its environment/browser targets. */
+  private async updateFlakiness(caseId: string): Promise<void> {
+    const { db } = this.opts;
+    const byTarget = await repos.results.finalVerdictsByTarget(db, caseId, FLAKY_WINDOW);
+    const score = Math.max(0, ...[...byTarget.values()].map((v) => flakinessScore(v)));
+    await repos.cases.setFlakiness(db, caseId, score);
   }
 
   /** Runs one `run-case` job: builds the engine context from the database, runs the case, persists results. */
@@ -255,7 +305,10 @@ export class WorkerPool {
       throw new S1PilotError('PROJECT_NOT_FOUND', `Project not found: ${payload.projectId}`);
 
     await lifecycle.markRunning(runId, (await this.opts.queue.listByRun(runId)).length);
-    if (job.attempts > 1) await lifecycle.discardCase(runId, testCase.id);
+    if (job.attempts > 1) {
+      await lifecycle.discardCase(runId, testCase.id, { environmentId: environment.id, browser: payload.browser });
+    }
+    if (payload.device) deviceContextOptions(payload.device, payload.browser);
 
     const workspace = ModelSettingsSchema.safeParse(
       await repos.settings.get(db, WORKSPACE_MODEL_KEY),
@@ -275,7 +328,8 @@ export class WorkerPool {
       secrets: vars.secretValues(),
       patterns: project.dataPolicy.redactPatterns,
     });
-    const models = (this.opts.createModels ?? createModelFactory())(settings, redactor);
+    // Models are built per attempt so a retry starts with fresh model state.
+    const buildModels = (): ReturnType<ModelFactory> => (this.opts.createModels ?? createModelFactory())(settings, redactor);
 
     const flows = await repos.sharedSteps.listByProject(db, project.id);
     const flowMap = new Map<string, SharedStep>(
@@ -284,6 +338,13 @@ export class WorkerPool {
 
     const browser = await this.getBrowser(payload.browser);
     if (signal.aborted) return;
+
+    // Retries (S-051): a failed or blocked instance runs again; each attempt is recorded with all its evidence.
+    const maxAttempts = (payload.retries ?? 0) + 1;
+    let attempt = 1;
+    /** Parameter rows that failed in an earlier attempt: passing now makes them `flaky`. */
+    const failedRows = new Set<number>();
+    let attemptResults: CaseRunResult[] = [];
 
     const ts = (): string => new Date().toISOString();
     const store = this.opts.artifacts ?? new FsArtifactStore(db, config.artifactsDir);
@@ -324,17 +385,22 @@ export class WorkerPool {
           });
           break;
         case 'case.finished': {
-          const result = event.result;
+          attemptResults.push(event.result);
+          const result: CaseRunResult =
+            attempt > 1 && event.result.verdict === 'passed' && failedRows.has(event.result.row)
+              ? { ...event.result, verdict: 'flaky' }
+              : event.result;
+          const thisAttempt = attempt;
           chain = chain.then(async () => {
             if (signal.aborted) return;
             await lifecycle.recordCase({
               runId,
               testCase,
               environmentId: environment.id,
-              attempt: job.attempts,
+              attempt: thisAttempt,
               result,
             });
-            await ingestCaseArtifacts({ db, store, projectId: project.id, workDir, result });
+            await ingestCaseArtifacts({ db, store, projectId: project.id, workDir: join(workDir, `attempt-${thisAttempt}`), result });
             bus.emit({
               type: 'case.finished',
               runId,
@@ -354,13 +420,14 @@ export class WorkerPool {
     try {
       const session = this.opts.human?.openSession({ runId, projectId: project.id, signal });
       const scripts = createDbLearnedScriptStore(db);
-      await runCases({
+      const runOnce = (): Promise<unknown> => runCases({
         cases: [testCase],
         environment: environment as Environment,
         browser,
         browserName: payload.browser,
+        ...(payload.device ? { device: payload.device } : {}),
         mode: payload.mode,
-        models,
+        models: buildModels(),
         stores: {
           // A human who approved a step with "don't save" keeps the explored path out of the learned script.
           scripts: session
@@ -376,7 +443,7 @@ export class WorkerPool {
         attended: payload.attended,
         ...(session && payload.attended ? { human: session.hook } : {}),
         ...(session ? { beforeStep: session.beforeStep } : {}),
-        out: workDir,
+        out: join(workDir, `attempt-${attempt}`),
         ...(this.opts.capture ? { capture: this.opts.capture } : {}),
         vars,
         redactor,
@@ -396,8 +463,27 @@ export class WorkerPool {
               },
             }
           : {}),
-      }).finally(() => session?.close());
-      await chain;
+      });
+      try {
+        for (; attempt <= maxAttempts; attempt++) {
+          attemptResults = [];
+          await runOnce();
+          await chain;
+          const failed = attemptResults.filter((r) => r.verdict === 'failed' || r.verdict === 'blocked');
+          if (failed.length === 0 || signal.aborted || attempt === maxAttempts) break;
+          for (const r of failed) failedRows.add(r.row);
+          bus.emit({
+            type: 'log',
+            runId,
+            ts: ts(),
+            level: 'info',
+            message: `${testCase.key} failed (attempt ${attempt} of ${maxAttempts}); retrying`,
+          });
+        }
+      } finally {
+        session?.close();
+      }
+      if (!signal.aborted) await this.updateFlakiness(testCase.id);
     } finally {
       await rm(workDir, { recursive: true, force: true }).catch(() => undefined);
     }

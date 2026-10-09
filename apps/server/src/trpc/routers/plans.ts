@@ -49,6 +49,8 @@ export interface PlanExpansion {
   matched: TestCase[];
   /** Matched cases that will run (quarantined removed unless included). */
   runnable: TestCase[];
+  /** Matched cases left out because they are quarantined (empty when quarantined cases are included). */
+  skippedQuarantined: TestCase[];
   quarantined: number;
   learned: number;
   notLearned: number;
@@ -59,14 +61,9 @@ export interface PlanExpansion {
   estimateMin: number;
 }
 
-/**
- * Ids of quarantined cases in a project.
- * TODO(S-051): read the quarantine state once flaky detection / quarantine exists.
- */
+/** Ids of quarantined cases in a project (S-051). */
 export async function quarantinedCaseIds(ctx: Context, projectId: string): Promise<string[]> {
-  void ctx;
-  void projectId;
-  return [];
+  return ctx.repos.cases.quarantinedIds(ctx.db, projectId);
 }
 
 /**
@@ -178,6 +175,7 @@ export async function expandPlan(
   return {
     matched,
     runnable,
+    skippedQuarantined: matched.filter((c) => !runnable.includes(c)),
     quarantined: matched.filter((c) => quarantinedSet.has(c.id)).length,
     learned: matched.filter((c) => learnedIds.has(c.id)).length,
     notLearned: matched.filter((c) => !learnedIds.has(c.id)).length,

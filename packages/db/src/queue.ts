@@ -1,5 +1,5 @@
 import { newId } from '@s1pilot/domain';
-import { and, asc, eq, inArray, lt } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lt, notInArray, or, type SQL } from 'drizzle-orm';
 
 import { atomic, type Db } from './db.js';
 import { jobs as t } from './schema/index.js';
@@ -40,6 +40,8 @@ export interface ClaimOptions {
   types?: string[];
   /** Lease length; the worker must {@link JobQueue.heartbeat} before it ends. Default 30 s. */
   leaseMs?: number;
+  /** Do not claim jobs of these runs (the pool uses it to honour per-run parallelism caps). */
+  excludeRunIds?: string[];
 }
 
 /**
@@ -138,10 +140,15 @@ export function createSqliteJobQueue(db: Db, now: () => Date = () => new Date())
     async claim(workerId, opts = {}) {
       reap();
       return atomic(db, () => {
+        const conditions: (SQL | undefined)[] = [eq(t.status, 'queued')];
+        if (opts.types) conditions.push(inArray(t.type, opts.types));
+        if (opts.excludeRunIds && opts.excludeRunIds.length > 0) {
+          conditions.push(or(isNull(t.runId), notInArray(t.runId, opts.excludeRunIds)));
+        }
         const next = db.orm
           .select()
           .from(t)
-          .where(opts.types ? and(eq(t.status, 'queued'), inArray(t.type, opts.types)) : eq(t.status, 'queued'))
+          .where(and(...conditions))
           .orderBy(asc(t.createdAt), asc(t.id))
           .limit(1)
           .get();

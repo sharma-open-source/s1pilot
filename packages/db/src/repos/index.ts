@@ -46,6 +46,7 @@ export type { LearnedScriptsRepo } from './learned-scripts.js';
 export type { PlansRepo } from './plans.js';
 export type { ProjectsRepo } from './projects.js';
 export type { RequirementsRepo } from './requirements.js';
+export { finalAttempts } from './results.js';
 export type { ResultsRepo } from './results.js';
 export type { ReviewsRepo } from './reviews.js';
 export type { RunsRepo } from './runs.js';

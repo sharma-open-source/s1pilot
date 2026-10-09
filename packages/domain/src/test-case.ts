@@ -108,6 +108,12 @@ export const TestCaseSchema = z.object({
   suiteId: IdSchema.optional(),
   version: z.number().int().min(1).default(1),
   ...caseFields,
+  /** Quarantined cases are excluded from plan runs by default (S-051). Absent means not quarantined. */
+  quarantined: z.boolean().optional(),
+  quarantineReason: z.string().optional(),
+  quarantinedAt: IsoTimestampSchema.optional(),
+  /** Flakiness score 0..1 over the last executions (S-051). Absent means not computed yet. */
+  flakiness: z.number().min(0).max(1).optional(),
   createdAt: IsoTimestampSchema.optional(),
   updatedAt: IsoTimestampSchema.optional(),
 });

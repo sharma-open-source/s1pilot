@@ -10,7 +10,7 @@ import { fromRow } from './util.js';
 export interface QuerySqlContext {
   /** Ids of every suite named `name` (case-insensitive) and all their descendants. */
   suiteIds(name: string): string[];
-  /** Ids of quarantined cases. TODO(S-051): fed from quarantine state once it exists. */
+  /** Ids of quarantined cases (`repos.cases.quarantinedIds`). */
   quarantinedIds: string[];
 }
 

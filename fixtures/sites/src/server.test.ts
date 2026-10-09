@@ -73,6 +73,28 @@ describe('flag switching', () => {
     return JSON.parse(match?.[1] ?? '{}') as { bugs: string[]; variants: string[] };
   };
 
+  it('shop.flaky-badge applies the badge bug to every second browser session', async () => {
+    const server = await startFixtureServer({ bugs: ['shop.flaky-badge'] });
+    try {
+      const badge = async (cookie?: string): Promise<{ bad: boolean; cookie: string }> => {
+        const res = await fetch(`${server.url}/shop`, { headers: cookie ? { cookie } : {} });
+        const set = (res.headers.getSetCookie() ?? []).map((c) => c.split(';')[0]).join('; ');
+        return { bad: flagsIn(await res.text()).bugs.includes('shop.badge-wrong-count'), cookie: cookie ?? set };
+      };
+      const s1 = await badge();
+      const s2 = await badge();
+      const s3 = await badge();
+      expect([s1.bad, s2.bad, s3.bad]).toEqual([true, false, true]);
+      // A session keeps its behaviour, and unrelated requests do not start sessions.
+      expect((await badge(s1.cookie)).bad).toBe(true);
+      expect((await badge(s2.cookie)).bad).toBe(false);
+      await fetch(`${server.url}/favicon.ico`);
+      expect((await badge()).bad).toBe(false);
+    } finally {
+      await server.close();
+    }
+  });
+
   it('honours options, ?bugs= (remembered in a cookie) and headers', async () => {
     const server = await startFixtureServer({ bugs: ['forms.error-not-shown'] });
     try {

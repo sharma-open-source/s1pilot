@@ -5,6 +5,7 @@ export * from './defect.js';
 export * from './environment.js';
 export * from './errors.js';
 export * from './events.js';
+export * from './flaky.js';
 export * from './ids.js';
 export * from './learned-script.js';
 export * from './logger.js';

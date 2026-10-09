@@ -3,6 +3,8 @@ export const BUG_IDS = [
   'shop.zip-validation-missing',
   'shop.cart-empties-on-reload',
   'shop.badge-wrong-count',
+  /** Nondeterministic: the badge bug applies to every second browser session (1st, 3rd, ...), tracked per server. */
+  'shop.flaky-badge',
   'forms.error-not-shown',
   'settings.save-silently-fails',
 ] as const;

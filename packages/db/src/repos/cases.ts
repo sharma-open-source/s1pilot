@@ -163,6 +163,51 @@ export const cases = {
     return (await this.get(db, id)) as TestCase;
   },
 
+  /**
+   * Quarantines a case with a reason, or lifts the quarantine (`reason: null`). Does not bump the version:
+   * quarantine is operational state, not content.
+   */
+  async setQuarantine(db: Db, id: string, reason: string | null): Promise<TestCase> {
+    const res = db.orm
+      .update(t)
+      .set(
+        reason === null
+          ? { quarantined: false, quarantineReason: null, quarantinedAt: null }
+          : { quarantined: true, quarantineReason: reason, quarantinedAt: nowIso() },
+      )
+      .where(eq(t.id, id))
+      .run();
+    if (res.changes === 0) return notFound('TestCase', id);
+    return (await this.get(db, id)) as TestCase;
+  },
+
+  /** Ids of the quarantined cases of a project. */
+  async quarantinedIds(db: Db, projectId: string): Promise<string[]> {
+    return db.orm
+      .select({ id: t.id })
+      .from(t)
+      .where(and(eq(t.projectId, projectId), eq(t.quarantined, true)))
+      .all()
+      .map((r) => r.id);
+  },
+
+  /** Stores the flakiness score (0..1) of a case. Does not bump the version. */
+  async setFlakiness(db: Db, id: string, score: number): Promise<void> {
+    db.orm.update(t).set({ flakiness: score }).where(eq(t.id, id)).run();
+  },
+
+  /** Cases with a flakiness score above 0, most flaky first (ties by case number). */
+  async listFlaky(db: Db, projectId: string, limit = 20): Promise<TestCase[]> {
+    return db.orm
+      .select()
+      .from(t)
+      .where(and(eq(t.projectId, projectId), sql`${t.flakiness} > 0`))
+      .orderBy(desc(t.flakiness), t.number)
+      .limit(limit)
+      .all()
+      .map((row) => fromRow(TestCaseSchema, row));
+  },
+
   /** All versions of a case, newest first (the first entry is the current version). */
   async history(db: Db, id: string): Promise<TestCase[]> {
     return db.orm

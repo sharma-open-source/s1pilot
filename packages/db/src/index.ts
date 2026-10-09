@@ -1,6 +1,6 @@
 export { atomic, identityCrypto, openDb, withTx } from './db.js';
 export type { Db, OpenDbOptions, SecretCrypto } from './db.js';
-export { repos } from './repos/index.js';
+export { repos, finalAttempts } from './repos/index.js';
 export type * from './repos/index.js';
 export * as schema from './schema/index.js';
 export { resolveVariables } from './variables.js';

@@ -21,6 +21,19 @@ import {
 
 import { fromRow, notFound } from './util.js';
 
+/**
+ * Keeps the final attempt of every case instance group (case x environment x browser) of one run; earlier
+ * attempts (retries) are evidence only and do not count in summaries.
+ */
+export function finalAttempts<T extends { caseId: string; environmentId?: string | undefined; browser?: string | undefined; attempt: number }>(
+  rows: readonly T[],
+): T[] {
+  const max = new Map<string, number>();
+  const key = (r: T): string => `${r.caseId}|${r.environmentId ?? ''}|${r.browser ?? ''}`;
+  for (const r of rows) max.set(key(r), Math.max(max.get(key(r)) ?? 0, r.attempt));
+  return rows.filter((r) => r.attempt === max.get(key(r)));
+}
+
 export type CaseResultInput = z.input<typeof CaseResultSchema>;
 export type StepResultInput = z.input<typeof StepResultSchema>;
 
@@ -82,6 +95,31 @@ export const results = {
       if (out.has(r.caseId)) continue;
       out.set(r.caseId, { ...fromRow(CaseResultSchema, r), ...(startedAt ? { startedAt } : {}) });
     }
+    return out;
+  },
+
+  /**
+   * Final verdicts of a case per environment and browser, oldest first (latest attempts only, skipped
+   * results included). Input of the flakiness score; at most `limit` per group.
+   */
+  async finalVerdictsByTarget(db: Db, caseId: string, limit = 20): Promise<Map<string, CaseResult['verdict'][]>> {
+    const rows = db.orm
+      .select({ r: cr, startedAt: tr.startedAt })
+      .from(cr)
+      .innerJoin(tr, eq(cr.runId, tr.id))
+      .where(eq(cr.caseId, caseId))
+      .orderBy(asc(tr.startedAt), asc(cr.runId))
+      .all();
+    const byRun = new Map<string, CaseResult[]>();
+    for (const { r } of rows) byRun.set(r.runId, [...(byRun.get(r.runId) ?? []), fromRow(CaseResultSchema, r)]);
+    const out = new Map<string, CaseResult['verdict'][]>();
+    for (const list of byRun.values()) {
+      for (const r of finalAttempts(list)) {
+        const key = `${r.environmentId ?? ''}|${r.browser ?? ''}`;
+        out.set(key, [...(out.get(key) ?? []), r.verdict]);
+      }
+    }
+    for (const [key, v] of out) out.set(key, v.slice(-limit));
     return out;
   },
 
