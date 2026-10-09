@@ -8,7 +8,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 
 | Date | Spec | Change | Notes |
 |---|---|---|---|
-| 2026-10-09 | S-057 | todo → done | Analytics API + UI (sub-agent). Migration 0009 (`analytics_daily` rollup + indexes `test_runs(project_id, started_at)`, `case_results(run_id, case_id, attempt)`). |
+| 2026-10-09 | S-057 | todo → done | Analytics API + UI (sub-agent). Migration 0010 (`analytics_daily` rollup + indexes `test_runs(project_id, started_at)`, `case_results(run_id, case_id, attempt)`). |
 | 2026-10-09 | S-056 | todo → done | Exit criteria evaluation, run report tile, sign-off, PDF export (sub-agent). No migration. |
 | 2026-10-09 | S-055 | todo → done | Manual / hybrid execution (API + UI, sub-agent). Migration 0009 (renumber if it collides with S-056). |
 | 2026-10-09 | S-054 | todo → done | Defects API + UI (sub-agent). Migration 0008 (`defects.seq`, `defects.details`). |
