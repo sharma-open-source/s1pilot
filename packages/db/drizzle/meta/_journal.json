@@ -71,6 +71,13 @@
       "when": 1791537310595,
       "tag": "0009_manual_execution",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1791539553817,
+      "tag": "0010_analytics_daily",
+      "breakpoints": true
     }
   ]
 }

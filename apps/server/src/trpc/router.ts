@@ -1,5 +1,6 @@
 import { getVersion } from '../version.js';
 
+import { analyticsRouter } from './routers/analytics.js';
 import { authRouter } from './routers/auth.js';
 import { casesRouter } from './routers/cases.js';
 import { dashboardRouter } from './routers/dashboard.js';
@@ -44,6 +45,7 @@ export const appRouter = router({
   manual: manualRouter,
   syncStatus: syncStatusProcedure,
   dashboard: dashboardRouter,
+  analytics: analyticsRouter,
   auth: authRouter,
 });
 

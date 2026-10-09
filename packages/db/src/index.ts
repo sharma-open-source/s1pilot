@@ -12,3 +12,5 @@ export type { ClaimOptions, Job, JobQueue, JobStatus, NewJob } from './queue.js'
 export { createDbLearnedScriptStore } from './repos/index.js';
 export { buildQuerySqlContext, listCasesByQuery, queryToSql } from './repos/case-query.js';
 export type { QuerySqlContext } from './repos/case-query.js';
+export { LATENCY_EDGES_MS, histogramPercentile, latencyBucket, nextDay } from './repos/analytics.js';
+export type { AnalyticsDayRow, AnalyticsFilter } from './repos/analytics.js';
