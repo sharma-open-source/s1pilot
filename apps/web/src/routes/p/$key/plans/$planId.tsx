@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { PlaceholderPage } from '@/components/app/PageHeader';
+import { PlanBuilderPage } from '@/features/plans/PlanBuilderPage';
 
 export const Route = createFileRoute('/p/$key/plans/$planId')({
-  component: () => <PlaceholderPage title="Test plan" spec="S-050" />,
+  component: () => {
+    const { key, planId } = Route.useParams();
+    return <PlanBuilderPage projectKey={key} planId={planId} />;
+  },
 });

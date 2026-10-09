@@ -1,7 +1,9 @@
+import type { MatrixEntry } from '@s1pilot/domain';
 import { useState, type ReactNode } from 'react';
 
 import { CapabilityGrid } from './CapabilityGrid';
 import { DecisionPanel, EventLog, ProbabilityBar, RunProgressBar, StepStatusList } from './live';
+import { MatrixTable } from './MatrixTable';
 import { ModeMixBar } from './ModeMixBar';
 import { PageHeader } from './PageHeader';
 import { ExpectedActual, ResultListItem, ScreenshotTimeline } from './report';
@@ -36,6 +38,7 @@ import {
   type ButtonVariant,
   type PillTone,
 } from '@/components/ui';
+import { changeDevice, toggleCell } from '@/features/plans/model';
 
 
 const VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'ink', 'danger-outline', 'dashed'];
@@ -53,6 +56,8 @@ function Demo({ title, children }: { title: string; children: ReactNode }) {
 /** Dev-only gallery of every shared primitive (`/_dev/components`). Add new shared components here. */
 export function ComponentsDemo() {
   const [seg, setSeg] = useState('failed');
+  const [matrix, setMatrix] = useState<MatrixEntry[]>([{ environmentId: 'stg', browser: 'chromium' }]);
+  const [device, setDevice] = useState('Pixel 7');
   const [dialog, setDialog] = useState(false);
   const [confirm, setConfirm] = useState(false);
   return (
@@ -136,6 +141,22 @@ export function ComponentsDemo() {
             { value: 'review', label: 'Review' },
             { value: 'all', label: 'All' },
           ]}
+        />
+      </Demo>
+
+      <Demo title="MatrixTable">
+        <MatrixTable
+          envs={[
+            { id: 'stg', name: 'staging', readOnly: false, browsers: [] },
+            { id: 'prod', name: 'prod', readOnly: true, browsers: [{ browser: 'chromium' }] },
+          ]}
+          matrix={matrix}
+          device={device}
+          onToggle={(envId, col) => setMatrix((m) => toggleCell(m, envId, col, device))}
+          onDevice={(d) => {
+            setDevice(d);
+            setMatrix((m) => changeDevice(m, d));
+          }}
         />
       </Demo>
 

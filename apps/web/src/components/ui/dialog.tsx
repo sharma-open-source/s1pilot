@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 
 import { Button } from './button';
 
+import { cn } from '@/lib/cn';
+
 export interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -11,15 +13,21 @@ export interface DialogProps {
   children?: ReactNode;
   /** Footer buttons (secondary + primary). */
   footer?: ReactNode;
+  /** Wider panel (720 px) for tables and pickers. */
+  wide?: boolean;
 }
 
 /** Modal built on Radix Dialog with Card styling. */
-export function Dialog({ open, onOpenChange, title, description, children, footer }: DialogProps) {
+export function Dialog({ open, onOpenChange, title, description, children, footer, wide }: DialogProps) {
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="fixed inset-0 bg-ink opacity-40" />
-        <RadixDialog.Content className="fixed left-1/2 top-1/2 flex max-h-[90vh] w-[calc(100vw-32px)] max-w-[480px] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-auto rounded-card border border-line bg-surface p-5">
+        <RadixDialog.Content className={cn(
+            'fixed left-1/2 top-1/2 flex max-h-[90vh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-auto rounded-card border border-line bg-surface p-5',
+            wide === true ? 'max-w-[720px]' : 'max-w-[480px]',
+          )}
+        >
           <RadixDialog.Title className="text-lg font-semibold text-fg">{title}</RadixDialog.Title>
           {description !== undefined ? (
             <RadixDialog.Description className="m-0 text-sm text-secondary">{description}</RadixDialog.Description>

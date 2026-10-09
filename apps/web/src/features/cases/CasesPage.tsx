@@ -1,6 +1,8 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 
+import { AddToPlanDialog } from '../plans/AddToPlanDialog';
+
 import { fieldValue, quoteValue, setFieldTerm } from './query';
 import { RunLauncherDialog } from './RunLauncherDialog';
 import { flattenSuites, SuiteTree } from './SuiteTree';
@@ -269,6 +271,7 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
   const n = selected.size;
   const [tagOpen, setTagOpen] = useState(false);
   const [runOpen, setRunOpen] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
 
   const create = trpc.cases.create.useMutation({
     onSuccess: (c) => navigate(`/p/${encodeURIComponent(projectKey)}/cases/${encodeURIComponent(c.key)}`),
@@ -379,7 +382,7 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
             <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Bulk actions">
               {n > 0 ? <strong>{n} selected</strong> : <span className="text-muted">No cases selected</span>}
               <span aria-hidden="true">·</span>
-              <Button size="sm" disabled title="Adding to a plan arrives with S-049">
+              <Button size="sm" disabled={n === 0} onClick={() => setPlanOpen(true)}>
                 Add to plan
               </Button>
               <DropdownMenu>
@@ -588,6 +591,16 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
         projectKey={projectKey}
         caseKeys={[...selected.values()]}
         onStarted={(runId) => navigate(`/p/${encodeURIComponent(projectKey)}/runs/${encodeURIComponent(runId)}/live`)}
+      />
+      <AddToPlanDialog
+        open={planOpen}
+        onOpenChange={setPlanOpen}
+        projectKey={projectKey}
+        caseIds={ids}
+        onDone={(text) => {
+          setNotice({ tone: 'success', text });
+          setSelected(new Map());
+        }}
       />
     </>
   );
