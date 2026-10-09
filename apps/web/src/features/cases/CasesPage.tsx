@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, 
 import { GenerateFromStory } from '../generate/GenerateFromStory';
 import { ImportWizard } from '../import/ImportWizard';
 import { AddToPlanDialog } from '../plans/AddToPlanDialog';
+import { RecorderDialog } from '../recorder/RecorderDialog';
 
 import { fieldValue, quoteValue, setFieldTerm } from './query';
 import { RunLauncherDialog } from './RunLauncherDialog';
@@ -274,6 +275,7 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
   const [tagOpen, setTagOpen] = useState(false);
   const [runOpen, setRunOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
+  const [recordOpen, setRecordOpen] = useState(false);
 
   const create = trpc.cases.create.useMutation({
     onSuccess: (c) => navigate(`/p/${encodeURIComponent(projectKey)}/cases/${encodeURIComponent(c.key)}`),
@@ -308,11 +310,9 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
       title="Test cases"
       actions={
         <>
-        <Button onClick={() => setImporting(true)}>Import</Button>
+          <Button onClick={() => setImporting(true)}>Import</Button>
           <GenerateFromStory projectKey={projectKey} navigate={navigate} {...(suiteId !== undefined ? { suiteId } : {})} />
-          <Button disabled title="Recording arrives with S-060">
-            Record in browser
-          </Button>
+          <Button onClick={() => setRecordOpen(true)}>Record in browser</Button>
           <Button
             variant="primary"
             disabled={create.isPending}
@@ -584,6 +584,16 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
             },
           )
         }
+      />
+      <RecorderDialog
+        open={recordOpen}
+        onOpenChange={setRecordOpen}
+        projectKey={projectKey}
+        {...(suiteId !== undefined ? { suiteId } : {})}
+        onSaved={(r) => {
+          void utils.cases.invalidate();
+          navigate(`/p/${encodeURIComponent(projectKey)}/cases/${encodeURIComponent(r.testCase.key)}`);
+        }}
       />
       <RunLauncherDialog
         open={runOpen}

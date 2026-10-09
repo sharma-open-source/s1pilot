@@ -23,3 +23,32 @@ export type { AuthCheck, AuthRefresher, AuthSetupStore, FlowRefresherOptions, Lo
 export { CaseChecks } from './checks.js';
 export { crawlSite, isAllowedHost, normalizeLink } from './crawl.js';
 export type { CrawlOptions, CrawlResult, CrawledForm, CrawledPage } from './crawl.js';
+export {
+  DEFAULT_GAP_MS,
+  ValueMapper,
+  actionTemplate,
+  describeStepsWithModel,
+  groupTimeline,
+  insertResolved,
+  recordedScript,
+  recordedToResolved,
+  startRecorder,
+  stepInputs,
+  stepTemplate,
+  variableKeyFor,
+} from './recorder/index.js';
+export type {
+  CapturedAction,
+  DraftAction,
+  DraftStep,
+  KnownValues,
+  RecordedKind,
+  RecordedStepInput,
+  RecorderHandle,
+  RecorderOptions,
+  RecorderSnapshot,
+  RecordingDraft,
+  StepGroup,
+  TimelineItem,
+  VariableProposal,
+} from './recorder/index.js';

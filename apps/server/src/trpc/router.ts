@@ -14,6 +14,7 @@ import { modelsRouter } from './routers/models.js';
 import { notificationsRouter } from './routers/notifications.js';
 import { plansRouter } from './routers/plans.js';
 import { projectsRouter } from './routers/projects.js';
+import { recorderRouter } from './routers/recorder.js';
 import { requirementsRouter } from './routers/requirements.js';
 import { reviewsRouter } from './routers/reviews.js';
 import { resultsRouter } from './routers/run-report.js';
@@ -61,6 +62,7 @@ export const appRouter = router({
   workspace: workspaceRouter,
   notifications: notificationsRouter,
   imports: importsRouter,
+  recorder: recorderRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -99,7 +99,8 @@ describe('CasesPage', () => {
     expect(await screen.findByText('SHOP-TC-1')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Test cases' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Import' })).toBeEnabled();
-    for (const name of ['Generate from story · S2', 'Record in browser']) expect(screen.getByRole('button', { name })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Record in browser' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Generate from story · S2' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'New test case' })).toBeEnabled();
     expect(screen.getByRole('complementary', { name: 'Suites' })).toBeInTheDocument();
     expect(await screen.findByText(/Synced with/)).toHaveTextContent('.s1pilot/ in git · clean');

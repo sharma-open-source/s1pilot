@@ -135,7 +135,7 @@ describe('CaseEditorPage', () => {
     expect(screen.getByText('url ~ /checkout/payment')).toBeInTheDocument();
     expect(screen.getByLabelText('Inputs of step 3')).toHaveValue('shipping_name, shipping_zip');
     for (const name of ['+ Add step', '+ Insert shared step']) expect(screen.getByRole('button', { name })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Record steps from here' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Record steps from here' })).toBeEnabled();
     const aside = screen.getByRole('complementary', { name: 'Case details' });
     expect(within(aside).getByLabelText('Priority')).toHaveValue('P1');
     expect(within(aside).getByText('checkout')).toBeInTheDocument();
