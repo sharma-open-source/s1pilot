@@ -6,6 +6,7 @@ import {
   PlanChecksSchema,
   newId,
   type BrowserName,
+  type CaseResult,
   type CaseRunResult,
   type ExecutionMode,
   type RunStatus,
@@ -51,6 +52,20 @@ export const isTerminalRunStatus = (status: RunStatus): boolean => TERMINAL.has(
 const stepStatus = (s: StepReport): StepResult['status'] =>
   s.verdict === 'passed' || s.verdict === 'failed' || s.verdict === 'blocked' || s.verdict === 'skipped' ? s.verdict : 'blocked';
 
+/** A finished manual execution to persist (see {@link RunLifecycle.recordManualCase}). */
+export interface ManualCaseRecord {
+  runId: string;
+  testCase: TestCase;
+  environmentId?: string;
+  browser?: BrowserName;
+  caseResultId: string;
+  verdict: CaseResult['verdict'];
+  durationMs: number;
+  /** Why the case was not executed (`skipped by tester`). */
+  reason?: string;
+  steps: { index: number; status: StepResult['status']; actionTaken?: string; evidence: StepResult['evidence'] }[];
+}
+
 /** Run state machine: `queued → running → passed | failed | needs-review | cancelled | error`. */
 export interface RunLifecycle {
   /** Serialises state changes of one run (awaits inside repos could otherwise interleave). */
@@ -66,6 +81,11 @@ export interface RunLifecycle {
   recordSkipped(input: { runId: string; testCase: TestCase; environmentId: string; browser: BrowserName; mode: ExecutionMode; reason: string }): Promise<RunSummary>;
   /** Persists a finished case instance (case, steps, decisions) and updates the summary counts. */
   recordCase(input: { runId: string; testCase: TestCase; environmentId: string; attempt: number; result: CaseRunResult }): Promise<RunSummary>;
+  /**
+   * Persists a finished manual execution as a `manual`-mode case result with its steps and evidence (S-055). A
+   * hybrid AI pre-run result of the same case instance is replaced. Then refreshes the summary.
+   */
+  recordManualCase(input: ManualCaseRecord): Promise<RunSummary>;
   /** Sets the final status once every job of the run is terminal. Returns the status when it was set. */
   finalize(runId: string): Promise<RunStatus | undefined>;
   /** Cancels queued jobs and marks the run `cancelled`; returns the cancelled jobs' ids of running jobs. */
@@ -187,12 +207,54 @@ export function createRunLifecycle(deps: { db: Db; queue: JobQueue; bus: RunEven
         return refreshSummary(runId);
       }),
 
+    recordManualCase: (input) =>
+      lock(input.runId, async () => {
+        const { runId, testCase, environmentId, browser } = input;
+        // A hybrid pre-run of this case instance is superseded by the tester's verdicts.
+        const old = (await repos.results.listCases(db, runId)).filter(
+          (r) => r.caseId === testCase.id && r.environmentId === environmentId && r.browser === browser,
+        );
+        for (const r of old) {
+          db.sqlite.prepare(`DELETE FROM review_items WHERE kind = 'verdict' AND status = 'pending' AND ref_id = ?`).run(r.id);
+          db.sqlite.prepare('DELETE FROM case_results WHERE id = ?').run(r.id);
+        }
+        await repos.results.createCase(db, {
+          id: input.caseResultId,
+          runId,
+          caseId: testCase.id,
+          caseVersion: testCase.version,
+          ...(environmentId ? { environmentId } : {}),
+          ...(browser ? { browser } : {}),
+          attempt: 1,
+          verdict: input.verdict,
+          durationMs: input.durationMs,
+          mode: 'manual',
+          escalations: 0,
+          ...(input.reason ? { reason: input.reason } : {}),
+        });
+        for (const s of input.steps) {
+          await repos.results.addStep(db, {
+            id: newId(),
+            caseResultId: input.caseResultId,
+            stepIndex: s.index,
+            status: s.status,
+            ...(s.actionTaken ? { actionTaken: s.actionTaken } : {}),
+            evidence: s.evidence,
+          });
+        }
+        return refreshSummary(runId);
+      }),
+
     finalize: (runId) =>
       lock(runId, async () => {
         const run = await repos.runs.get(db, runId);
         if (!run || isTerminalRunStatus(run.status)) return undefined;
         const jobs = await queue.listByRun(runId);
-        if (jobs.length === 0 || jobs.some((j) => j.status === 'queued' || j.status === 'running')) return undefined;
+        const manualItems = await repos.manual.listByRun(db, runId);
+        if (jobs.length === 0 && manualItems.length === 0) return undefined;
+        if (jobs.some((j) => j.status === 'queued' || j.status === 'running')) return undefined;
+        // Manual items still waiting for a tester keep the run open (S-055).
+        if (manualItems.some((m) => m.status === 'todo' || m.status === 'in-progress')) return undefined;
         const s = run.summary;
         const status: RunStatus = jobs.some((j) => j.status === 'failed')
           ? 'error'

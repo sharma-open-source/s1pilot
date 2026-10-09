@@ -8,7 +8,9 @@ export interface DefectsSearch {
   defect?: string;
   /** Result to prefill the new-defect form from. */
   fromResult?: string;
-  /** 0-based failing step of `fromResult`. */
+  /** Manual execution item to prefill the new-defect form from (S-055); uses `step` like `fromResult`. */
+  fromManual?: string;
+  /** 0-based failing step of `fromResult` / `fromManual`. */
   step?: number;
   /** Open an empty new-defect form (optionally with `title` / `source`). */
   new?: boolean;
@@ -71,12 +73,14 @@ export function parseSearch(search: Record<string, unknown>): DefectsSearch {
   const q = str('q');
   const defect = str('defect');
   const fromResult = str('fromResult');
+  const fromManual = str('fromManual');
   const title = str('title');
   const source = str('source');
   return {
     ...(q ? { q } : {}),
     ...(defect ? { defect } : {}),
     ...(fromResult ? { fromResult } : {}),
+    ...(fromManual ? { fromManual } : {}),
     ...(step !== undefined ? { step } : {}),
     ...(search['new'] === true || search['new'] === 'true' || search['new'] === 1 ? { new: true } : {}),
     ...(title ? { title } : {}),

@@ -5,6 +5,7 @@ import { defects } from './defects.js';
 import { environments } from './environments.js';
 import { healProposals } from './heal-proposals.js';
 import { learnedScripts } from './learned-scripts.js';
+import { manual } from './manual.js';
 import { plans } from './plans.js';
 import { projects } from './projects.js';
 import { requirements } from './requirements.js';
@@ -23,6 +24,7 @@ export const repos = {
   cases,
   sharedSteps,
   learnedScripts,
+  manual,
   plans,
   runs,
   results,
@@ -43,6 +45,8 @@ export type { EnvironmentsRepo } from './environments.js';
 export { createDbLearnedScriptStore, type LearnedScriptKey } from './learned-scripts.js';
 export type { HealApplyScope, HealProposalFilter, HealProposalsRepo } from './heal-proposals.js';
 export type { LearnedScriptsRepo } from './learned-scripts.js';
+export { manualArtifactOwner } from './manual.js';
+export type { ManualRepo } from './manual.js';
 export type { PlansRepo } from './plans.js';
 export type { ProjectsRepo } from './projects.js';
 export type { RequirementsRepo } from './requirements.js';

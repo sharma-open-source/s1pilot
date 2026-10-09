@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { IdSchema, IsoTimestampSchema } from './common.js';
 import { BrowserNameSchema } from './environment.js';
+import { PlanAssignmentSchema } from './manual.js';
 
 export const PlanSelectionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('list'), caseIds: z.array(IdSchema) }),
@@ -51,6 +52,8 @@ export const TestPlanSchema = z.object({
   schedule: z.string().optional(),
   exitCriteria: z.array(ExitCriterionSchema).default([]),
   checks: PlanChecksSchema.default({}),
+  /** Per-case assignee / manual flag, keyed by case id (S-055). */
+  assignments: z.record(PlanAssignmentSchema).default({}),
   createdAt: IsoTimestampSchema.optional(),
   updatedAt: IsoTimestampSchema.optional(),
 });
