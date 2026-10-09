@@ -108,6 +108,8 @@ export const TestCaseSchema = z.object({
   suiteId: IdSchema.optional(),
   version: z.number().int().min(1).default(1),
   ...caseFields,
+  /** Id of the case in the system it was imported from (S-062); re-imports update the case with the same ref. */
+  externalRef: z.string().min(1).optional(),
   /** Quarantined cases are excluded from plan runs by default (S-051). Absent means not quarantined. */
   quarantined: z.boolean().optional(),
   quarantineReason: z.string().optional(),

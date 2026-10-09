@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 
+import { ImportWizard } from '../import/ImportWizard';
+
 import { CiSetup } from './CiSetup';
 import { CI_CARDS, INTEGRATIONS, TRACKER_PLACEHOLDERS, ago, githubWorkflowSnippet, gitlabSnippet } from './model';
 import { UsersSection } from './PlaceholderSections';
@@ -19,6 +21,7 @@ const linkClass = 'mt-auto inline-flex min-h-[44px] items-center self-start roun
 export function IntegrationsSection() {
   const usage = trpc.tokens.ciUsage.useQuery(undefined, { retry: false });
   const [open, setOpen] = useState<'github' | 'gitlab' | null>(null);
+  const [importing, setImporting] = useState(false);
   const server = typeof window === 'undefined' ? 'http://localhost:5317' : window.location.origin;
   const channels = trpc.notifications.channels.list.useQuery();
   const count = (kinds: string[]): number => (channels.data ?? []).filter((c) => kinds.includes(c.kind)).length;
@@ -52,6 +55,10 @@ export function IntegrationsSection() {
                 <Button className="mt-auto self-start" aria-expanded={open === provider} onClick={() => setOpen(open === provider ? null : provider)}>
                   {i.action}
                 </Button>
+              ) : i.name === 'Import' ? (
+                <Button className="mt-auto self-start" onClick={() => setImporting(true)}>
+                  {i.action}
+                </Button>
               ) : live !== undefined ? (
                 <Link to="/settings/$section" params={{ section: 'notifications' }} className={linkClass}>
                   {i.action}
@@ -67,6 +74,7 @@ export function IntegrationsSection() {
       </section>
       {open === 'github' && <CodeBlock code={githubWorkflowSnippet({ server })} label="GitHub Actions workflow" />}
       {open === 'gitlab' && <CodeBlock code={gitlabSnippet({ server })} label="GitLab CI job" />}
+      <ImportWizard open={importing} onOpenChange={setImporting} />
       <CiSetup
         action={
           <Link to="/settings/$section" params={{ section: 'tokens' }} className="inline-flex min-h-[44px] items-center rounded-control border border-line-input bg-surface px-4 text-sm font-medium text-fg no-underline">

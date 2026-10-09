@@ -30,6 +30,7 @@ export const testCases = sqliteTable(
     parameters: text('parameters', { mode: 'json' }).$type<Parameters>().notNull(),
     steps: text('steps', { mode: 'json' }).$type<Step[]>().notNull(),
     owner: text('owner'),
+    externalRef: text('external_ref'),
     quarantined: integer('quarantined', { mode: 'boolean' }).notNull().default(false),
     quarantineReason: text('quarantine_reason'),
     quarantinedAt: text('quarantined_at'),
@@ -41,6 +42,7 @@ export const testCases = sqliteTable(
   (t) => [
     unique('test_cases_project_number_unq').on(t.projectId, t.number),
     index('test_cases_suite_idx').on(t.suiteId),
+    index('test_cases_external_ref_idx').on(t.projectId, t.externalRef),
   ],
 );
 

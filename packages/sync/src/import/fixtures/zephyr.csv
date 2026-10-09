@@ -1,0 +1,4 @@
+Key,Name,Folder,Priority,Labels,Objective,Test Script (Step-by-Step) - Step,Test Script (Step-by-Step) - Test Data,Test Script (Step-by-Step) - Expected Result
+Z-1,Filter products,/Catalog/Filters,High,filters,Check filters,Open catalog,,Catalog shown
+,,,,,,Select category Shoes,Shoes,Only shoes listed
+Z-2,Sort products,/Catalog,Normal,sort,,Sort by price,,Cheapest first

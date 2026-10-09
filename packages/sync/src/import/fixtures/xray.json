@@ -1,0 +1,7 @@
+[
+  {"key":"XR-1","folder":"/Web/Cart","fields":{"summary":"Add to cart","priority":{"name":"High"},"labels":["smoke"]},
+   "steps":[{"action":"Open a product","data":"","result":"Product page shown"},{"action":"Click Add","data":"qty=2","result":"Badge shows 2"}]},
+  {"key":"XR-2","folder":"/Web/Cart","fields":{"summary":"Remove from cart","priority":{"name":"Low"}},
+   "steps":[{"action":"Click Remove","result":"Cart is empty"}]},
+  {"key":"XR-3","fields":{"summary":"No steps here"},"steps":[]}
+]

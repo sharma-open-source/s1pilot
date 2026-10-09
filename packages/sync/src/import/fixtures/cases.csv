@@ -1,0 +1,10 @@
+ID,Title,Suite,Priority,Tags,Steps,Expected Result
+T-1,Login works,Auth/Login,High,"smoke, auth","1. Open the login page
+2. Enter valid credentials
+3. Click Sign in","1. Form is shown
+2. Fields accept input
+3. Dashboard opens"
+T-2,Logout,Auth,Low,auth,Click Log out,Login page is shown
+T-3,Search,Catalog,Medium,,Type a query,
+,,,,,Press Enter,Results are listed
+T-3,Search,Catalog,Medium,,Open first result,Detail page opens

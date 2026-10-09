@@ -6,3 +6,4 @@ export * from './diff.js';
 export * from './learned-store.js';
 export * from './load.js';
 export * from './sync.js';
+export * from './import/index.js';

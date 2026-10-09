@@ -7,6 +7,7 @@ import { casesRouter } from './routers/cases.js';
 import { dashboardRouter } from './routers/dashboard.js';
 import { defectsRouter } from './routers/defects.js';
 import { environmentsRouter } from './routers/environments.js';
+import { importsRouter } from './routers/imports.js';
 import { manualRouter } from './routers/manual.js';
 import { modelsRouter } from './routers/models.js';
 import { notificationsRouter } from './routers/notifications.js';
@@ -57,6 +58,7 @@ export const appRouter = router({
   trackers: trackersRouter,
   workspace: workspaceRouter,
   notifications: notificationsRouter,
+  imports: importsRouter,
 });
 
 export type AppRouter = typeof appRouter;

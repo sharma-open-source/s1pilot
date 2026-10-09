@@ -12,7 +12,7 @@ import {
   type TestCaseType,
 } from '@s1pilot/domain';
 import { and, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
-import type { z } from 'zod';
+import { z } from 'zod';
 
 import { atomic, type Db } from '../db.js';
 import { projects, testCaseVersions as versions, testCases as t } from '../schema/index.js';
@@ -22,6 +22,7 @@ import { fromRow, notFound, nowIso } from './util.js';
 /** Case content without the key, which is allocated per project (`SHOP-TC-n`). */
 export const NewTestCaseSchema = TestCaseFileSchema.omit({ key: true }).extend({
   suiteId: IdSchema.optional(),
+  externalRef: z.string().min(1).optional(),
 });
 export type NewTestCase = z.input<typeof NewTestCaseSchema>;
 
@@ -98,6 +99,16 @@ export const cases = {
     return row && fromRow(TestCaseSchema, row);
   },
 
+  /** Finds the case of a project imported from `externalRef` (S-062). */
+  async getByExternalRef(db: Db, projectId: string, externalRef: string): Promise<TestCase | undefined> {
+    const row = db.orm
+      .select()
+      .from(t)
+      .where(and(eq(t.projectId, projectId), eq(t.externalRef, externalRef)))
+      .get();
+    return row && fromRow(TestCaseSchema, row);
+  },
+
   async list(db: Db, filters: CaseFilters): Promise<TestCase[]> {
     const conditions: SQL[] = [eq(t.projectId, filters.projectId)];
     if (filters.suiteId) conditions.push(eq(t.suiteId, filters.suiteId));
@@ -155,7 +166,7 @@ export const cases = {
       }
       db.orm
         .update(t)
-        .set({ ...merged, suiteId: merged.suiteId ?? null, owner: merged.owner ?? null, updatedAt: nowIso() })
+        .set({ ...merged, suiteId: merged.suiteId ?? null, owner: merged.owner ?? null, externalRef: merged.externalRef ?? null, updatedAt: nowIso() })
         .where(eq(t.id, id))
         .run();
       snapshot(db, id);

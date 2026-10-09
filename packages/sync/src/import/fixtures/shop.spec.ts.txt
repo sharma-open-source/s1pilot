@@ -1,0 +1,19 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('Shop', () => {
+  test('add to cart', async ({ page }) => {
+    await page.goto('/shop');
+    await page.getByRole('button', { name: 'Add to cart' }).click();
+    await expect(page.getByTestId('badge')).toHaveText('1');
+    await expect(page).toHaveURL(/shop/);
+  });
+
+  test('sign in', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('Email').fill('a@b.co');
+    await page.getByLabel('Password').fill('hunter2');
+    await page.getByRole('checkbox', { name: 'Remember me' }).check();
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.getByText('Welcome')).toBeVisible();
+  });
+});

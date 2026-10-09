@@ -1,6 +1,7 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 
+import { ImportWizard } from '../import/ImportWizard';
 import { AddToPlanDialog } from '../plans/AddToPlanDialog';
 
 import { fieldValue, quoteValue, setFieldTerm } from './query';
@@ -298,6 +299,7 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
     navigate(`/p/${encodeURIComponent(projectKey)}/cases/${encodeURIComponent(key)}`);
   };
 
+  const [importing, setImporting] = useState(false);
   const flatSuites = flattenSuites(tree.data?.tree ?? []);
   const header = (
     <PageHeader
@@ -305,9 +307,7 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
       title="Test cases"
       actions={
         <>
-          <Button disabled title="Import arrives with S-062">
-            Import
-          </Button>
+          <Button onClick={() => setImporting(true)}>Import</Button>
           <Button disabled title="Generate from story needs a System 2 model (S-061)">
             Generate from story · S2
           </Button>
@@ -338,6 +338,7 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
   return (
     <>
       {header}
+      <ImportWizard open={importing} onOpenChange={setImporting} projectKey={projectKey} {...(suiteId !== undefined ? { suiteId } : {})} />
       <div className="flex flex-wrap items-start gap-5">
         <SuiteTree
           projectKey={projectKey}

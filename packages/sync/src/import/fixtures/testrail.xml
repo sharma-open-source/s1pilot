@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suite>
+  <id>S1</id>
+  <name>Master</name>
+  <sections>
+    <section>
+      <name>Checkout</name>
+      <cases>
+        <case>
+          <id>C101</id>
+          <title>Pay by card &amp; confirm</title>
+          <priority>Critical</priority>
+          <references>SHOP-9</references>
+          <custom>
+            <preconds>Cart has an item</preconds>
+            <steps_separated>
+              <step><index>1</index><content>Open the cart</content><expected>Cart lists the item</expected></step>
+              <step><index>2</index><content>Pay with card</content><expected>Order confirmed</expected></step>
+            </steps_separated>
+          </custom>
+        </case>
+        <case>
+          <id>C102</id>
+          <title>Apply coupon</title>
+          <priority>Low</priority>
+          <custom><steps>1. Open the cart
+2. Apply coupon SAVE5</steps><expected>1. Cart shown
+2. Total reduced</expected></custom>
+        </case>
+      </cases>
+      <sections>
+        <section>
+          <name>Shipping</name>
+          <cases>
+            <case>
+              <id>C103</id>
+              <title>Choose express shipping</title>
+              <priority>Medium</priority>
+              <custom><steps_separated><step><index>1</index><content>Select express</content><expected>Fee shown</expected></step></steps_separated></custom>
+            </case>
+          </cases>
+        </section>
+      </sections>
+    </section>
+  </sections>
+</suite>
