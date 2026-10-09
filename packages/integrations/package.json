@@ -10,6 +10,10 @@
     }
   },
   "files": ["dist"],
+  "dependencies": {
+    "@s1pilot/domain": "workspace:^",
+    "zod": "^3.23.8"
+  },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
     "typecheck": "tsc -p tsconfig.json",

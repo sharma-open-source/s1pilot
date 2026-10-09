@@ -18,6 +18,8 @@ import type { ServerConfig } from './config.js';
 import { registerExportRoutes } from './exports/routes.js';
 import { registerLiveRoutes } from './live/routes.js';
 import { registerManualRoutes } from './manual/routes.js';
+import { registerTrackerWebhookRoutes } from './trackers/routes.js';
+import { startTrackerSync } from './trackers/service.js';
 import { firePlan } from './triggers/fire.js';
 import { registerWebhookRoutes } from './triggers/routes.js';
 import { createContext } from './trpc/context.js';
@@ -40,6 +42,8 @@ export interface BuildAppOptions {
   workers?: number;
   /** Start the cron scheduler of plan schedules. Default true. */
   scheduler?: boolean;
+  /** Poll issue trackers for status changes every 10 minutes (S-064). Default true. */
+  trackerSync?: boolean;
 }
 
 /**
@@ -74,10 +78,13 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
   const deps = { db, config, log, runtime };
   registerWebhookRoutes(app, deps);
   registerManualRoutes(app, deps);
+  registerTrackerWebhookRoutes(app, deps);
   if (opts.scheduler ?? true) await runtime.scheduler.start((planId) => firePlan(createContext(deps), planId, 'schedule'));
   const stopRetention = startRetentionJob({ db, store: artifacts, log });
+  const stopTrackerSync = opts.trackerSync === false ? () => undefined : startTrackerSync(() => createContext(deps));
   app.addHook('onClose', async () => {
     stopRetention();
+    stopTrackerSync();
     runtime.scheduler.stop();
     await runtime.auth.close();
     await runtime.workers.stop(); // before the db closes

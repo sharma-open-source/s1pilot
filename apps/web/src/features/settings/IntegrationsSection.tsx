@@ -1,8 +1,9 @@
 import { Link } from '@tanstack/react-router';
 
 import { CiSetup } from './CiSetup';
-import { INTEGRATIONS } from './model';
+import { INTEGRATIONS, TRACKER_PLACEHOLDERS } from './model';
 import { UsersSection } from './PlaceholderSections';
+import { TrackerCards } from './TrackersSection';
 
 import { Button } from '@/components/ui';
 
@@ -11,7 +12,8 @@ export function IntegrationsSection() {
   return (
     <>
       <section aria-label="Integrations" className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3.5">
-        {INTEGRATIONS.map((i) => (
+        <TrackerCards />
+        {INTEGRATIONS.filter((i) => !TRACKER_PLACEHOLDERS.includes(i.name)).map((i) => (
           <article key={i.name} className="flex flex-col gap-2 rounded-card border border-line bg-surface p-4 text-sm">
             <div className="flex items-start justify-between gap-2">
               <strong className="text-fg">{i.name}</strong>

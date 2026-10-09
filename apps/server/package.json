@@ -30,6 +30,7 @@
     "@s1pilot/db": "workspace:^",
     "@s1pilot/domain": "workspace:^",
     "@s1pilot/engine": "workspace:^",
+    "@s1pilot/integrations": "workspace:^",
     "@s1pilot/providers": "workspace:^",
     "@s1pilot/reporters": "workspace:^",
     "@s1pilot/runner": "workspace:^",

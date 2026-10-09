@@ -8,6 +8,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 
 | Date | Spec | Change | Notes |
 |---|---|---|---|
+| 2026-10-09 | S-064 | todo → done | Issue trackers (sub-agent). No migration (connections and per-project mappings live in `settings`; external ref uses existing `defects.external_*` columns). |
 | 2026-10-09 | S-058 | todo → done | Calibration (sub-agent). Temperature scaling per model/question type/option-count bucket, raw + calibrated on decision records, threshold suggestion (apply only on confirm), `calibration` router, `s1pilot calibrate`, Analytics Recalibrate wired. No migration (state in `settings`). |
 | 2026-10-09 | S-059 | todo → done | Settings shell & API tokens (sub-agent). Migration `0012_api_tokens` (renumber on collision with S-058). |
 | 2026-10-09 | S-057 | todo → done | Analytics API + UI (sub-agent). Migration 0010 (`analytics_daily` rollup + indexes `test_runs(project_id, started_at)`, `case_results(run_id, case_id, attempt)`). |
@@ -131,7 +132,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-061 | System 2 test generation | P5 | todo | |
 | S-062 | Importers | P5 | todo | |
 | S-063 | CI: CLI server mode & templates | P6 | todo | |
-| S-064 | Issue trackers | P6 | todo | |
+| S-064 | Issue trackers | P6 | done | Sub-agent. `@s1pilot/integrations`: `IssueTracker` (`testConnection/createIssue/getStatus/mapStatus/addComment`) + `JiraTracker` (REST v3, ADF body, attachment upload), `GithubTracker`, `LinearTracker` (GraphQL, `fileUpload` embed), `createTracker`; contract tests against local fake HTTP servers. Server `trackers/service.ts` + `trackers` router (`list/test/connect/disconnect/rotateWebhook/mapping/setMapping/push/syncNow`): connection per tracker in `settings` key `tracker.connection:<provider>` (token and webhook secret encrypted with the vault, never returned), project mapping in `tracker.mapping:<projectId>`. Push builds title, repro steps, expected/actual, environment, build and up to 3 screenshot attachments. Status sync every 10 min (`startTrackerSync`, `buildApp` option `trackerSync`) and `POST /api/hooks/trackers/:provider/:token` (Jira, GitHub); applies only when the tracker state changed since last seen (`details.trackerState`, new optional DefectDetails field) so local edits are not overwritten; moving to fixed/closed goes through S-054 `applyUpdate` (re-test queued) and a comment is added on the issue. Mapping: Jira done -> fixed, in progress -> in-progress; GitHub closed -> fixed, not planned -> closed; Linear completed -> fixed, canceled -> closed, started -> in-progress. Web: Integrations Jira / GitHub Issues / Linear cards with connect dialog (credentials via vanilla client), project mapping and webhook URL (shown once); Defects eyebrow "synced with Jira project SHOP", enabled "Push to <tracker>" checkbox, tracker link + Push button in the detail panel. Gaps: GitHub Issues API has no attachment upload (files listed by name only); bidirectional comment sync out of scope; Linear webhooks not supported (polling only); no per-project Settings page exists so mapping lives in the Integrations dialog. |
 | S-065 | Notifications | P6 | todo | |
 | S-066 | Postgres & pg-boss | P7 | todo | |
 | S-067 | Auth, RBAC & audit log | P7 | todo | |

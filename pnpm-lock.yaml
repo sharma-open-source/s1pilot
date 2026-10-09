@@ -135,6 +135,9 @@ importers:
       '@s1pilot/engine':
         specifier: workspace:^
         version: link:../../packages/engine
+      '@s1pilot/integrations':
+        specifier: workspace:^
+        version: link:../../packages/integrations
       '@s1pilot/providers':
         specifier: workspace:^
         version: link:../../packages/providers
@@ -387,7 +390,14 @@ importers:
         specifier: workspace:*
         version: link:../../fixtures/sites
 
-  packages/integrations: {}
+  packages/integrations:
+    dependencies:
+      '@s1pilot/domain':
+        specifier: workspace:^
+        version: link:../domain
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
 
   packages/providers:
     dependencies:
