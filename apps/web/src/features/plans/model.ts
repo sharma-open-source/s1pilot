@@ -194,12 +194,14 @@ export function describeCron(expr: string): { valid: boolean; text: string } {
   return { valid: true, text: 'Custom schedule' };
 }
 
-/** Exit criterion templates (evaluated by S-056). */
+/** Exit criterion templates (evaluated by `@s1pilot/domain` evaluateCriteria). */
 export const CRITERION_TEMPLATES: Array<{ kind: string; label: string; params: Record<string, unknown> }> = [
   { kind: 'p0-passed', label: '% of P0 cases passed', params: { percent: 100 } },
   { kind: 'pass-rate', label: '≥ n% of P1–P2 passed', params: { percent: 95, priorities: ['P1', 'P2'] } },
   { kind: 'no-open-defects', label: 'No open defects ≥ severity', params: { severity: 'S2' } },
   { kind: 'review-queue-empty', label: 'Review queue empty', params: {} },
+  { kind: 'no-flaky', label: 'No flaky cases', params: { priorities: ['P0', 'P1', 'P2', 'P3'] } },
+  { kind: 'all-executed', label: 'All cases executed', params: {} },
 ];
 
 export const SEVERITIES = ['S1', 'S2', 'S3', 'S4'] as const;
@@ -217,6 +219,10 @@ export function criterionText(c: ExitCriterion): string {
       return `No open defects ≥ ${typeof p['severity'] === 'string' ? p['severity'] : 'S2'}`;
     case 'review-queue-empty':
       return 'Review queue empty';
+    case 'no-flaky':
+      return 'No flaky cases';
+    case 'all-executed':
+      return 'All cases executed';
     default:
       return c.kind;
   }

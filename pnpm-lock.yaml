@@ -156,6 +156,9 @@ importers:
       fastify:
         specifier: ^5
         version: 5.12.5
+      playwright:
+        specifier: ^1.63.0
+        version: 1.63.0
       zod:
         specifier: ^3.23.8
         version: 3.25.76

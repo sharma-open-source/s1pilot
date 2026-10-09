@@ -1,3 +1,6 @@
+import { useState } from 'react';
+
+import { ExitCriteriaTile } from './ExitCriteriaTile';
 import { bucketOf, defaultFilter, matchesFilter, resultMeta, shortRunId, type ReportFilter } from './model';
 import { ResultDetail } from './ResultDetail';
 
@@ -8,14 +11,17 @@ import {
   Breadcrumb,
   Button,
   Callout,
+  Dialog,
   DropdownContent,
   DropdownItem,
   DropdownMenu,
   DropdownTrigger,
   EmptyState,
+  Field,
   LinkButton,
   Segmented,
   Skeleton,
+  Textarea,
 } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
 import { trpc } from '@/lib/trpc';
@@ -48,6 +54,14 @@ export function RunReportPage({ projectKey, runId, search, onSearch, navigate }:
   const query = trpc.runs.report.useQuery(runId);
   const rerun = trpc.runs.rerunFailed.useMutation({
     onSuccess: (run) => navigate(`/p/${encodeURIComponent(projectKey)}/runs/${encodeURIComponent(run.id)}/live`),
+  });
+  const [signing, setSigning] = useState(false);
+  const [note, setNote] = useState('');
+  const signOff = trpc.runs.signOff.useMutation({
+    onSuccess: () => {
+      setSigning(false);
+      void utils.runs.report.invalidate(runId);
+    },
   });
   const base = `/p/${encodeURIComponent(projectKey)}/runs/${encodeURIComponent(runId)}`;
   const runsPath = `/p/${encodeURIComponent(projectKey)}/runs`;
@@ -96,9 +110,16 @@ export function RunReportPage({ projectKey, runId, search, onSearch, navigate }:
                   </a>
                 </DropdownItem>
               ))}
-              <DropdownItem disabled>PDF (coming later)</DropdownItem>
+              <DropdownItem asChild>
+                <a href={`/api/runs/${encodeURIComponent(runId)}/export.pdf`} download>
+                  PDF summary
+                </a>
+              </DropdownItem>
             </DropdownContent>
           </DropdownMenu>
+          <Button disabled={live || report === undefined} onClick={() => setSigning(true)}>
+            {report?.signOff ? 'Update sign-off' : 'Sign off'}
+          </Button>
           <Button variant="primary" disabled={failedCount === 0 || rerun.isPending} onClick={() => rerun.mutate(runId)}>
             Rerun failed
           </Button>
@@ -119,6 +140,29 @@ export function RunReportPage({ projectKey, runId, search, onSearch, navigate }:
   return (
     <>
       {header}
+      <Dialog
+        open={signing}
+        onOpenChange={setSigning}
+        title="Sign off this run"
+        description={
+          report?.exitCriteria && report.exitCriteria.met < report.exitCriteria.total
+            ? `${report.exitCriteria.total - report.exitCriteria.met} exit criteria are not met. The sign-off records that.`
+            : 'Records that you reviewed this run.'
+        }
+        footer={
+          <>
+            <Button onClick={() => setSigning(false)}>Cancel</Button>
+            <Button variant="primary" disabled={signOff.isPending} onClick={() => signOff.mutate({ runId, note })}>
+              Sign off
+            </Button>
+          </>
+        }
+      >
+        <Field label="Note">
+          {(id) => <Textarea id={id} value={note} onChange={(e) => setNote(e.target.value)} rows={3} />}
+        </Field>
+        {signOff.isError && <Callout tone="danger">{errorMessage(signOff.error)}</Callout>}
+      </Dialog>
       {rerun.isError && <Callout tone="danger">{errorMessage(rerun.error)}</Callout>}
       {live && (
         <Callout tone="info-ai" className="flex flex-wrap items-center justify-between gap-3">
@@ -138,10 +182,7 @@ export function RunReportPage({ projectKey, runId, search, onSearch, navigate }:
             <StatTile label="Failed" value={summary.failed} tone="danger" />
             <StatTile label="Needs review" value={summary.needsReview} tone="warning" />
             <StatTile label="Flaky / Blocked" value={`${summary.flaky} / ${summary.blocked}`} />
-            <StatTile
-              label="Exit criteria"
-              value={report?.exitCriteria ? `${report.exitCriteria.total - report.exitCriteria.met} of ${report.exitCriteria.total} not met` : '–'}
-            />
+            <ExitCriteriaTile criteria={report?.exitCriteria} signOff={report?.signOff} />
           </>
         )}
       </section>

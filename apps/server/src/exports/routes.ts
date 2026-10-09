@@ -8,10 +8,12 @@ import {
   type RunReport,
   type StepReport,
 } from '@s1pilot/domain';
-import { renderHtml, renderJson, renderJunit } from '@s1pilot/reporters';
+import { renderHtml, renderJson, renderJunit, renderSummaryHtml } from '@s1pilot/reporters';
 import type { FastifyInstance } from 'fastify';
+import { chromium } from 'playwright';
 
 import type { ServerConfig } from '../config.js';
+import { evaluateExitCriteria, getSignOff } from '../exit-criteria/evaluate.js';
 import { RunCaseJobPayloadSchema } from '../worker/run-lifecycle.js';
 import type { ServerRuntime } from '../worker/runtime.js';
 
@@ -119,6 +121,33 @@ export async function buildRunReport(
  * run with the S-027 / S-028 reporters as a download.
  */
 export function registerExportRoutes(app: FastifyInstance, deps: { db: Db; runtime: ServerRuntime; config: Pick<ServerConfig, 'artifactsDir'> }): void {
+  /** `GET /api/runs/:id/export.pdf`: summary + exit criteria + sign-off rendered to PDF with Chromium. */
+  app.get<{ Params: { id: string } }>('/api/runs/:id/export.pdf', async (req, reply) => {
+    const built = await buildRunReport(deps.db, deps.runtime, deps.config, req.params.id);
+    if (!built) return reply.code(404).send({ error: 'Run not found' });
+    const run = await repos.runs.get(deps.db, req.params.id);
+    const plan = run?.planId ? await repos.plans.get(deps.db, run.planId) : undefined;
+    const evaluation = run ? await evaluateExitCriteria(run, plan, deps.db) : undefined;
+    const html = renderSummaryHtml(built.report, {
+      title: plan ? `${plan.name} · run summary` : 'Run summary',
+      criteria: evaluation?.items ?? [],
+      signOff: await getSignOff(deps.db, req.params.id),
+    });
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'load' });
+      const pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '16mm', bottom: '16mm', left: '12mm', right: '12mm' } });
+      return reply
+        .header('content-type', 'application/pdf')
+        .header('content-disposition', `attachment; filename="run-${req.params.id}-summary.pdf"`)
+        .header('x-content-type-options', 'nosniff')
+        .send(pdf);
+    } finally {
+      await browser.close();
+    }
+  });
+
   app.get<{ Params: { id: string; format: string } }>('/api/runs/:id/export/:format', async (req, reply) => {
     const format = req.params.format as Format;
     if (!(format in FORMATS)) return reply.code(400).send({ error: `Unknown format: ${req.params.format}` });

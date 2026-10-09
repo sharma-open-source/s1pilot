@@ -2,6 +2,7 @@ import { IdSchema, S1PilotError, VerdictSchema, type StepResult } from '@s1pilot
 import { z } from 'zod';
 
 import { FsArtifactStore } from '../../artifacts/store.js';
+import { evaluateExitCriteria, getSignOff } from '../../exit-criteria/evaluate.js';
 import { publicProcedure, router } from '../trpc.js';
 
 import { applyVerdict } from './verdicts.js';
@@ -34,7 +35,7 @@ async function loadEntries(store: FsArtifactStore, id: string | undefined, wrapp
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 const numOrNull = (v: unknown): number | null => (typeof v === 'number' ? v : null);
 
-/** `runs.report(runId)`: summary, exit-criteria placeholder and the results list. */
+/** `runs.report(runId)`: summary, exit-criteria evaluation and the results list. */
 export const reportProcedure = publicProcedure.input(IdSchema).query(async ({ ctx, input }) => {
   const run = await ctx.repos.runs.get(ctx.db, input);
   if (!run) throw new S1PilotError('RUN_NOT_FOUND', `Run not found: ${input}`, { runId: input });
@@ -68,12 +69,14 @@ export const reportProcedure = publicProcedure.input(IdSchema).query(async ({ ct
       };
     }),
   );
+  const plan = run.planId ? await ctx.repos.plans.get(ctx.db, run.planId) : undefined;
+  const evaluation = plan ? await evaluateExitCriteria(run, plan, ctx.db) : undefined;
   return {
     run,
     projectKey: project?.key ?? '',
     environments: [...new Set(rows.map((r) => r.environment).filter(Boolean))],
-    // TODO(S-056): exit criteria evaluation; null renders as "–".
-    exitCriteria: null as null | { met: number; total: number },
+    exitCriteria: evaluation && evaluation.items.length > 0 ? { met: evaluation.items.filter((i) => i.met).length, total: evaluation.items.length, allMet: evaluation.met, items: evaluation.items.map((i) => ({ label: i.label, met: i.met, actual: i.actual, detail: i.detail })) } : null,
+    signOff: await getSignOff(ctx.db, run.id),
     results: rows,
   };
 });

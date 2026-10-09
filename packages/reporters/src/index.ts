@@ -53,3 +53,4 @@ export async function writeReports(
   }
   return written;
 }
+export { renderSummaryHtml, type SummaryCriterion, type SummaryOptions } from './summary.js';

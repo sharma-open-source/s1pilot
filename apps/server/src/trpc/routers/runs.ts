@@ -17,6 +17,7 @@ import {
 } from '@s1pilot/domain';
 import { z } from 'zod';
 
+import { evaluateExitCriteria, setSignOff } from '../../exit-criteria/evaluate.js';
 import { isTerminalRunStatus, RUN_CASE_JOB, RunCaseJobPayloadSchema, type RunCaseJobPayload } from '../../worker/run-lifecycle.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
@@ -214,8 +215,22 @@ export const runsRouter = router({
     return startRun(ctx, project, cases.map((c) => ({ caseId: c.id, config })), input.buildRef);
   }),
 
-  /** Run report: summary, exit-criteria placeholder and result rows (S-046). */
+  /** Run report: summary, exit-criteria evaluation, sign-off and result rows (S-046, S-056). */
   report: reportProcedure,
+
+  /** Records the release sign-off (with a note) on a run. QA leads and admins only; criteria need not be met. */
+  signOff: publicProcedure
+    .input(z.object({ runId: IdSchema, note: z.string().max(2000).default('') }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin' && ctx.user.role !== 'lead') throw new S1PilotError('FORBIDDEN', 'Only QA leads can sign off a run');
+      const run = await requireRun(ctx, input.runId);
+      if (!isTerminalRunStatus(run.status)) throw new S1PilotError('INVALID_STATE', 'Only a finished run can be signed off', { runId: run.id });
+      const plan = run.planId ? await ctx.repos.plans.get(ctx.db, run.planId) : undefined;
+      const evaluation = await evaluateExitCriteria(run, plan, ctx.db);
+      const signOff = { by: ctx.user.id, at: new Date().toISOString(), note: input.note, criteriaMet: evaluation.met };
+      await setSignOff(ctx.db, run.id, signOff);
+      return signOff;
+    }),
 
   /** Newest runs across all projects (dashboard). */
   recent: publicProcedure.input(RecentInput).query(({ ctx, input }) => recentRuns(ctx, input.limit)),

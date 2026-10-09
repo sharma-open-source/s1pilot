@@ -20,7 +20,7 @@ export type MatrixEntry = z.infer<typeof MatrixEntrySchema>;
 export const ExecutionModeSchema = z.enum(['replay-heal', 'explore', 'replay-only']);
 export type ExecutionMode = z.infer<typeof ExecutionModeSchema>;
 
-/** Placeholder shape until exit criteria are specified. TODO(S-056) */
+/** Stored exit criterion; typed forms and evaluation live in `exit-criteria.ts`. */
 export const ExitCriterionSchema = z.object({
   kind: z.string().min(1),
   params: z.record(z.unknown()).default({}),
