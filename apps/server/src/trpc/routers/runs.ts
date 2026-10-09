@@ -11,7 +11,6 @@ import {
   type RunTrigger,
   type ExecutionMode,
   type Project,
-  type RunTrigger,
   type TestCase,
   type TestPlan,
   type TestRun,
@@ -42,7 +41,6 @@ export async function startRun(
   planId?: string,
   trigger: RunTrigger = 'manual',
   skipped: { testCase: TestCase; environmentId: string; browser: BrowserName; mode: ExecutionMode; reason: string }[] = [],
-  trigger: RunTrigger = 'manual',
 ): Promise<TestRun> {
   const run = await ctx.repos.runs.create(ctx.db, {
     id: newId(),

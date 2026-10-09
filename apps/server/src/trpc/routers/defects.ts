@@ -150,7 +150,7 @@ export async function queueRetest(ctx: Context, defect: Defect): Promise<string 
     jobs.push({ caseId: r.caseId, config: { environmentId: r.environmentId, browser, mode: 'replay-heal', attended: false } });
   }
   if (jobs.length === 0) return null;
-  const run = await startRun(ctx, project, jobs, defect.details?.buildRef, undefined, [], 'retest');
+  const run = await startRun(ctx, project, jobs, defect.details?.buildRef, undefined, 'retest');
   return run.id;
 }
 
