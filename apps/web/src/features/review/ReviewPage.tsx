@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
-import { defaultTab, itemMeta, tabLabel, TABS, type ReviewStatusFilter, type ReviewTab } from './model';
+import { defaultTab, draftMetricsText, itemMeta, tabLabel, TABS, type ReviewStatusFilter, type ReviewTab } from './model';
 import { ReviewDetail } from './ReviewDetail';
 
 import { PageHeader } from '@/components/app/PageHeader';
@@ -27,7 +27,7 @@ interface ReviewPageProps {
 const EMPTY_TEXT: Record<ReviewTab, string> = {
   verdicts: 'No uncertain verdicts. Results the model is unsure about appear here.',
   heals: 'No heal proposals. Locator changes found during replay appear here.',
-  drafts: 'Generated drafts arrive with AI test generation (S-061).',
+  drafts: 'No generated drafts. Use Generate from story in Test cases, or suggest tests by exploring the site when creating a project.',
   visual: 'Visual changes arrive with visual comparison, which is planned for a later phase.',
 };
 
@@ -40,6 +40,7 @@ export function ReviewPage({ projectKey, search, onSearch }: ReviewPageProps) {
   const status: ReviewStatusFilter = search.status ?? 'pending';
   const [page, setPage] = useState(1);
   const list = trpc.reviews.list.useQuery({ projectKey, tab, status, page });
+  const metrics = trpc.generate.metrics.useQuery({ projectKey }, { enabled: tab === 'drafts' });
 
   // Counts follow `/ws/workspace`: any change of the pending total refreshes the tabs and the list.
   useEffect(
@@ -90,6 +91,13 @@ export function ReviewPage({ projectKey, search, onSearch }: ReviewPageProps) {
       </nav>
 
       {(counts.isError || list.isError) && <Callout tone="danger">Could not load the review queue: {errorMessage(list.error ?? counts.error)}</Callout>}
+
+      {tab === 'drafts' && metrics.data && metrics.data.generated > 0 && (
+        <p aria-label="Draft metrics" className="m-0 text-[13px] text-secondary">
+          {draftMetricsText(metrics.data)}
+          {metrics.data.acceptanceRate !== null ? ` · ${Math.round(metrics.data.acceptanceRate * 100)}% accepted` : ''}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-start gap-5">
         <section aria-label="Items" className="flex min-w-0 flex-[1_1_300px] max-w-[380px] flex-col rounded-card border border-line bg-surface max-[760px]:max-w-none">
@@ -149,6 +157,7 @@ export function ReviewPage({ projectKey, search, onSearch }: ReviewPageProps) {
           <ReviewDetail
             key={selected.id}
             id={selected.id}
+            tab={tab}
             onDecided={(nextId) => onSearch({ tab, ...(nextId ? { item: nextId } : {}), ...(status === 'resolved' ? { status } : {}) }, { replace: true })}
           />
         ) : (

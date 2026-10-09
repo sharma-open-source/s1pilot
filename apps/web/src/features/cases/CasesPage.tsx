@@ -2,6 +2,7 @@ import { keepPreviousData } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 
 import { ImportWizard } from '../import/ImportWizard';
+import { GenerateFromStory } from '../generate/GenerateFromStory';
 import { AddToPlanDialog } from '../plans/AddToPlanDialog';
 
 import { fieldValue, quoteValue, setFieldTerm } from './query';
@@ -307,10 +308,8 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
       title="Test cases"
       actions={
         <>
-          <Button onClick={() => setImporting(true)}>Import</Button>
-          <Button disabled title="Generate from story needs a System 2 model (S-061)">
-            Generate from story · S2
-          </Button>
+        <Button onClick={() => setImporting(true)}>Import</Button>
+          <GenerateFromStory projectKey={projectKey} navigate={navigate} {...(suiteId !== undefined ? { suiteId } : {})} />
           <Button disabled title="Recording arrives with S-060">
             Record in browser
           </Button>

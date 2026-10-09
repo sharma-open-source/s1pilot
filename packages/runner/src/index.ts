@@ -21,3 +21,5 @@ export {
 } from './auth.js';
 export type { AuthCheck, AuthRefresher, AuthSetupStore, FlowRefresherOptions, LoginRecording, StorageState } from './auth.js';
 export { CaseChecks } from './checks.js';
+export { crawlSite, isAllowedHost, normalizeLink } from './crawl.js';
+export type { CrawlOptions, CrawlResult, CrawledForm, CrawledPage } from './crawl.js';

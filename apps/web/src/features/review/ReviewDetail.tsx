@@ -1,6 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 
+import { DraftDetail } from './DraftDetail';
 import { approveAllLabel, BROWSER_LABEL, s2Line, shortRun, thresholdText } from './model';
 
 import { ProbabilityBar } from '@/components/app/live';
@@ -17,7 +18,12 @@ type VerdictData = Extract<Detail, { kind: 'verdict' }>;
 const SECTION = 'flex min-w-0 flex-[999_1_520px] flex-col gap-4 rounded-card border border-line bg-surface p-5';
 
 /** Detail pane of the review queue: loads one item and renders the heal diff or the uncertain verdict. */
-export function ReviewDetail({ id, onDecided }: { id: string; onDecided: (nextId: string | null) => void }) {
+export function ReviewDetail({ id, tab, onDecided }: { id: string; tab?: string; onDecided: (nextId: string | null) => void }) {
+  if (tab === 'drafts') return <DraftDetail id={id} onDecided={onDecided} />;
+  return <ReviewItemDetail id={id} onDecided={onDecided} />;
+}
+
+function ReviewItemDetail({ id, onDecided }: { id: string; onDecided: (nextId: string | null) => void }) {
   const query = trpc.reviews.get.useQuery(id);
   if (query.isLoading) {
     return (
