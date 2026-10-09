@@ -16,14 +16,31 @@ export interface RawElement {
   locators: LocatorCandidate[];
   /** Set only when `collectInPage` was given a `markAttr` and this element carries it (recorder, S-060). */
   marked?: boolean;
+  /** Text mode only: the block shows a pointer cursor (likely has a script click handler). */
+  clickable?: boolean;
+  /** Text mode only: the block intersects the viewport. */
+  inView?: boolean;
+}
+
+/** Options for {@link collectInPage} (a bare number is `maxText`). */
+export interface CollectOptions {
+  maxText: number;
+  /** `interactive` (default): controls. `text`: visible non-interactive text blocks (paragraphs, cells, headings, ...). */
+  mode?: 'interactive' | 'text';
+  /** Text mode: max blocks returned, in document order. Default 300. */
+  maxBlocks?: number;
 }
 
 /**
  * Runs inside the page (serialised by Playwright, so it must be fully self-contained).
  * Finds visible, enabled interactive elements (incl. open shadow roots) in document order and
  * computes role, accessible name, state, landmark and locator candidates for each.
+ * With `mode: 'text'` it instead returns visible text blocks that are not part of a control
+ * (role `heading` or `text`), including ones scrolled out of view, so steps can refer to page text.
  */
-export function collectInPage(maxText: number, markAttr?: string): RawElement[] {
+export function collectInPage(arg: number | CollectOptions, markAttr?: string): RawElement[] {
+  const opts: CollectOptions = typeof arg === 'number' ? { maxText: arg } : arg;
+  const maxText = opts.maxText;
   const INTERACTIVE_ROLES =
     'button|link|tab|menuitem|checkbox|radio|combobox|option|switch|textbox|searchbox|slider|spinbutton|menuitemcheckbox|menuitemradio';
   const SELECTOR = [
@@ -218,6 +235,75 @@ export function collectInPage(maxText: number, markAttr?: string): RawElement[] 
     if (!t || t.length > maxText) continue;
     if (e.children.length === 1 && norm(e.children.item(0)?.textContent ?? '') === t) continue; // wrapper
     textCounts.set(t, (textCounts.get(t) ?? 0) + 1);
+  }
+
+  if (opts.mode === 'text') {
+    const maxBlocks = opts.maxBlocks ?? 300;
+    const SKIP_TAGS = new Set([
+      'script', 'style', 'template', 'noscript', 'svg', 'canvas', 'iframe', 'head', 'title', 'option', 'optgroup', 'datalist',
+    ]);
+    const isInline = (el: Element): boolean => {
+      const d = getComputedStyle(el).display;
+      return d.startsWith('inline') || d === 'contents';
+    };
+    const hasOwnText = (el: Element): boolean =>
+      Array.from(el.childNodes).some((n) => n.nodeType === Node.TEXT_NODE && /\S/.test(n.textContent ?? ''));
+    const emitted = new Set<Element>();
+    const blocks: RawElement[] = [];
+    const visit = (root: Document | ShadowRoot): void => {
+      for (const el of Array.from(root.querySelectorAll('*'))) {
+        if (blocks.length >= maxBlocks) return;
+        if (el.shadowRoot) visit(el.shadowRoot);
+        const tag = el.tagName.toLowerCase();
+        if (SKIP_TAGS.has(tag) || !hasOwnText(el)) continue;
+        if (el.closest('label')) continue; // a label is its control's name, already listed with the control
+        // Text inside a small control is already that control's name; a huge `[onclick]` wrapper does not count.
+        const control = el.closest(SELECTOR);
+        if (control && norm(control.textContent ?? '').length <= maxText) continue;
+        // Inline runs (<b>, <span>) are covered by the nearest block ancestor when that one was emitted.
+        if (isInline(el)) {
+          let block = el.parentElement;
+          while (block && isInline(block)) block = block.parentElement;
+          if (block && emitted.has(block)) continue;
+        }
+        if (!(el as HTMLElement).checkVisibility({ checkVisibilityCSS: true } as CheckVisibilityOptions)) continue;
+        if (el.closest('[aria-hidden="true"]')) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) continue;
+        const full = norm(subtreeText(el, new Set()));
+        if (full.length < 2 || !/[\p{L}\p{N}]/u.test(full)) continue;
+        const text = full.length > maxText ? full.slice(0, maxText) : full;
+        const isHeading = /^h[1-6]$/.test(tag) || el.getAttribute('role') === 'heading';
+        const d: RawElement = {
+          role: isHeading ? 'heading' : 'text',
+          name: text,
+          text,
+          state: {},
+          box: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
+          locators: [],
+          inView: rect.bottom > 0 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth,
+        };
+        if (getComputedStyle(el).cursor === 'pointer') d.clickable = true;
+        const lm = landmarkOf(el);
+        if (lm) d.landmark = lm;
+        if (isHeading && full.length <= maxText) d.locators.push({ kind: 'role', value: 'heading', name: full });
+        for (const a of TEST_ID_ATTRS) {
+          const v = el.getAttribute(a);
+          if (v) {
+            d.locators.push({ kind: 'testId', value: v });
+            break;
+          }
+        }
+        if (full.length <= maxText && !(rootOf(el) instanceof ShadowRoot) && textCounts.get(full) === 1 && norm(el.textContent ?? '') === full) {
+          d.locators.push({ kind: 'text', value: full });
+        }
+        d.locators.push({ kind: 'css', value: cssPath(el) });
+        emitted.add(el);
+        blocks.push(d);
+      }
+    };
+    visit(document);
+    return blocks;
   }
 
   const found: Element[] = [];

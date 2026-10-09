@@ -91,6 +91,9 @@ function toEngineAction(a: ResolvedAction): EngineAction | { unreplayable: strin
         : { unreplayable: 'selectOption without a value reference' };
     case 'goBack':
       return { kind: 'goBack' };
+    case 'scroll':
+      // Targeted scrolls only (page scrolls are skipped by the caller): page text scrolled into view.
+      return { kind: 'scroll', dir: 'into-view', locators };
     default:
       // press / goto: the learned script keeps no key or URL for these.
       return { unreplayable: `${a.action} cannot be replayed from the learned script` };
@@ -139,8 +142,9 @@ export async function replayStep(
   };
 
   for (const a of ordered) {
-    // A step that acted on nothing in the explore run (`wait` with no target) and scrolls are no-ops.
-    if ((a.action === 'wait' && a.locators.length === 0) || a.action === 'scroll') {
+    // A step that acted on nothing in the explore run (`wait` with no target) and page scrolls are no-ops;
+    // a scroll with a target (page text scrolled into view) is replayed.
+    if ((a.action === 'wait' || a.action === 'scroll') && a.locators.length === 0) {
       done.push({ subIndex: a.subIndex, kind: a.action, ok: true });
       continue;
     }

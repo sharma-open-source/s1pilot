@@ -188,7 +188,12 @@ export async function execute(page: Page, action: EngineAction, ctx: ExecutorCon
         }
         break;
       case 'scroll':
-        if (action.locators && action.locators.length > 0) {
+        if (action.dir === 'into-view') {
+          if (!action.locators || action.locators.length === 0) {
+            throw new ExecError({ code: 'action_failed', message: 'scroll into-view needs a target' });
+          }
+          await withTarget(action.locators, action.frame, (l) => l.scrollIntoViewIfNeeded({ timeout }));
+        } else if (action.locators && action.locators.length > 0) {
           await withTarget(action.locators, action.frame, (l) => scroll(l, action.dir));
         } else {
           await scroll(page.locator(':root'), action.dir);

@@ -3,7 +3,13 @@ import type { ObservedElement } from '../observer/types.js';
 const STOPWORDS = new Set([
   'a', 'an', 'the', 'to', 'on', 'in', 'of', 'and', 'or', 'for', 'at', 'with', 'then', 'click', 'press', 'tap',
   'select', 'go', 'open', 'is', 'it', 'that', 'this', 'button', 'link', 'page', 'my', 'your', 'into', 'from',
+  'navigate', 'scroll', 'find', 'locate', 'text', 'view',
 ]);
+
+/** Text blocks offered as action candidates per step, at most. */
+export const MAX_TEXT_CANDIDATES = 5;
+/** Minimum {@link lexicalScore} for a text block to be offered as a candidate. */
+export const MIN_TEXT_SCORE = 0.5;
 
 /** Lower-cased alphanumeric tokens of `text`, without stopwords. */
 export function tokenize(text: string): string[] {
@@ -38,4 +44,31 @@ export function orderByRelevance(
     .sort((a, b) => (scores.get(b.e.id) ?? 0) - (scores.get(a.e.id) ?? 0) || a.i - b.i)
     .map((x) => x.e);
   return { ordered, scores };
+}
+
+/**
+ * Text blocks worth offering as action candidates for a step: those whose lexical score is at least
+ * {@link MIN_TEXT_SCORE}, best first (ties: headings, then shorter text, then document order), at most
+ * `limit`. Lets a step such as "scroll to Customer reviews" or "click Free shipping" target page
+ * text that is not an interactive control.
+ */
+export function matchingTexts(
+  texts: readonly ObservedElement[],
+  stepText: string,
+  limit = MAX_TEXT_CANDIDATES,
+): ObservedElement[] {
+  const tokens = tokenize(stepText);
+  if (tokens.length === 0) return [];
+  return texts
+    .map((e, i) => ({ e, i, s: lexicalScore(tokens, e) }))
+    .filter((x) => x.s >= MIN_TEXT_SCORE)
+    .sort(
+      (a, b) =>
+        b.s - a.s ||
+        Number(b.e.role === 'heading') - Number(a.e.role === 'heading') ||
+        (a.e.text ?? a.e.name).length - (b.e.text ?? b.e.name).length ||
+        a.i - b.i,
+    )
+    .slice(0, limit)
+    .map((x) => x.e);
 }

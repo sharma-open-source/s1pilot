@@ -13,5 +13,10 @@ e2 [link] "Cart 1" @Main
 e3 [link] "Log in" @Main
 e4 [textbox] "Promo code" @main
 e5 [button] "Apply code" @main
-e6 [link] "Checkout" @main"
+e6 [link] "Checkout" @main
+page text (in view):
+  "Fixture Shop"
+  # "Your cart"
+  "Classic Tee – Blue / M"
+  "Fixture site for s1-pilot tests. Not a real store.""
 `;

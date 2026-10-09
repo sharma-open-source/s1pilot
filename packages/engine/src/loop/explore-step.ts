@@ -15,10 +15,11 @@ import type { ActionOutcome, EngineAction } from '../executor/types.js';
 import { actionKey, LoopGuard } from '../guards/loop.js';
 import { checkSensitive, type SensitiveCheck } from '../guards/sensitive.js';
 import { wrapUntrusted } from '../guards/untrusted.js';
+import { matchingTexts } from '../narrow/lexical.js';
 import { narrow } from '../narrow/narrow.js';
 import { ActionHistory } from '../observer/history.js';
 import { observer, pageFingerprint, serializeObservation, type Observation } from '../observer/observation.js';
-import type { ObservedElement } from '../observer/types.js';
+import { isTextBlock, type ObservedElement } from '../observer/types.js';
 import { createLiteralStore, createValueResolver, resolveInput } from '../text-input/index.js';
 import { TraceLineSchema, type StepEnd, type TraceLine } from '../trace/schema.js';
 
@@ -37,6 +38,22 @@ const META_DESCRIPTIONS: Record<string, string> = {
 const MAX_OVERLAY_ELEMENTS = 300;
 const STEP_DONE_QUESTION = "Has this test step's action been fully performed?";
 const BLOCKED_QUESTION = 'Is progress blocked (error, login wall, captcha)?';
+
+/**
+ * What choosing an element does. Text blocks are clicked when they look clickable (pointer cursor,
+ * typically a script click handler) and otherwise scrolled into view; controls follow {@link inferAction}.
+ */
+function actionKindOf(element: ObservedElement): ReturnType<typeof inferAction> | 'scroll' {
+  if (isTextBlock(element)) return element.clickable ? 'click' : 'scroll';
+  return inferAction(element, true);
+}
+
+/** Option label for the `next_action` question. */
+function describeOption(element: ObservedElement): string {
+  const label = `[${element.role}] ${element.name || element.text || element.placeholder || ''}`.trim();
+  if (!isTextBlock(element)) return label;
+  return `${label} (${element.clickable ? 'click it' : 'scroll it into view'})`;
+}
 
 type EventBody = RunEvent extends infer E ? (E extends { type: string } ? Omit<E, 'runId' | 'ts'> : never) : never;
 type IterationLine = Extract<TraceLine, { kind: 'iteration' }>;
@@ -270,11 +287,13 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
     let decideMs = 0;
     try {
       t = performance.now();
-      const narrowed = await narrow(obs, ctx.caps, ctx.s1, safeText, { modelName });
+      // Page text matching the step joins the controls, so "scroll to Reviews" has something to point at.
+      const pool = [...obs.elements, ...matchingTexts(obs.texts ?? [], safeText)];
+      const narrowed = await narrow({ elements: pool }, ctx.caps, ctx.s1, safeText, { modelName });
       lap('narrow', t);
       narrowed.trail.forEach(record);
       candidates = narrowed.candidates;
-      for (const e of candidates) optionDescriptions[e.id] = r(`[${e.role}] ${e.name || e.text || e.placeholder || ''}`.trim());
+      for (const e of candidates) optionDescriptions[e.id] = r(describeOption(e));
       Object.assign(optionDescriptions, META_DESCRIPTIONS);
 
       const shown: Observation = { ...obs, elements: candidates };
@@ -333,8 +352,9 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
       ...(next.choice !== undefined && obs.elementMap.has(next.choice) ? { chosenId: next.choice } : {}),
     });
     const byId = new Map(candidates.map((e) => [e.id, e]));
+    // A clickable text block acts like a button, so it is classified as one (a "Delete" div needs approval too).
     const sensitivityOf = (element: ObservedElement): SensitiveCheck =>
-      checkSensitive(element, { kind: inferAction(element, true) }, {
+      checkSensitive(isTextBlock(element) && element.clickable ? { ...element, role: 'button' } : element, { kind: actionKindOf(element) }, {
         obs,
         ...(step.guards ? { stepGuards: step.guards } : {}),
         requireApprovalFor: ctx.environment.requireApprovalFor,
@@ -422,8 +442,10 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
       }
       target = r(element.name || element.text || element.role);
       const where = { locators: element.locators, ...(element.frame ? { frame: element.frame } : {}) };
-      const kind = inferAction(element, true);
-      if (kind === 'fill' || kind === 'selectOption') {
+      const kind = actionKindOf(element);
+      if (kind === 'scroll') {
+        action = { kind: 'scroll', dir: 'into-view', ...where };
+      } else if (kind === 'fill' || kind === 'selectOption') {
         let resolved;
         try {
           resolved = await resolveInput({

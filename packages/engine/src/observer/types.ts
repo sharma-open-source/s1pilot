@@ -8,11 +8,14 @@ export interface Box {
   h: number;
 }
 
-/** One interactive element as shown to the decision model (text-first, no live handles). */
+/**
+ * One element as shown to the decision model (text-first, no live handles): an interactive control
+ * (`e1`, `e2`, ...) or a block of page text (`t1`, `t2`, ...; role `text` or `heading`).
+ */
 export interface ObservedElement {
-  /** Short id (`e1`, `e2`, ...), assigned in document order; stable within one capture. */
+  /** Short id (`e1`... for controls, `t1`... for text blocks), assigned in document order; stable within one capture. */
   id: string;
-  /** ARIA role (explicit or implicit), e.g. `button`, `link`, `textbox`. */
+  /** ARIA role (explicit or implicit), e.g. `button`, `link`, `textbox`; `text` / `heading` for text blocks. */
   role: string;
   /** Accessible name (whitespace-normalised). */
   name: string;
@@ -29,6 +32,15 @@ export interface ObservedElement {
   locators: LocatorCandidate[];
   /** Name (or url) of the iframe the element lives in; absent for the main frame. */
   frame?: string;
+  /** Text blocks only: shows a pointer cursor, so clicking it likely does something. */
+  clickable?: boolean;
+  /** Text blocks only: currently inside the viewport (false = must scroll to see it). */
+  inView?: boolean;
+}
+
+/** True for text blocks (role `text` / `heading`) as opposed to interactive controls. */
+export function isTextBlock(e: Pick<ObservedElement, 'role'>): boolean {
+  return e.role === 'text' || e.role === 'heading';
 }
 
 /** Lookup of observed elements by id, kept on the observation for executor lookup. */

@@ -10,7 +10,8 @@ export interface ActionTarget {
   frame?: string;
 }
 
-export type ScrollDirection = 'up' | 'down' | 'left' | 'right' | 'top' | 'bottom';
+/** `into-view` scrolls the targeted element itself into view (needs `locators`). */
+export type ScrollDirection = 'up' | 'down' | 'left' | 'right' | 'top' | 'bottom' | 'into-view';
 
 /** An action the executor can perform. Values are always references (`secret:`, `var:`, `input:`). */
 export type EngineAction =

@@ -25,16 +25,10 @@ async function frameOffset(frame: Frame): Promise<{ x: number; y: number } | nul
   return { x, y };
 }
 
-/**
- * Captures the visible, enabled interactive elements of a page (including open shadow roots and
- * iframes) as stable text-first descriptors with ids `e1`, `e2`, ... in document order
- * (main frame first, then child frames in frame-tree order).
- *
- * Roles and accessible names are computed in the page: Playwright 1.63 no longer ships
- * `page.accessibility`, and a single in-page pass is also fastest and reaches shadow DOM.
- * Password values are never included; secret-looking fields are masked.
- */
-export async function captureElements(page: Page): Promise<ObservedElement[]> {
+/** Max text blocks captured per frame. */
+const MAX_TEXT_BLOCKS = 300;
+
+async function captureFrames(page: Page, mode: 'interactive' | 'text', prefix: string): Promise<ObservedElement[]> {
   const result: ObservedElement[] = [];
   let n = 0;
   for (const frame of page.frames()) {
@@ -43,14 +37,14 @@ export async function captureElements(page: Page): Promise<ObservedElement[]> {
     if (!offset) continue;
     let raw: RawElement[];
     try {
-      raw = await frame.evaluate(collectInPage, MAX_TEXT);
+      raw = await frame.evaluate(collectInPage, { maxText: MAX_TEXT, mode, maxBlocks: MAX_TEXT_BLOCKS });
     } catch {
       continue; // frame navigated or detached mid-capture
     }
     for (const r of raw) {
       n += 1;
       const el: ObservedElement = {
-        id: `e${n}`,
+        id: `${prefix}${n}`,
         role: r.role,
         name: r.name,
         state: { ...r.state },
@@ -61,9 +55,33 @@ export async function captureElements(page: Page): Promise<ObservedElement[]> {
       if (r.placeholder !== undefined) el.placeholder = r.placeholder;
       if (r.value !== undefined) el.value = r.value;
       if (r.landmark !== undefined) el.landmark = r.landmark;
+      if (r.clickable) el.clickable = true;
+      if (r.inView !== undefined) el.inView = r.inView;
       if (!isMain) el.frame = frameLabel(frame);
       result.push(el);
     }
   }
   return result;
+}
+
+/**
+ * Captures the visible, enabled interactive elements of a page (including open shadow roots and
+ * iframes) as stable text-first descriptors with ids `e1`, `e2`, ... in document order
+ * (main frame first, then child frames in frame-tree order).
+ *
+ * Roles and accessible names are computed in the page: Playwright 1.63 no longer ships
+ * `page.accessibility`, and a single in-page pass is also fastest and reaches shadow DOM.
+ * Password values are never included; secret-looking fields are masked.
+ */
+export function captureElements(page: Page): Promise<ObservedElement[]> {
+  return captureFrames(page, 'interactive', 'e');
+}
+
+/**
+ * Captures visible non-interactive text blocks (headings, paragraphs, list items, cells, labels,
+ * script-driven `div`s, ...) with ids `t1`, `t2`, ... in document order, including blocks scrolled
+ * out of view (`inView: false`). Text that is already a control's name is left out.
+ */
+export function captureTexts(page: Page): Promise<ObservedElement[]> {
+  return captureFrames(page, 'text', 't');
 }

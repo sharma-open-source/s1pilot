@@ -4,15 +4,20 @@ import type { Redactor } from '@s1pilot/domain';
 import type { Page } from 'playwright';
 
 import { capturePageContext, type PageContext } from './context.js';
-import { captureElements } from './elements.js';
+import { captureElements, captureTexts } from './elements.js';
 import type { ActionHistory, HistoryEntry } from './history.js';
 import { captureSom, type SomImage } from './som.js';
-import { indexElements, type ElementMap, type ObservedElement } from './types.js';
+import { indexElements, isTextBlock, type ElementMap, type ObservedElement } from './types.js';
 
 /** A complete view of the page for one decision. */
 export interface Observation {
   context: PageContext;
   elements: ObservedElement[];
+  /**
+   * Visible non-interactive text blocks (`t1`...), in view or not. Not part of the page
+   * fingerprint. Optional so hand-built observations (tests, recorder) need not supply it.
+   */
+  texts?: ObservedElement[];
   /** Lookup by element id, for the executor. */
   elementMap: ElementMap;
   /** Last K actions, oldest first. */
@@ -36,20 +41,26 @@ export interface CaptureOptions {
 export interface SerializeOptions {
   /** Max element lines; extra elements are summarised as a count. Default: all. */
   maxElements?: number;
+  /** Character budget for the in-view page text section. Default {@link MAX_PAGE_TEXT}. */
+  maxTextChars?: number;
   /** Applied to every piece of page-derived text. */
   redactor: Redactor;
 }
 
 const MAX_NAME = 80;
 
+/** Default character budget of the `page text` section of a serialized observation. */
+export const MAX_PAGE_TEXT = 3000;
+
 /** Page observer entry point. */
 export const observer = {
   /** Captures elements, page context, recent history and (if allowed) a Set-of-Marks screenshot. */
   async capture(page: Page, opts: CaptureOptions = {}): Promise<Observation> {
-    const [context, elements] = await Promise.all([capturePageContext(page), captureElements(page)]);
+    const [context, elements, texts] = await Promise.all([capturePageContext(page), captureElements(page), captureTexts(page)]);
     const obs: Observation = {
       context,
       elements,
+      texts,
       elementMap: indexElements(elements),
       history: opts.history?.recent() ?? [],
     };
@@ -71,7 +82,9 @@ function landmarkName(landmark: string): string {
 /**
  * Renders an observation as compact text for models. Page text is data, not instructions: it is
  * redacted and only ever appears inside quoted/labelled lines. Element lines look like
- * `e3 [button] "Checkout as guest" @order summary`.
+ * `e3 [button] "Checkout as guest" @order summary`; text blocks offered as candidates appear there
+ * too (`t7 [text] "Free shipping over $50" (clickable,offscreen)`). In-view text blocks that are not
+ * candidates are listed under `page text (in view):` up to `maxTextChars`.
  */
 export function serializeObservation(obs: Observation, opts: SerializeOptions): string {
   const r = (s: string, max = 200): string => opts.redactor.redact(clip(s, max));
@@ -98,12 +111,45 @@ export function serializeObservation(obs: Observation, opts: SerializeOptions): 
     const states = Object.entries(e.state)
       .filter(([, v]) => v !== undefined)
       .map(([k, v]) => (v === true ? k : `${k}=${String(v)}`));
+    if (isTextBlock(e)) {
+      if (e.clickable) states.push('clickable');
+      if (e.inView === false) states.push('offscreen');
+    }
     if (states.length) line += ` (${states.join(',')})`;
     if (e.landmark) line += ` @${r(landmarkName(e.landmark), 60)}`;
     if (e.frame) line += ` [frame ${r(e.frame, 40)}]`;
     out.push(line);
   }
   if (obs.elements.length > max) out.push(`... ${obs.elements.length - max} more elements omitted`);
+
+  const texts = obs.texts ?? [];
+  if (texts.length) {
+    const listed = new Set(obs.elements.map((e) => e.id));
+    let budget = opts.maxTextChars ?? MAX_PAGE_TEXT;
+    let offscreen = 0;
+    let omitted = 0;
+    const lines: string[] = [];
+    for (const t of texts) {
+      if (listed.has(t.id)) continue;
+      if (t.inView === false) {
+        offscreen += 1;
+        continue;
+      }
+      const body = r(t.text ?? t.name, 160);
+      if (budget - body.length < 0) {
+        omitted += 1;
+        continue;
+      }
+      budget -= body.length;
+      lines.push(`  ${t.role === 'heading' ? '# ' : ''}${JSON.stringify(body)}${t.clickable ? ' (clickable)' : ''}`);
+    }
+    if (lines.length || omitted) {
+      out.push('page text (in view):');
+      out.push(...lines);
+      if (omitted) out.push(`  ... ${omitted} more in-view text blocks omitted`);
+    }
+    if (offscreen) out.push(`${offscreen} more text blocks are outside the viewport`);
+  }
   return out.join('\n');
 }
 

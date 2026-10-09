@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { ObservedElement } from './types.js';
 
-import { captureElements, indexElements, resolveFirstUnique, toPlaywrightLocator } from './index.js';
+import { captureElements, captureTexts, indexElements, resolveFirstUnique, toPlaywrightLocator } from './index.js';
 
 let browser: Browser;
 let server: FixtureServer;
@@ -230,5 +230,38 @@ describe('descriptor snapshots per fixture site', () => {
     await addTeeToCart(p);
     await p.goto(`${server.url}/shop/checkout`);
     expect(lines(await captureElements(p))).toMatchSnapshot();
+  });
+});
+
+describe('captureTexts', () => {
+  it('captures visible non-interactive text blocks, in view or not, without control text', async () => {
+    const p = await fresh();
+    await p.setContent(`
+      <main>
+        <h2>Customer reviews</h2>
+        <p>Get <b>free</b> shipping on orders over $50</p>
+        <label for="q">Search</label><input id="q">
+        <button>Buy <span>now</span></button>
+        <div id="promo" style="cursor:pointer">Show promo</div>
+        <p aria-hidden="true">Hidden note</p>
+        <p style="display:none">Gone</p>
+        <div style="height:3000px"></div>
+        <p>Terms and conditions apply</p>
+      </main>
+      <script>document.getElementById('promo').addEventListener('click', () => { document.title = 'clicked'; });</script>`);
+
+    const texts = await captureTexts(p);
+    expect(texts.map((t) => `${t.id} ${t.role} ${JSON.stringify(t.name)}${t.clickable ? ' clickable' : ''}${t.inView === false ? ' offscreen' : ''}`)).toEqual([
+      't1 heading "Customer reviews"',
+      't2 text "Get free shipping on orders over $50"',
+      't3 text "Show promo" clickable',
+      't4 text "Terms and conditions apply" offscreen',
+    ]);
+    expect(texts[0]?.locators[0]).toEqual({ kind: 'role', value: 'heading', name: 'Customer reviews' });
+    expect(texts[0]?.landmark).toBe('main');
+    for (const t of texts) {
+      const hit = await resolveFirstUnique(p, t.locators);
+      expect(hit, t.name).not.toBeNull();
+    }
   });
 });
