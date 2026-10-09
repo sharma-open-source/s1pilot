@@ -5,6 +5,8 @@ import { probe as defaultProbe, type ProbeOptions, type ProbeTarget } from '@s1p
 import { Command, Option } from 'commander';
 
 import { registerCalibrateCommand } from './calibrate.js';
+import { registerCiCommentCommand } from './ci/comment.js';
+import { executeServerRun } from './ci/server-run.js';
 import { registerEvalCommand } from './eval.js';
 import { executeRun, type RunOptions } from './run.js';
 import { registerSyncCommands } from './sync.js';
@@ -38,6 +40,8 @@ export interface CliDeps {
   env: NodeJS.ProcessEnv;
   /** Opens a URL in the default browser (`s1pilot ui`); tests must inject a stub. */
   openBrowser: (url: string) => void;
+  /** HTTP client for server mode and the GitHub API (tests inject a fake). */
+  fetch?: typeof fetch;
 }
 
 const defaultDeps: CliDeps = {
@@ -78,6 +82,16 @@ export function formatProbe(result: ProbeResult): string {
   const lines = rows.map(([label, value]) => `${label.padEnd(width)}  ${value}`);
   for (const warning of result.warnings) lines.push(`! ${warning}`);
   return `${lines.join('\n')}\n`;
+}
+
+/** Flags that only apply to server mode (`--plan` / `--server`). */
+interface ServerFlags {
+  plan?: string;
+  server?: string;
+  token?: string;
+  projectKey?: string;
+  pollInterval?: number;
+  waitTimeout?: number;
 }
 
 /** Builds the `s1pilot` command tree. */
@@ -135,7 +149,16 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
     .description(
       'Run YAML test cases: replay learned scripts (healing broken steps) or explore with AI (exit codes: 0 passed, 1 failed, 2 needs review, 3 config error)',
     )
-    .argument('<file-or-dir>', 'a test case YAML file or a directory of them')
+    .argument('[file-or-dir]', 'a test case YAML file or a directory of them (omit with --plan --server)')
+    .option('--plan <name>', 'run a test plan by name on an s1-pilot server (needs --server)')
+    .option('--server <url>', 'report to / run on this s1-pilot server (with --plan)')
+    .option('--token <token>', 'API token for --server (or set S1PILOT_TOKEN)')
+    .option('--project-key <key>', 'project key on the server (default: key from .s1pilot/project.yaml)')
+    .option('--build-ref <ref>', 'build number or reference recorded on the run')
+    .option('--commit <sha>', 'commit SHA recorded on the run (used as build reference when --build-ref is absent)')
+    .option('--branch <name>', 'branch name shown in the PR comment')
+    .option('--poll-interval <ms>', 'server mode: milliseconds between status polls', (v) => Number.parseInt(v, 10), 2000)
+    .option('--wait-timeout <ms>', 'server mode: stop waiting after this many milliseconds', (v) => Number.parseInt(v, 10), 3_600_000)
     .option('--env <name>', 'environment from .s1pilot/project.yaml (default: the project default)')
     .option('--model-url <url>', 'System 1 model server base URL')
     .option('--model <name>', 'System 1 model name')
@@ -170,7 +193,21 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
     .option('--reporter <names>', 'comma-separated reports to write into --out: junit (junit.xml), json (report.json), html (report.html)')
     .option('--parallel <n>', 'cases to run at the same time, each in its own browser context', (v) => Number.parseInt(v, 10), 1)
     .option('--mock-script <file>', 'JSON script for --adapter mock (steps, inputs, expected)')
-    .action(async (target: string, opts: RunOptions) => {
+    .action(async (target: string | undefined, opts: RunOptions & ServerFlags) => {
+      if (opts.plan !== undefined || opts.server !== undefined) {
+        deps.setExitCode(
+          await executeServerRun(
+            { ...opts, ...(opts.pollInterval !== undefined ? { pollInterval: opts.pollInterval } : {}) },
+            { ...deps, ...(deps.fetch ? { fetch: deps.fetch } : {}) },
+          ),
+        );
+        return;
+      }
+      if (target === undefined) {
+        deps.stderr('error: pass a test case file or directory, or --plan <name> --server <url>\n');
+        deps.setExitCode(3);
+        return;
+      }
       deps.setExitCode(await executeRun(target, opts, deps));
     });
 
@@ -178,6 +215,7 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
   registerEvalCommand(program, deps);
   registerCalibrateCommand(program, deps);
   registerUiCommand(program, deps);
+  registerCiCommentCommand(program, deps);
 
   return program;
 }

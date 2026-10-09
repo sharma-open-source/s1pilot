@@ -114,6 +114,9 @@ importers:
       '@s1pilot/web':
         specifier: workspace:^
         version: link:../web
+      actionlint:
+        specifier: ^2.0.6
+        version: 2.0.6
 
   apps/server:
     dependencies:
@@ -2268,6 +2271,9 @@ packages:
     resolution: {integrity: sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  actionlint@2.0.6:
+    resolution: {integrity: sha512-tNx8f48yJNSLXTIygGntu5dSZlIZblDt8sR7pIs7EEmmb2PkEF87d+3UKZV2GUgCuN9Awj7k4ZPrwdAxFWEqgw==}
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
@@ -5941,6 +5947,8 @@ snapshots:
       acorn: 8.19.0
 
   acorn@8.19.0: {}
+
+  actionlint@2.0.6: {}
 
   ajv-formats@3.0.1(ajv@8.20.0):
     optionalDependencies:

@@ -1,0 +1,30 @@
+# GitLab CI template for s1-pilot. Include it from your .gitlab-ci.yml:
+#
+#   include:
+#     - local: .gitlab/s1pilot.yml
+#   s1pilot:
+#     extends: .s1pilot-run
+#     variables:
+#       S1PILOT_PLAN: Smoke
+#       S1PILOT_ENV: staging
+#       S1PILOT_SERVER: https://s1pilot.example.com
+#
+# Store the API token (scopes runs:write, results:read) as the masked CI/CD variable S1PILOT_TOKEN.
+# The JUnit report shows up in the pipeline's Tests tab and in merge requests.
+.s1pilot-run:
+  image: node:20
+  variables:
+    S1PILOT_REPORTER: junit,html
+    S1PILOT_CLI: s1pilot@latest
+  script:
+    - >
+      npx --yes "$S1PILOT_CLI" run --plan "$S1PILOT_PLAN" --env "$S1PILOT_ENV"
+      --server "$S1PILOT_SERVER" --reporter "$S1PILOT_REPORTER" --out s1pilot-results
+      --build-ref "$CI_PIPELINE_ID" --commit "$CI_COMMIT_SHA" --branch "$CI_COMMIT_REF_NAME"
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - s1pilot-results/
+    reports:
+      junit: s1pilot-results/junit.xml

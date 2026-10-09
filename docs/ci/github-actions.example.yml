@@ -1,0 +1,26 @@
+# Example: run the "Smoke" plan against staging on every pull request.
+# Create an API token under Settings > API tokens (scopes: runs:write, results:read) and store it as the
+# repository secret S1PILOT_TOKEN. Copy this file to .github/workflows/s1pilot.yml.
+name: s1pilot
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: s1pilot/run-action@v1
+        with:
+          plan: Smoke
+          env: staging
+          server: https://s1pilot.example.com
+          token: ${{ secrets.S1PILOT_TOKEN }}
+          reporter: junit,html

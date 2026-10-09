@@ -209,6 +209,10 @@ const CreateInput = z.object({
   mode: ExecutionModeSchema.default('replay-heal'),
   attended: z.boolean().default(false),
   buildRef: z.string().optional(),
+  /** `ci` for runs started by the CLI in a pipeline (S-063). */
+  trigger: z.enum(['manual', 'ci']).default('manual'),
+  /** Commit SHA from CI; used as the build reference when `buildRef` is absent. */
+  commit: z.string().min(1).max(100).optional(),
 });
 
 /** Test runs: create (queues jobs), list, get, cancel, rerun failed. Execution happens in the worker pool. */
@@ -216,13 +220,15 @@ export const runsRouter = router({
   /** Queues a run: one job per case. Returns the run (status `queued`). */
   create: publicProcedure.input(CreateInput).mutation(async ({ ctx, input }) => {
     const project = await requireProject(ctx, input.projectKey);
+    const buildRef = input.buildRef ?? input.commit;
     if (input.planId !== undefined) {
       const plan = await requirePlan(ctx, input.planId, project.id);
       return startPlanRun(ctx, project, plan, {
-        trigger: 'manual',
+        trigger: input.trigger,
         includeQuarantined: input.includeQuarantined,
         attended: input.attended,
-        ...(input.buildRef !== undefined ? { buildRef: input.buildRef } : {}),
+        ...(buildRef !== undefined ? { buildRef } : {}),
+        ...(input.environment !== undefined ? { environment: input.environment } : {}),
       });
     }
     if (!input.caseKeys || !input.environment) {
@@ -238,7 +244,7 @@ export const runsRouter = router({
     const foreign = cases.find((c) => c.projectId !== project.id);
     if (foreign) throw new S1PilotError('CASE_NOT_FOUND', `Case ${foreign.key} is not in project ${project.key}`, { key: foreign.key });
     const config = { environmentId: environment.id, browser: input.browser, mode: input.mode, attended: input.attended };
-    return startRun(ctx, project, cases.map((c) => ({ caseId: c.id, config })), input.buildRef);
+    return startRun(ctx, project, cases.map((c) => ({ caseId: c.id, config })), buildRef, undefined, input.trigger);
   }),
 
   /** Run report: summary, exit-criteria evaluation, sign-off and result rows (S-046, S-056). */

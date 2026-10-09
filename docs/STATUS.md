@@ -10,6 +10,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 |---|---|---|---|
 | 2026-10-09 | S-058 | todo → done | Calibration (sub-agent). Temperature scaling per model/question type/option-count bucket, raw + calibrated on decision records, threshold suggestion (apply only on confirm), `calibration` router, `s1pilot calibrate`, Analytics Recalibrate wired. No migration (state in `settings`). |
 | 2026-10-09 | S-059 | todo → done | Settings shell & API tokens (sub-agent). Migration `0012_api_tokens` (renumber on collision with S-058). |
+| 2026-10-09 | S-063 | todo → done | CI: CLI server mode & templates (sub-agent). `run --plan --server`, `ci-comment`, GitHub composite action + GitLab template in `docs/ci/`, Integrations cards. No migration. |
 | 2026-10-09 | S-057 | todo → done | Analytics API + UI (sub-agent). Migration 0010 (`analytics_daily` rollup + indexes `test_runs(project_id, started_at)`, `case_results(run_id, case_id, attempt)`). |
 | 2026-10-09 | S-053 | todo → done | Accessibility & console/network checks (sub-agent). Migration `0011_check_results` (`case_results.checks`; renumber on collision). |
 | 2026-10-09 | S-056 | todo → done | Exit criteria evaluation, run report tile, sign-off, PDF export (sub-agent). No migration. |
@@ -130,7 +131,7 @@ Status values: `todo` · `in progress` · `implemented` (code written, checks no
 | S-060 | Recorder | P5 | todo | |
 | S-061 | System 2 test generation | P5 | todo | |
 | S-062 | Importers | P5 | todo | |
-| S-063 | CI: CLI server mode & templates | P6 | todo | |
+| S-063 | CI: CLI server mode & templates | P6 | done | Sub-agent. No migration. CLI `run --plan <name> --server <url> --token T --env E [--project-key --build-ref --commit --branch --reporter --poll-interval --wait-timeout]` (`apps/cli/src/ci/server-run.ts`): finds the plan by name, `runs.create` with `trigger: 'ci'`, polls `runs.get` printing a line per finished case (polling, not WS: `/ws` ignores bearer tokens), downloads `/api/runs/:id/export/<fmt>` into `--out`, writes `ci-summary.json`. Token also from `S1PILOT_TOKEN`. Exit: exit criteria decide when the plan has any (unmet = 1, deliberately not `EXIT_CRITERIA_UNMET_EXIT_CODE` 4, because the spec acceptance says 1), else 1 failed/blocked/flaky, 2 needs-review, 0; 3 config/auth errors. Standalone `run <file-or-dir>` unchanged apart from writing `ci-summary.json`. `s1pilot ci-comment --summary` renders `renderPrComment` (marker `<!-- s1pilot-run-summary -->`) and creates/updates the PR comment via GitHub API (`GITHUB_TOKEN`; failure only warns). Server: `runs.create` accepts `trigger: manual|ci`, `commit` (-> buildRef) and applies `environment` to plan runs; token hook records CI use from header `x-s1pilot-ci` (github/gitlab/other, sent by the CLI from `GITHUB_ACTIONS`/`GITLAB_CI`) in `settings` `integrations.ci.<provider>`; `tokens.ciUsage` -> connected if within 30 days. Web: GitHub Actions / GitLab CI cards show Connected + Configure snippet. Templates in `docs/ci/` (`run-action/action.yml`, `github-actions.example.yml`, `.gitlab/s1pilot.yml`); example workflow validated with `actionlint` (wasm npm package, devDependency of apps/cli). Branch is not stored on the run (only in the PR comment). |
 | S-064 | Issue trackers | P6 | todo | |
 | S-065 | Notifications | P6 | todo | |
 | S-066 | Postgres & pg-boss | P7 | todo | |

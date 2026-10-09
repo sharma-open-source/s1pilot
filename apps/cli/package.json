@@ -44,6 +44,7 @@
     "@s1pilot/runner": "workspace:*",
     "@s1pilot/server": "workspace:^",
     "@s1pilot/sync": "workspace:^",
-    "@s1pilot/web": "workspace:^"
+    "@s1pilot/web": "workspace:^",
+    "actionlint": "^2.0.6"
   }
 }

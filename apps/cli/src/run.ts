@@ -49,6 +49,8 @@ import {
 } from '@s1pilot/sync';
 import { chromium, firefox, webkit, type Browser } from 'playwright';
 
+import type { CiSummary } from './ci/summary.js';
+
 
 /** Exit codes of `s1pilot run`. */
 export const EXIT_PASSED = 0;
@@ -79,6 +81,10 @@ export interface RunOptions {
   reporter?: string;
   /** Cases to run at the same time (default 1). */
   parallel?: number;
+  /** Build reference, commit and branch from CI; shown in `ci-summary.json` (and stored on the server run). */
+  buildRef?: string;
+  commit?: string;
+  branch?: string;
 }
 
 /** The slice of `CliDeps` that `run` needs. */
@@ -91,7 +97,7 @@ export interface RunDeps {
 const DEFAULT_THRESHOLDS: Thresholds = { act: 0.8, pass: 0.9, fail: 0.1, escalate: 0.4 };
 
 /** A problem with the user's setup (exit code 3), as opposed to a failing test. */
-class ConfigError extends Error {}
+export class ConfigError extends Error {}
 
 function isDir(path: string): boolean {
   try {
@@ -486,7 +492,20 @@ export async function executeRun(target: string, opts: RunOptions, deps: RunDeps
       )}\n`,
     );
     for (const file of await writeReports(report, outDir, reporters, {}, { redactor })) say(`Report: ${file}`);
-    return exitCodeFor(report.cases.map((c) => c.verdict));
+    const exitCode = exitCodeFor(report.cases.map((c) => c.verdict));
+    const count = (v: Verdict): number => report.cases.filter((c) => c.verdict === v).length;
+    const ciSummary: CiSummary = {
+      title: target,
+      environment: environment.name,
+      outcome: exitCode === EXIT_PASSED ? 'passed' : exitCode === EXIT_NEEDS_REVIEW ? 'needs-review' : 'failed',
+      exitCode,
+      totals: { passed: count('passed'), failed: count('failed'), blocked: count('blocked'), flaky: count('flaky'), needsReview: count('needs-review'), skipped: count('skipped') },
+      criteria: null,
+      ...(opts.buildRef ?? opts.commit ? { buildRef: opts.buildRef ?? opts.commit } : {}),
+      ...(opts.branch ? { branch: opts.branch } : {}),
+    };
+    await writeFile(join(outDir, 'ci-summary.json'), `${JSON.stringify(ciSummary, null, 2)}\n`);
+    return exitCode;
   } catch (error) {
     if (error instanceof ConfigError || error instanceof S1PilotError) {
       deps.stderr(`error: ${error.message}\n`);

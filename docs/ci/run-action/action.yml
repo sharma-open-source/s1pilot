@@ -1,0 +1,96 @@
+name: s1pilot run
+description: Run an s1-pilot test plan on your s1-pilot server, upload the reports and comment on the pull request.
+author: s1-pilot
+
+inputs:
+  plan:
+    description: Name of the test plan to run.
+    required: true
+  env:
+    description: Environment name from the plan matrix (for example staging).
+    required: true
+  server:
+    description: URL of the s1-pilot server.
+    required: true
+  token:
+    description: API token with the runs:write and results:read scopes. Store it as a repository secret.
+    required: true
+  project-key:
+    description: Project key. Optional when the repository contains .s1pilot/project.yaml.
+    required: false
+    default: ''
+  reporter:
+    description: Comma-separated reports to download (junit, html, json).
+    required: false
+    default: junit,html
+  comment:
+    description: Post or update a summary comment on pull requests.
+    required: false
+    default: 'true'
+  github-token:
+    description: Token used to comment on the pull request.
+    required: false
+    default: ${{ github.token }}
+  cli-version:
+    description: Version of the s1pilot npm package to run.
+    required: false
+    default: latest
+
+outputs:
+  exit-code:
+    description: Exit code of s1pilot run (0 passed, 1 failed or exit criteria unmet, 2 needs review, 3 configuration error).
+    value: ${{ steps.run.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Run plan
+      id: run
+      shell: bash
+      env:
+        S1P_PLAN: ${{ inputs.plan }}
+        S1P_ENV: ${{ inputs.env }}
+        S1P_SERVER: ${{ inputs.server }}
+        S1P_PROJECT_KEY: ${{ inputs.project-key }}
+        S1P_REPORTER: ${{ inputs.reporter }}
+        S1P_CLI: s1pilot@${{ inputs.cli-version }}
+        S1P_BRANCH: ${{ github.head_ref || github.ref_name }}
+        S1P_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        S1P_BUILD: ${{ github.run_id }}-${{ github.run_attempt }}
+        S1PILOT_TOKEN: ${{ inputs.token }}
+      run: |
+        args=(run --plan "$S1P_PLAN" --env "$S1P_ENV" --server "$S1P_SERVER"
+          --reporter "$S1P_REPORTER" --out s1pilot-results
+          --build-ref "$S1P_BUILD" --commit "$S1P_COMMIT" --branch "$S1P_BRANCH")
+        if [ -n "$S1P_PROJECT_KEY" ]; then args+=(--project-key "$S1P_PROJECT_KEY"); fi
+        set +e
+        npx --yes "$S1P_CLI" "${args[@]}"
+        code=$?
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        exit 0
+
+    - name: Comment on the pull request
+      if: ${{ always() && inputs.comment == 'true' && github.event_name == 'pull_request' && hashFiles('s1pilot-results/ci-summary.json') != '' }}
+      shell: bash
+      env:
+        S1P_CLI: s1pilot@${{ inputs.cli-version }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: npx --yes "$S1P_CLI" ci-comment --summary s1pilot-results/ci-summary.json
+
+    - name: Upload reports
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: s1pilot-reports
+        path: s1pilot-results
+        if-no-files-found: ignore
+
+    - name: Fail when the plan did not pass
+      shell: bash
+      env:
+        S1P_EXIT: ${{ steps.run.outputs.exit-code }}
+      run: exit "${S1P_EXIT:-3}"

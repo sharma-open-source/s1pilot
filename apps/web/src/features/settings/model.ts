@@ -18,10 +18,10 @@ export function parseSection(raw: string): SettingsSlug | undefined {
   return SETTINGS_SECTIONS.find((s) => s.slug === raw)?.slug;
 }
 
-// TODO(S-063): real status and actions for the integration cards (S-063 to S-065); until then all are "Not connected" and disabled.
+// TODO(S-064): real status and actions for the other integration cards; only GitHub Actions and GitLab CI are live (S-063).
 export const INTEGRATIONS = [
   { name: 'GitHub Actions', description: 'Run plans in CI, comment on PRs', action: 'Configure' },
-  { name: 'GitLab CI', description: 'Pipeline template + JUnit upload', action: 'Connect' },
+  { name: 'GitLab CI', description: 'Pipeline template + JUnit upload', action: 'Configure' },
   { name: 'Jira', description: 'Push defects, sync status, link requirements', action: 'Configure' },
   { name: 'Linear · GitHub Issues', description: 'Alternative defect trackers', action: 'Connect' },
   { name: 'Slack · Teams', description: 'Run finished, approval needed, review queue', action: 'Configure' },
@@ -57,4 +57,46 @@ export function ago(iso: string | null | undefined, now: number = Date.now()): s
   if (s < 3600) return `${Math.floor(s / 60)} min ago`;
   if (s < 86_400) return `${Math.floor(s / 3600)} h ago`;
   return `${Math.floor(s / 86_400)} d ago`;
+}
+
+/** Cards that show CI usage and a "Configure" snippet panel, keyed to the provider the CLI reports (S-063). */
+export const CI_CARDS = { 'GitHub Actions': 'github', 'GitLab CI': 'gitlab' } as const;
+
+/** Example GitHub Actions workflow using the composite action. Contains no token value, only the secret reference. */
+export function githubWorkflowSnippet(opts: { server: string; plan?: string | undefined; env?: string | undefined }): string {
+  return [
+    'name: s1pilot',
+    'on: pull_request',
+    'permissions:',
+    '  contents: read',
+    '  pull-requests: write',
+    'jobs:',
+    '  s1pilot:',
+    '    runs-on: ubuntu-latest',
+    '    steps:',
+    '      - uses: actions/checkout@v4',
+    '      - uses: s1pilot/run-action@v1',
+    '        with:',
+    `          plan: ${opts.plan || 'Smoke'}`,
+    `          env: ${opts.env || 'staging'}`,
+    `          server: ${opts.server}`,
+    '          token: ${{ secrets.S1PILOT_TOKEN }}',
+    '          reporter: junit,html',
+  ].join('\n');
+}
+
+/** Example GitLab CI job using the `.gitlab/s1pilot.yml` template. */
+export function gitlabSnippet(opts: { server: string; plan?: string | undefined; env?: string | undefined }): string {
+  return [
+    'include:',
+    '  - local: .gitlab/s1pilot.yml',
+    '',
+    's1pilot:',
+    '  extends: .s1pilot-run',
+    '  variables:',
+    `    S1PILOT_PLAN: "${opts.plan || 'Smoke'}"`,
+    `    S1PILOT_ENV: ${opts.env || 'staging'}`,
+    `    S1PILOT_SERVER: ${opts.server}`,
+    '    # S1PILOT_TOKEN: set as a masked CI/CD variable',
+  ].join('\n');
 }

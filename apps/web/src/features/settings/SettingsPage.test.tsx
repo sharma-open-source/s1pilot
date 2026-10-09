@@ -81,9 +81,27 @@ describe('SettingsPage', () => {
     expect(links[2]).toHaveAttribute('aria-current', 'page');
     expect(links[4]).toHaveTextContent('team mode');
     expect(screen.getAllByText('Not connected')).toHaveLength(8);
-    expect(screen.getByRole('button', { name: /Configure GitHub Actions/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Configure Jira/ })).toBeDisabled();
     expect(await screen.findByRole('region', { name: 'CLI command' })).toHaveTextContent('--server http://localhost');
     expect(screen.getByText('Available in team mode (Postgres + SSO)')).toBeInTheDocument();
+  });
+
+  it('shows GitHub as connected after recent CI use and reveals the workflow snippet without a token value', async () => {
+    const user = userEvent.setup();
+    renderPage('integrations', {
+      'tokens.ciUsage': () => ({
+        github: { lastUsedAt: new Date().toISOString(), connected: true },
+        gitlab: { lastUsedAt: null, connected: false },
+        other: { lastUsedAt: null, connected: false },
+      }),
+    });
+    expect(await screen.findByText('Connected')).toBeInTheDocument();
+    expect(screen.getAllByText('Not connected')).toHaveLength(7);
+    const buttons = screen.getAllByRole('button', { name: 'Configure' });
+    await user.click(buttons[0] as HTMLElement);
+    const snippet = await screen.findByRole('region', { name: 'GitHub Actions workflow' });
+    expect(snippet).toHaveTextContent('s1pilot/run-action@v1');
+    expect(snippet).toHaveTextContent('secrets.S1PILOT_TOKEN');
   });
 
   it('shows the token once at creation and only the prefix afterwards', async () => {

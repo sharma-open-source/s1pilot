@@ -155,5 +155,28 @@ export function registerTokenAuth(app: FastifyInstance, db: Db): void {
       return reply.code(403).send({ error: `Token lacks the ${readOnly ? 'results:read' : 'runs:write'} scope` });
     }
     req.apiToken = principal;
+    const provider = req.headers[CI_HEADER];
+    if (typeof provider === 'string' && CI_PROVIDERS.includes(provider as CiProvider)) {
+      await repos.settings.set(db, `${CI_USAGE_PREFIX}${provider}`, new Date().toISOString());
+    }
   });
+}
+
+/** Header the CLI sends from CI so the server can show GitHub / GitLab as connected (S-063). */
+export const CI_HEADER = 'x-s1pilot-ci';
+export const CI_PROVIDERS = ['github', 'gitlab', 'other'] as const;
+export type CiProvider = (typeof CI_PROVIDERS)[number];
+const CI_USAGE_PREFIX = 'integrations.ci.';
+/** A CI integration counts as connected when a token with `ci` usage was seen within this many days. */
+export const CI_CONNECTED_DAYS = 30;
+
+/** When a CI provider last called the API with a token (ISO), or null; `connected` = within the last 30 days. */
+export async function ciUsage(db: Db, now: number = Date.now()): Promise<Record<CiProvider, { lastUsedAt: string | null; connected: boolean }>> {
+  const out = {} as Record<CiProvider, { lastUsedAt: string | null; connected: boolean }>;
+  for (const p of CI_PROVIDERS) {
+    const v = await repos.settings.get(db, `${CI_USAGE_PREFIX}${p}`);
+    const at = typeof v === 'string' ? v : null;
+    out[p] = { lastUsedAt: at, connected: at !== null && now - Date.parse(at) <= CI_CONNECTED_DAYS * 86_400_000 };
+  }
+  return out;
 }

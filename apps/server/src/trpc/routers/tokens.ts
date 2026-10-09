@@ -1,7 +1,7 @@
 import { IdSchema, S1PilotError } from '@s1pilot/domain';
 import { z } from 'zod';
 
-import { TokenScopeSchema, createApiToken, listApiTokens, revokeApiToken } from '../../auth/tokens.js';
+import { TokenScopeSchema, ciUsage, createApiToken, listApiTokens, revokeApiToken } from '../../auth/tokens.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
 
@@ -19,6 +19,12 @@ export const tokensRouter = router({
   list: publicProcedure.query(({ ctx }) => {
     requireSession(ctx);
     return listApiTokens(ctx.db);
+  }),
+
+  /** Last CI use per provider (github / gitlab / other) by an API token; drives the Integrations cards. */
+  ciUsage: publicProcedure.query(({ ctx }) => {
+    requireSession(ctx);
+    return ciUsage(ctx.db);
   }),
 
   /** Returns `{ token, record }`; `token` is shown once and never retrievable again. */
