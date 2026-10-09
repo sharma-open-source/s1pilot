@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { CheckResultSchema } from './checks.js';
 import { IsoTimestampSchema } from './common.js';
 import { BrowserNameSchema } from './environment.js';
 import { AssertionVerdictSchema, CaseModeSchema, DecisionRecordSchema, VerdictSchema } from './run.js';
@@ -28,7 +29,7 @@ export type StepReport = z.infer<typeof StepReportSchema>;
 
 /** A file captured for a case instance (video, trace, logs), relative to its result directory. */
 export const CaptureFileSchema = z.object({
-  kind: z.enum(['video', 'trace', 'log', 'console', 'network']),
+  kind: z.enum(['video', 'trace', 'log', 'console', 'network', 'a11y']),
   file: z.string(),
   contentType: z.string(),
 });
@@ -60,6 +61,8 @@ export const CaseRunResultSchema = z.object({
   steps: z.array(StepReportSchema),
   /** Case-level capture files (video, Playwright trace, console / network logs, decision trace). */
   files: z.array(CaptureFileSchema).optional(),
+  /** Accessibility / console / network check results (S-053); absent when no check ran. */
+  checks: z.array(CheckResultSchema).optional(),
 });
 export type CaseRunResult = z.infer<typeof CaseRunResultSchema>;
 

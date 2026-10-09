@@ -35,6 +35,7 @@ const fake = createFakeTrpc({
     results: rows.map(([id, key, title, browser]) => ({
       id, caseId: `c-${key}`, key, title, verdict: verdicts[id], environment: 'staging', browser, mode: 'explore', attempt: 1, durationMs: 10,
       failedStep: verdicts[id] === 'failed' ? 3 : verdicts[id] === 'blocked' ? 5 : null,
+      checks: [],
     })),
   }),
   'results.get': (id) => {
@@ -59,6 +60,7 @@ const fake = createFakeTrpc({
       trace: { artifactId: 'tr1', size: 10 },
       console: [{ ts: 't', type: 'error', text: 'Boom' }],
       network: [{ url: 'http://x.test/api', method: 'GET', status: 500, durationMs: 12, resourceType: 'fetch' }],
+      checks: [],
       overrides: [],
     };
   },

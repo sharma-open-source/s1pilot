@@ -6,6 +6,7 @@ import { BUG_IDS, VARIANT_IDS, parseList, readCookie, type Flags } from './flags
 import { esc } from './html.js';
 import { forms } from './sites/forms.js';
 import { mail } from './sites/mail.js';
+import { quality } from './sites/quality.js';
 import { settings } from './sites/settings.js';
 import { shop } from './sites/shop.js';
 
@@ -24,7 +25,7 @@ export interface FixtureServer {
   close(): Promise<void>;
 }
 
-const SITES: Record<string, SiteHandler> = { shop, settings, forms, mail };
+const SITES: Record<string, SiteHandler> = { shop, settings, forms, mail, quality };
 
 async function readBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];

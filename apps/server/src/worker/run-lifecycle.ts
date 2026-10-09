@@ -5,6 +5,7 @@ import {
   IdSchema,
   PlanChecksSchema,
   newId,
+  summarizeChecks,
   type BrowserName,
   type CaseResult,
   type CaseRunResult,
@@ -39,7 +40,7 @@ export const RunCaseJobPayloadSchema = z.object({
   retries: z.number().int().min(0).optional(),
   /** Most jobs of this run executing at once, further capped by the number of server workers (S-051). */
   parallelism: z.number().int().min(1).optional(),
-  /** TODO(S-053): a11y / console / visual checks. */
+  /** Accessibility / console / network checks (S-053); visual comparison is a later spec. */
   checks: PlanChecksSchema.optional(),
 });
 export type RunCaseJobPayload = z.infer<typeof RunCaseJobPayloadSchema>;
@@ -51,6 +52,17 @@ export const isTerminalRunStatus = (status: RunStatus): boolean => TERMINAL.has(
 
 const stepStatus = (s: StepReport): StepResult['status'] =>
   s.verdict === 'passed' || s.verdict === 'failed' || s.verdict === 'blocked' || s.verdict === 'skipped' ? s.verdict : 'blocked';
+
+/** `checks` summary and, when a failing check made the case fail, its reason (S-053). */
+function checkColumns(result: CaseRunResult): { checks?: ReturnType<typeof summarizeChecks>; reason?: string } {
+  if (!result.checks || result.checks.length === 0) return {};
+  const failed = result.checks.filter((c) => c.severity === 'fail');
+  const onlyChecks = result.verdict === 'failed' && !result.steps.some((s) => s.verdict === 'failed' || s.verdict === 'blocked');
+  return {
+    checks: summarizeChecks(result.checks),
+    ...(failed.length > 0 && onlyChecks ? { reason: `checks failed: ${failed.map((c) => `${c.kind} (${c.items.filter((i) => i.severity === 'fail').length})`).join(', ')}` } : {}),
+  };
+}
 
 /** A finished manual execution to persist (see {@link RunLifecycle.recordManualCase}). */
 export interface ManualCaseRecord {
@@ -185,6 +197,7 @@ export function createRunLifecycle(deps: { db: Db; queue: JobQueue; bus: RunEven
           durationMs: result.durationMs,
           mode: result.mode,
           escalations: result.steps.flatMap((s) => s.decisions).filter((d) => d.escalatedTo !== undefined).length,
+          ...checkColumns(result),
         });
         if (result.verdict === 'needs-review') {
           // Uncertain verdicts wait in the review queue (S-047); the workspace count follows `case.finished`.

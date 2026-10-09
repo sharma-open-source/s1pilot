@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { CheckSummarySchema } from './checks.js';
 import { IdSchema, IsoTimestampSchema, ProbabilitiesSchema, ProbabilitySchema } from './common.js';
 import { BrowserNameSchema } from './environment.js';
 
@@ -82,8 +83,10 @@ export const CaseResultSchema = z.object({
   escalations: z.number().int().min(0).default(0),
   /** Why the case did not run, e.g. `quarantined` for a `skipped` result (S-051). */
   reason: z.string().optional(),
+  /** Compact check results (S-053): drives the warning pill. */
+  checks: z.array(CheckSummarySchema).optional(),
 });
-export type CaseResult = z.infer<typeof CaseResultSchema>;
+export type CaseResult= z.infer<typeof CaseResultSchema>;
 
 export const RunTriggerSchema = z.enum(['manual', 'schedule', 'ci', 'webhook', 'retest']);
 export type RunTrigger = z.infer<typeof RunTriggerSchema>;

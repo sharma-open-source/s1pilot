@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 
-import { Dialog, StatusPill } from '@/components/ui';
+import { Dialog, StatusPill, Tag } from '@/components/ui';
 import { cn } from '@/lib/cn';
 
 /* ---------------------------------------------------------------- ResultListItem */
@@ -15,6 +15,8 @@ export interface ResultListItemProps {
   /** Verdict, mapped through `StatusPill`. */
   status: string;
   selected?: boolean;
+  /** Number of warning checks (a11y / console / network); shows a warning pill next to the status. */
+  warnings?: number;
   /** Router path of the list route. */
   to: string;
   /** Search params of the target (keeps `filter`, sets `result`). */
@@ -22,7 +24,7 @@ export interface ResultListItemProps {
 }
 
 /** Master-list row of the run report: key, title, `env · browser · step n` and a status pill. */
-export function ResultListItem({ resultKey, title, meta, status, selected = false, to, search }: ResultListItemProps) {
+export function ResultListItem({ resultKey, title, meta, status, selected = false, warnings = 0, to, search }: ResultListItemProps) {
   return (
     <Link
       to={to as never}
@@ -38,7 +40,10 @@ export function ResultListItem({ resultKey, title, meta, status, selected = fals
         <strong className="block font-semibold">{title}</strong>
         <span className="block text-xs text-secondary">{meta}</span>
       </span>
-      <StatusPill status={status} className="self-center" />
+      <span className="flex flex-col items-end justify-center gap-1">
+        <StatusPill status={status} />
+        {warnings > 0 && <Tag tone="warning">{warnings === 1 ? '1 warning' : `${warnings} warnings`}</Tag>}
+      </span>
     </Link>
   );
 }

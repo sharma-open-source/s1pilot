@@ -221,6 +221,7 @@ export function RunReportPage({ projectKey, runId, search, onSearch, navigate }:
                     title={r.title}
                     meta={resultMeta(r)}
                     status={r.verdict}
+                    warnings={r.checks.filter((c) => c.severity === 'warn').length}
                     selected={selected?.id === r.id}
                     to={base}
                     search={{ result: r.id, filter }}

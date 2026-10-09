@@ -11,6 +11,7 @@ export * from './learned-script.js';
 export * from './logger.js';
 export * from './manual.js';
 export * from './model-settings.js';
+export * from './checks.js';
 export * from './plan.js';
 export * from './probe.js';
 export * from './profile.js';

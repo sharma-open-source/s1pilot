@@ -1,4 +1,4 @@
-import { IdSchema, S1PilotError, VerdictSchema, type StepResult } from '@s1pilot/domain';
+import { CheckResultSchema, IdSchema, S1PilotError, VerdictSchema, type CheckResult, type StepResult } from '@s1pilot/domain';
 import { z } from 'zod';
 
 import { FsArtifactStore } from '../../artifacts/store.js';
@@ -27,6 +27,18 @@ async function loadEntries(store: FsArtifactStore, id: string | undefined, wrapp
     const json = JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
     const list = wrapped ? (json as Record<string, unknown>)['entries'] : json;
     return Array.isArray(list) ? (list.slice(0, MAX_LOG_ENTRIES) as Array<Record<string, unknown>>) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Stored `checks.json` of a result (a11y / console / network check results); empty when absent or unreadable. */
+export async function loadChecks(store: FsArtifactStore, id: string | undefined): Promise<CheckResult[]> {
+  if (!id) return [];
+  try {
+    const chunks: Buffer[] = [];
+    for await (const chunk of await store.get(id)) chunks.push(Buffer.from(chunk as Uint8Array));
+    return z.array(CheckResultSchema).parse(JSON.parse(Buffer.concat(chunks).toString('utf8')));
   } catch {
     return [];
   }
@@ -64,6 +76,7 @@ export const reportProcedure = publicProcedure.input(IdSchema).query(async ({ ct
         mode: r.mode,
         attempt: r.attempt,
         ...(r.reason ? { reason: r.reason, note: `${r.verdict} (${r.reason})` } : {}),
+        checks: r.checks ?? [],
         durationMs: r.durationMs,
         failedStep: failedStepNo(steps),
       };
@@ -127,6 +140,7 @@ export const resultsRouter = router({
       trace: trace ? { artifactId: trace.id, size: trace.size } : null,
       console: consoleRaw.map((o) => ({ ts: str(o['ts']), type: str(o['type']), text: str(o['text']), ...(o['location'] ? { location: str(o['location']) } : {}) })),
       network: networkRaw.map((o) => ({ url: str(o['url']), method: str(o['method']), status: numOrNull(o['status']), durationMs: numOrNull(o['durationMs']), resourceType: str(o['resourceType']) })),
+      checks: await loadChecks(store, artifacts.find((a) => a.kind === 'a11y')?.id),
       overrides: reviews.filter((r) => r.refId === result.id),
     };
   }),
