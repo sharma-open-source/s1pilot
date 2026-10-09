@@ -8,6 +8,7 @@ import {
   S1PilotError,
   newId,
   type BrowserName,
+  type RunTrigger,
   type ExecutionMode,
   type Project,
   type RunTrigger,
@@ -33,7 +34,7 @@ async function requireRun(ctx: Context, runId: string): Promise<TestRun> {
 }
 
 /** Creates the run row and one `run-case` job per entry (case x environment x browser); wakes the workers. */
-async function startRun(
+export async function startRun(
   ctx: Context,
   project: Project,
   jobs: { caseId: string; config: Omit<RunCaseJobPayload, 'runId' | 'projectId' | 'caseId'> }[],
@@ -41,6 +42,7 @@ async function startRun(
   planId?: string,
   trigger: RunTrigger = 'manual',
   skipped: { testCase: TestCase; environmentId: string; browser: BrowserName; mode: ExecutionMode; reason: string }[] = [],
+  trigger: RunTrigger = 'manual',
 ): Promise<TestRun> {
   const run = await ctx.repos.runs.create(ctx.db, {
     id: newId(),

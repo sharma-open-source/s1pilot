@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { matchesCaseQuery, matchesQuery, parseCaseQuery, parseQuery, type QueryClause, type QueryNode } from './query.js';
+import {
+  matchesCaseQuery,
+  matchesDefectQuery,
+  matchesQuery,
+  parseCaseQuery,
+  parseDefectQuery,
+  parseQuery,
+  type QueryClause,
+  type QueryNode,
+} from './query.js';
 
 const c = (over: Partial<Parameters<typeof matchesCaseQuery>[0]> = {}) => ({
   key: 'SHOP-TC-1',
@@ -93,6 +102,21 @@ describe('matchesCaseQuery', () => {
     expect(matchesCaseQuery(c(), parseCaseQuery('tc-1'))).toBe(true);
     expect(matchesCaseQuery(c({ owner: undefined }), parseCaseQuery('owner:ann'))).toBe(false);
     expect(matchesCaseQuery(c(), parseCaseQuery('priority>P1'))).toBe(false);
+  });
+});
+
+describe('defect query', () => {
+  const d = { key: 'DEF-3', title: 'Invalid ZIP accepted', status: 'open', severity: 'S2', tracker: 'jira' };
+  it('filters on status, severity, tracker and text with the shared grammar', () => {
+    expect(matchesDefectQuery(d, parseDefectQuery('status:open'))).toBe(true);
+    expect(matchesDefectQuery(d, parseDefectQuery('status:closed OR severity:s2'))).toBe(true);
+    expect(matchesDefectQuery(d, parseDefectQuery('tracker:none'))).toBe(false);
+    expect(matchesDefectQuery({ ...d, tracker: undefined }, parseDefectQuery('tracker:none AND zip'))).toBe(true);
+    expect(matchesDefectQuery(d, parseDefectQuery('NOT (status:draft OR def-3)'))).toBe(false);
+    expect(matchesDefectQuery(d, parseDefectQuery(''))).toBe(true);
+  });
+  it('rejects unknown values with a position', () => {
+    expect(() => parseDefectQuery('open status:nope')).toThrowError(/Unknown status "nope"/);
   });
 });
 

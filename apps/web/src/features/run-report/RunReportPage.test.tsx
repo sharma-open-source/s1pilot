@@ -117,7 +117,7 @@ describe('RunReportPage', () => {
     expect(screen.getByText('AI check')).toBeInTheDocument();
     expect(screen.getByText('0.07')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Edit case' })).toHaveAttribute('href', '/p/SHOP/cases/SHOP-TC-44');
-    expect(screen.getByRole('button', { name: 'Create defect' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: 'Create defect' }).getAttribute('href')).toMatch(/^\/p\/SHOP\/defects\?fromResult=\w+&step=\d+/);
     expect(screen.getByRole('button', { name: 'Open screenshot of step 2' })).toBeInTheDocument();
   });
 

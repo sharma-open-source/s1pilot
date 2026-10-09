@@ -57,6 +57,13 @@
       "when": 1791530901395,
       "tag": "0007_flaky_quarantine",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791532989706,
+      "tag": "0008_defect_details",
+      "breakpoints": true
     }
   ]
 }

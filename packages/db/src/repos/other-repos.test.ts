@@ -149,6 +149,16 @@ describe('defects repo', () => {
     expect((await repos.defects.update(db, defect.id, { status: 'closed', external: undefined })).external).toBeUndefined();
     expect((await repos.defects.get(db, defect.id))?.linkedResultIds).toEqual([result.id]);
     expect(await repos.defects.listByProject(db, project.id)).toHaveLength(1);
+    // Sequence numbers (DEF-n) count per project; details are stored as JSON.
+    expect(defect.seq).toBe(1);
+    const second = await repos.defects.create(db, {
+      id: newId(), projectId: project.id, title: 'Typo', severity: 'S4', status: 'draft',
+      details: { stepsToReproduce: ['Open home'], expected: 'a', actual: 'b', retest: true },
+    });
+    expect(second.seq).toBe(2);
+    expect((await repos.defects.get(db, second.id))?.details).toMatchObject({ stepsToReproduce: ['Open home'], retest: true });
+    expect((await repos.defects.listByResult(db, result.id)).map((d) => d.id)).toEqual([defect.id]);
+    expect((await repos.defects.linkedResults(db, defect.id)).map((r) => r.id)).toEqual([result.id]);
   });
 });
 

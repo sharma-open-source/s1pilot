@@ -75,9 +75,14 @@ export function ResultDetail({ resultId, projectKey, onChanged }: { resultId: st
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <h2 className="m-0 min-w-0 break-words text-lg font-semibold">{detailTitle(d.case.key, browser, verdict, d.failedStep)}</h2>
         <div className="flex flex-wrap gap-2">
-          <Button variant="primary" className="bg-danger" disabled title="Defect creation is not available yet">
+          <LinkButton
+            variant="primary"
+            className="bg-danger"
+            to={`/p/${encodeURIComponent(projectKey)}/defects`}
+            search={{ fromResult: resultId, ...(failStep ? { step: failStep.stepIndex } : {}) }}
+          >
             Create defect
-          </Button>
+          </LinkButton>
           <Button onClick={() => setOverrideOpen(true)}>Override verdict</Button>
           <LinkButton to={`/p/${encodeURIComponent(projectKey)}/cases/${encodeURIComponent(d.case.key)}`}>Edit case</LinkButton>
         </div>

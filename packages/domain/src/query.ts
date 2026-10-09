@@ -31,12 +31,15 @@ export type QueryClause =
   | { kind: 'text'; value: string };
 
 /** Query AST. `all` is the empty query. */
-export type QueryNode =
+export type QueryTree<C> =
   | { type: 'all' }
-  | { type: 'clause'; clause: QueryClause }
-  | { type: 'not'; node: QueryNode }
-  | { type: 'and'; left: QueryNode; right: QueryNode }
-  | { type: 'or'; left: QueryNode; right: QueryNode };
+  | { type: 'clause'; clause: C }
+  | { type: 'not'; node: QueryTree<C> }
+  | { type: 'and'; left: QueryTree<C>; right: QueryTree<C> }
+  | { type: 'or'; left: QueryTree<C>; right: QueryTree<C> };
+
+/** Case query AST. */
+export type QueryNode = QueryTree<QueryClause>;
 
 /** Parsed case query (the AST root). */
 export type CaseQuery = QueryNode;
@@ -183,6 +186,12 @@ const isKeyword = (t: Token | undefined, kw: string): boolean => t?.kind === 'wo
  * @throws S1PilotError `INVALID_QUERY` with `details.position` (0-based) for syntax errors and unknown values.
  */
 export function parseQuery(input: string): QueryNode {
+  return parseWith(input, parseTerm);
+}
+
+/** Shared boolean grammar (AND / OR / NOT, parentheses, quotes); `term` turns one word into a clause. */
+function parseWith<C>(input: string, term: (input: string, tok: Token) => C): QueryTree<C> {
+  type QueryNode = QueryTree<C>;
   const tokens = tokenize(input);
   if (tokens.length === 0) return { type: 'all' };
   let i = 0;
@@ -210,7 +219,7 @@ export function parseQuery(input: string): QueryNode {
     }
     if (isKeyword(t, 'AND') || isKeyword(t, 'OR')) return fail(input, `Unexpected ${t.text}`, t.pos);
     i++;
-    return { type: 'clause', clause: parseTerm(input, t) };
+    return { type: 'clause', clause: term(input, t) };
   };
 
   const and = (): QueryNode => {
@@ -305,4 +314,92 @@ export function matchesCaseQuery(
   query: CaseQuery,
 ): boolean {
   return matchesQuery(c, query);
+}
+
+/** Defect statuses accepted by `status:` (S-054). */
+const DEFECT_STATUSES = ['draft', 'open', 'in-progress', 'fixed', 'closed'] as const;
+const DEFECT_SEVERITIES = ['S1', 'S2', 'S3', 'S4'] as const;
+/** `tracker:` values: a provider, or `none` / `local` for defects not pushed to a tracker. */
+const DEFECT_TRACKERS = ['jira', 'github', 'linear', 'none', 'local'] as const;
+
+/** One leaf term of a defect query. */
+export type DefectQueryClause =
+  | { kind: 'status'; value: (typeof DEFECT_STATUSES)[number] }
+  | { kind: 'severity'; value: (typeof DEFECT_SEVERITIES)[number] }
+  | { kind: 'tracker'; value: (typeof DEFECT_TRACKERS)[number] }
+  | { kind: 'text'; value: string };
+
+/** Defect query AST. */
+export type DefectQueryNode = QueryTree<DefectQueryClause>;
+
+/** Fields a defect needs to be matched in memory. */
+export interface DefectQueryRow {
+  /** Human key (`DEF-3`). */
+  key: string;
+  title: string;
+  status: string;
+  severity: string;
+  /** External tracker provider, if the defect was pushed. */
+  tracker?: string | undefined;
+}
+
+function parseDefectTerm(input: string, tok: Token): DefectQueryClause {
+  const colon = tok.text.indexOf(':');
+  const field = colon > 0 ? tok.text.slice(0, colon).toLowerCase() : '';
+  const rest = colon > 0 ? tok.text.slice(colon + 1) : '';
+  const oneOf = <T extends string>(values: readonly T[], map: (v: string) => string, label: string): T => {
+    const v = values.find((x) => x.toLowerCase() === map(rest));
+    return v ?? fail(input, `Unknown ${label} "${rest}" (use ${values.join(', ')})`, tok.pos);
+  };
+  switch (field) {
+    case 'status':
+      return { kind: 'status', value: oneOf(DEFECT_STATUSES, (v) => v.toLowerCase(), 'status') };
+    case 'severity':
+    case 'sev':
+      return { kind: 'severity', value: oneOf(DEFECT_SEVERITIES, (v) => v.toLowerCase(), 'severity') };
+    case 'tracker':
+      return { kind: 'tracker', value: oneOf(DEFECT_TRACKERS, (v) => v.toLowerCase(), 'tracker') };
+    default:
+      return { kind: 'text', value: tok.text };
+  }
+}
+
+/**
+ * Parses the defect filter language with the same grammar as {@link parseQuery}: `status:`, `severity:` (S1-S4),
+ * `tracker:` (jira, github, linear, none), free text against key and title.
+ * @throws S1PilotError `INVALID_QUERY` with `details.position`.
+ */
+export function parseDefectQuery(input: string): DefectQueryNode {
+  return parseWith(input, parseDefectTerm);
+}
+
+function matchesDefectClause(d: DefectQueryRow, cl: DefectQueryClause): boolean {
+  switch (cl.kind) {
+    case 'status':
+      return d.status === cl.value;
+    case 'severity':
+      return d.severity === cl.value;
+    case 'tracker':
+      return cl.value === 'none' || cl.value === 'local' ? !d.tracker : d.tracker === cl.value;
+    case 'text': {
+      const needle = cl.value.toLowerCase();
+      return d.title.toLowerCase().includes(needle) || d.key.toLowerCase().includes(needle);
+    }
+  }
+}
+
+/** In-memory matcher for a parsed defect query. */
+export function matchesDefectQuery(d: DefectQueryRow, node: DefectQueryNode): boolean {
+  switch (node.type) {
+    case 'all':
+      return true;
+    case 'clause':
+      return matchesDefectClause(d, node.clause);
+    case 'not':
+      return !matchesDefectQuery(d, node.node);
+    case 'and':
+      return matchesDefectQuery(d, node.left) && matchesDefectQuery(d, node.right);
+    case 'or':
+      return matchesDefectQuery(d, node.left) || matchesDefectQuery(d, node.right);
+  }
 }

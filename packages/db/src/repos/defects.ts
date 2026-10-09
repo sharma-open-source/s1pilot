@@ -1,9 +1,9 @@
 import { DefectSchema, type Defect } from '@s1pilot/domain';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 
 import { atomic, type Db } from '../db.js';
-import { defectResults as links, defects as t } from '../schema/index.js';
+import { caseResults, defectResults as links, defects as t } from '../schema/index.js';
 
 import { fromRow, notFound, nowIso } from './util.js';
 
@@ -33,6 +33,8 @@ function flatten(defect: Defect) {
     id: defect.id,
     projectId: defect.projectId,
     title: defect.title,
+    seq: defect.seq ?? null,
+    details: defect.details ?? null,
     description: defect.description ?? null,
     severity: defect.severity,
     status: defect.status,
@@ -48,6 +50,14 @@ export const defects = {
     const defect = DefectSchema.parse(input);
     const ts = nowIso();
     atomic(db, () => {
+      if (defect.seq === undefined) {
+        const max = db.orm
+          .select({ m: sql<number | null>`max(${t.seq})` })
+          .from(t)
+          .where(eq(t.projectId, defect.projectId))
+          .get();
+        defect.seq = (max?.m ?? 0) + 1;
+      }
       db.orm
         .insert(t)
         .values({ ...flatten(defect), createdAt: defect.createdAt ?? ts, updatedAt: defect.updatedAt ?? ts })
@@ -72,6 +82,29 @@ export const defects = {
       .orderBy(desc(t.createdAt))
       .all()
       .map((row) => load(db, row));
+  },
+
+  /** Defects linked to a case result, newest first. */
+  async listByResult(db: Db, caseResultId: string): Promise<Defect[]> {
+    return db.orm
+      .select({ d: t })
+      .from(links)
+      .innerJoin(t, eq(links.defectId, t.id))
+      .where(eq(links.caseResultId, caseResultId))
+      .orderBy(desc(t.createdAt))
+      .all()
+      .map((r) => load(db, r.d));
+  },
+
+  /** Verdicts of the results linked to a defect (for "failing results" and re-test targeting). */
+  async linkedResults(db: Db, defectId: string) {
+    return db.orm
+      .select({ r: caseResults })
+      .from(links)
+      .innerJoin(caseResults, eq(links.caseResultId, caseResults.id))
+      .where(eq(links.defectId, defectId))
+      .all()
+      .map((x) => x.r);
   },
 
   async update(db: Db, id: string, patch: Partial<Omit<DefectInput, 'id' | 'projectId' | 'linkedResultIds'>>): Promise<Defect> {
