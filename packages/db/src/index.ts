@@ -10,3 +10,5 @@ export type { Vault, VaultOptions } from './vault.js';
 export { createSqliteJobQueue } from './queue.js';
 export type { ClaimOptions, Job, JobQueue, JobStatus, NewJob } from './queue.js';
 export { createDbLearnedScriptStore } from './repos/index.js';
+export { buildQuerySqlContext, listCasesByQuery, queryToSql } from './repos/case-query.js';
+export type { QuerySqlContext } from './repos/case-query.js';

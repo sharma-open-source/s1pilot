@@ -7,7 +7,7 @@ import {
   type CaseResult,
   type StepResult,
 } from '@s1pilot/domain';
-import { asc, desc, eq, inArray } from 'drizzle-orm';
+import { asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 
 import { atomic, type Db } from '../db.js';
@@ -83,6 +83,21 @@ export const results = {
       out.set(r.caseId, { ...fromRow(CaseResultSchema, r), ...(startedAt ? { startedAt } : {}) });
     }
     return out;
+  },
+
+  /**
+   * Average case-result duration (ms) per execution mode in a project, over runs that have started
+   * (`manual` results excluded). Modes without history are absent.
+   */
+  async avgDurationByMode(db: Db, projectId: string): Promise<Map<CaseResult['mode'], number>> {
+    const rows = db.orm
+      .select({ mode: cr.mode, avg: sql<number>`avg(${cr.durationMs})` })
+      .from(cr)
+      .innerJoin(tr, eq(cr.runId, tr.id))
+      .where(eq(tr.projectId, projectId))
+      .groupBy(cr.mode)
+      .all();
+    return new Map(rows.filter((r) => r.mode !== 'manual').map((r) => [r.mode, Number(r.avg)]));
   },
 
   async updateCase(db: Db, id: string, patch: Partial<Omit<CaseResultInput, 'id' | 'runId' | 'caseId'>>): Promise<CaseResult> {

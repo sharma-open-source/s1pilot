@@ -34,6 +34,18 @@ export const runs = {
       .map((row) => fromRow(TestRunSchema, row));
   },
 
+  /** Runs created from a plan, newest first. */
+  async listByPlan(db: Db, planId: string, limit = 20): Promise<TestRun[]> {
+    return db.orm
+      .select()
+      .from(t)
+      .where(eq(t.planId, planId))
+      .orderBy(desc(t.startedAt))
+      .limit(limit)
+      .all()
+      .map((row) => fromRow(TestRunSchema, row));
+  },
+
   async update(db: Db, id: string, patch: Partial<Omit<RunInput, 'id' | 'projectId'>>): Promise<TestRun> {
     const existing = await this.get(db, id);
     if (!existing) return notFound('TestRun', id);

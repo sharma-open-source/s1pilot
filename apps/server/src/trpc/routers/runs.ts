@@ -18,6 +18,7 @@ import { publicProcedure, router } from '../trpc.js';
 
 import { RecentInput, recentRuns } from './dashboard.js';
 import { requireCase, requireProject } from './helpers.js';
+import { expandPlan, requirePlan } from './plans.js';
 import { reportProcedure } from './run-report.js';
 
 async function requireRun(ctx: Context, runId: string): Promise<TestRun> {
@@ -26,23 +27,23 @@ async function requireRun(ctx: Context, runId: string): Promise<TestRun> {
   return run;
 }
 
-/** Creates the run row and one `run-case` job per case; wakes the workers. */
+/** Creates the run row and one `run-case` job per entry (case x environment x browser); wakes the workers. */
 async function startRun(
   ctx: Context,
   project: Project,
-  caseIds: string[],
-  config: Omit<RunCaseJobPayload, 'runId' | 'projectId' | 'caseId'>,
+  jobs: { caseId: string; config: Omit<RunCaseJobPayload, 'runId' | 'projectId' | 'caseId'> }[],
   buildRef: string | undefined,
+  planId?: string,
 ): Promise<TestRun> {
-  // TODO(S-049): plan-based runs set planId and expand the plan's matrix.
   const run = await ctx.repos.runs.create(ctx.db, {
     id: newId(),
     projectId: project.id,
+    ...(planId ? { planId } : {}),
     trigger: 'manual',
     status: 'queued',
     ...(buildRef ? { buildRef } : {}),
   });
-  for (const caseId of caseIds) {
+  for (const { caseId, config } of jobs) {
     await ctx.runtime.queue.enqueue({
       type: RUN_CASE_JOB,
       runId: run.id,
@@ -103,10 +104,14 @@ async function describeRun(ctx: Context, runId: string) {
 
 const CreateInput = z.object({
   projectKey: ProjectKeySchema,
-  /** Human keys of the cases to run (`SHOP-TC-42`). TODO(S-049): `planId` as an alternative. */
-  caseKeys: z.array(z.string().min(1)).min(1),
-  /** Environment name (or id). */
-  environment: z.string().min(1),
+  /** Human keys of the cases to run (`SHOP-TC-42`). Required unless `planId` is given. */
+  caseKeys: z.array(z.string().min(1)).min(1).optional(),
+  /** Environment name (or id). Required unless `planId` is given. */
+  environment: z.string().min(1).optional(),
+  /** Run a test plan: expands cases x matrix combos and applies the plan's mode, retries, parallelism and checks. */
+  planId: IdSchema.optional(),
+  /** With `planId`: also run quarantined cases. */
+  includeQuarantined: z.boolean().default(false),
   browser: BrowserNameSchema.default('chromium'),
   mode: ExecutionModeSchema.default('replay-heal'),
   attended: z.boolean().default(false),
@@ -118,6 +123,38 @@ export const runsRouter = router({
   /** Queues a run: one job per case. Returns the run (status `queued`). */
   create: publicProcedure.input(CreateInput).mutation(async ({ ctx, input }) => {
     const project = await requireProject(ctx, input.projectKey);
+    if (input.planId !== undefined) {
+      const plan = await requirePlan(ctx, input.planId, project.id);
+      const x = await expandPlan(ctx, project, plan, { includeQuarantined: input.includeQuarantined });
+      if (x.jobs === 0) {
+        throw new S1PilotError('INVALID_STATE', 'The plan matches no runnable cases or has no allowed matrix entries', {
+          planId: plan.id,
+          matched: x.matched.length,
+          skippedCombos: x.skippedCombos.length,
+        });
+      }
+      const jobs = x.runnable.flatMap((c) =>
+        x.combos.map((combo) => ({
+          caseId: c.id,
+          config: {
+            environmentId: combo.environmentId,
+            browser: combo.browser,
+            ...(combo.device !== undefined ? { device: combo.device } : {}),
+            mode: plan.mode,
+            // 'block' = nobody is watching, escalations block the step; 'pause' waits for a human.
+            attended: input.attended || plan.unattended === 'pause',
+            planId: plan.id,
+            retries: plan.retries,
+            parallelism: plan.parallelism,
+            checks: plan.checks,
+          },
+        })),
+      );
+      return startRun(ctx, project, jobs, input.buildRef, plan.id);
+    }
+    if (!input.caseKeys || !input.environment) {
+      throw new S1PilotError('INVALID_INPUT', 'Provide planId, or caseKeys and environment');
+    }
     const envs = await ctx.repos.environments.listByProject(ctx.db, project.id);
     const environment = envs.find((e) => e.name === input.environment || e.id === input.environment);
     if (!environment) {
@@ -127,13 +164,8 @@ export const runsRouter = router({
     const cases = await Promise.all(keys.map((k) => requireCase(ctx, k)));
     const foreign = cases.find((c) => c.projectId !== project.id);
     if (foreign) throw new S1PilotError('CASE_NOT_FOUND', `Case ${foreign.key} is not in project ${project.key}`, { key: foreign.key });
-    return startRun(
-      ctx,
-      project,
-      cases.map((c) => c.id),
-      { environmentId: environment.id, browser: input.browser, mode: input.mode, attended: input.attended },
-      input.buildRef,
-    );
+    const config = { environmentId: environment.id, browser: input.browser, mode: input.mode, attended: input.attended };
+    return startRun(ctx, project, cases.map((c) => ({ caseId: c.id, config })), input.buildRef);
   }),
 
   /** Run report: summary, exit-criteria placeholder and result rows (S-046). */
@@ -214,6 +246,7 @@ export const runsRouter = router({
     for (const j of jobs) if (j.status === 'failed' && j.caseId) failedIds.add(j.caseId);
     if (failedIds.size === 0) throw new S1PilotError('INVALID_STATE', 'Run has no failed cases', { runId: run.id });
     const { environmentId, browser, mode, attended } = config;
-    return startRun(ctx, project, [...failedIds], { environmentId, browser, mode, attended }, run.buildRef);
+    const rerun = { environmentId, browser, mode, attended };
+    return startRun(ctx, project, [...failedIds].map((caseId) => ({ caseId, config: rerun })), run.buildRef);
   }),
 });

@@ -3,6 +3,7 @@ import {
   BrowserNameSchema,
   ExecutionModeSchema,
   IdSchema,
+  PlanChecksSchema,
   newId,
   type CaseRunResult,
   type RunStatus,
@@ -27,6 +28,15 @@ export const RunCaseJobPayloadSchema = z.object({
   browser: BrowserNameSchema,
   mode: ExecutionModeSchema,
   attended: z.boolean().default(false),
+  /** Plan-run settings (S-049). Carried on the job for later specs; the worker does not act on them yet. */
+  planId: IdSchema.optional(),
+  device: z.string().optional(),
+  /** TODO(S-051): retry flaky/failed cases. */
+  retries: z.number().int().min(0).optional(),
+  /** TODO(S-051): per-run parallelism cap. */
+  parallelism: z.number().int().min(1).optional(),
+  /** TODO(S-053): a11y / console / visual checks. */
+  checks: PlanChecksSchema.optional(),
 });
 export type RunCaseJobPayload = z.infer<typeof RunCaseJobPayloadSchema>;
 

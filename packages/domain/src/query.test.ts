@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { matchesCaseQuery, parseCaseQuery } from './query.js';
+import { matchesCaseQuery, matchesQuery, parseCaseQuery, parseQuery, type QueryClause, type QueryNode } from './query.js';
 
 const c = (over: Partial<Parameters<typeof matchesCaseQuery>[0]> = {}) => ({
   key: 'SHOP-TC-1',
@@ -12,28 +12,71 @@ const c = (over: Partial<Parameters<typeof matchesCaseQuery>[0]> = {}) => ({
   ...over,
 });
 
+const clause = (c: QueryClause): QueryNode => ({ type: 'clause', clause: c });
+
 describe('parseCaseQuery', () => {
   it('parses tags AND priority<=', () => {
-    expect(parseCaseQuery('tags:checkout AND priority<=P1').clauses).toEqual([
-      { kind: 'tag', value: 'checkout' },
-      { kind: 'priority', op: '<=', value: 'P1' },
+    expect(parseCaseQuery('tags:checkout AND priority<=P1')).toEqual({
+      type: 'and',
+      left: clause({ kind: 'tag', value: 'checkout' }),
+      right: clause({ kind: 'priority', op: '<=', value: 'P1' }),
+    });
+  });
+
+  it('parses status, owner, quotes and free text with implicit AND', () => {
+    const q = parseCaseQuery('status:ready owner:"Ann Lee" guest priority:p0');
+    expect(q).toEqual({
+      type: 'and',
+      left: {
+        type: 'and',
+        left: { type: 'and', left: clause({ kind: 'status', value: 'ready' }), right: clause({ kind: 'owner', value: 'Ann Lee' }) },
+        right: clause({ kind: 'text', value: 'guest' }),
+      },
+      right: clause({ kind: 'priority', op: '=', value: 'P0' }),
+    });
+    expect(parseCaseQuery('  ')).toEqual({ type: 'all' });
+  });
+
+  it('parses every field', () => {
+    const kinds = ['suite:Checkout', 'type:smoke', 'requirement:REQ-1', 'learned:yes', 'lastResult:failed', 'quarantined:no', 'lastResult:none']
+      .map((t) => (parseQuery(t) as { clause: QueryClause }).clause);
+    expect(kinds).toEqual([
+      { kind: 'suite', value: 'Checkout' },
+      { kind: 'type', value: 'smoke' },
+      { kind: 'requirement', value: 'REQ-1' },
+      { kind: 'learned', value: true },
+      { kind: 'lastResult', value: 'failed' },
+      { kind: 'quarantined', value: false },
+      { kind: 'lastResult', value: 'none' },
     ]);
   });
 
-  it('parses status, owner, quotes and free text', () => {
-    expect(parseCaseQuery('status:ready owner:"Ann Lee" guest priority:p0').clauses).toEqual([
-      { kind: 'status', value: 'ready' },
-      { kind: 'owner', value: 'Ann Lee' },
-      { kind: 'text', value: 'guest' },
-      { kind: 'priority', op: '=', value: 'P0' },
-    ]);
-    expect(parseCaseQuery('  ').clauses).toEqual([]);
+  it('gives OR lower precedence than AND and honours NOT and parentheses', () => {
+    expect(parseQuery('a OR b AND c')).toMatchObject({ type: 'or', right: { type: 'and' } });
+    expect(parseQuery('(a OR b) AND c')).toMatchObject({ type: 'and', left: { type: 'or' } });
+    expect(parseQuery('NOT a AND b')).toMatchObject({ type: 'and', left: { type: 'not' } });
+    expect(parseQuery('NOT (a OR b)')).toMatchObject({ type: 'not', node: { type: 'or' } });
+    expect(parseQuery('"OR"')).toEqual(clause({ kind: 'text', value: 'OR' }));
   });
 
-  it('rejects bad input', () => {
-    for (const q of ['priority<=P9', 'status:nope', 'tags:', 'a OR b', 'owner:"x']) {
-      expect(() => parseCaseQuery(q)).toThrowError(expect.objectContaining({ code: 'INVALID_QUERY' }));
+  it('rejects bad input with a position', () => {
+    const cases: [string, number][] = [
+      ['priority<=P9', 0],
+      ['status:nope', 0],
+      ['tags:', 0],
+      ['owner:"x', 6],
+      ['a OR', 4],
+      ['a AND AND b', 6],
+      ['(a OR b', 0],
+      ['a OR b)', 6],
+      ['()', 0],
+      ['tags:x learned:maybe', 7],
+      ['OR a', 0],
+    ];
+    for (const [q, position] of cases) {
+      expect(() => parseCaseQuery(q), q).toThrowError(expect.objectContaining({ code: 'INVALID_QUERY', details: expect.objectContaining({ position }) }));
     }
+    expect(() => parseQuery('tags:a OR')).toThrowError(/position 9/);
   });
 });
 
@@ -50,5 +93,15 @@ describe('matchesCaseQuery', () => {
     expect(matchesCaseQuery(c(), parseCaseQuery('tc-1'))).toBe(true);
     expect(matchesCaseQuery(c({ owner: undefined }), parseCaseQuery('owner:ann'))).toBe(false);
     expect(matchesCaseQuery(c(), parseCaseQuery('priority>P1'))).toBe(false);
+  });
+});
+
+describe('matchesQuery', () => {
+  const row = { ...c(), type: 'smoke' as const, requirements: ['REQ-1'], suites: ['Payment', 'Checkout'], learned: true, lastResult: 'failed' };
+  it('evaluates boolean structure and context fields', () => {
+    expect(matchesQuery(row, parseQuery('suite:checkout AND learned:yes AND lastResult:failed'))).toBe(true);
+    expect(matchesQuery(row, parseQuery('suite:Search OR requirement:req-1'))).toBe(true);
+    expect(matchesQuery(row, parseQuery('NOT (type:smoke OR quarantined:yes)'))).toBe(false);
+    expect(matchesQuery(c(), parseQuery('lastResult:none quarantined:no learned:no'))).toBe(true);
   });
 });
