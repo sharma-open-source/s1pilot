@@ -22,3 +22,4 @@ export type { ArtifactMeta, ArtifactStore, ByteRange } from './artifacts/store.j
 export { runRetention, startRetentionJob } from './artifacts/retention.js';
 export { ingestCaseArtifacts } from './artifacts/ingest.js';
 export { parseRange, registerArtifactRoutes } from './artifacts/routes.js';
+export { collectSamples, evaluate, fitProject, loadCalibrationState, loadCalibrator } from './calibration/service.js';

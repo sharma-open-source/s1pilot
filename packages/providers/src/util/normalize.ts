@@ -1,4 +1,4 @@
-import { S1PilotError, type DecideAnswer, type Question } from '@s1pilot/domain';
+import { S1PilotError, applyTemperatureToRecord, type DecideAnswer, type Question } from '@s1pilot/domain';
 
 /** What an adapter extracted from a model response, before normalisation. */
 export interface RawAnswer {
@@ -86,4 +86,22 @@ function trueShare(probabilities: Record<string, number> | undefined): number | 
   const no = probabilities?.['false'];
   if (no === undefined) return yes;
   return yes + no === 0 ? undefined : yes / (yes + no);
+}
+
+/**
+ * Applies a calibration temperature (`p^(1/T)` renormalised) to a normalised answer. The pre-calibration
+ * output is kept in `raw` so decision records can store both. `T = 1` returns the answer unchanged.
+ */
+export function calibrateAnswer(question: Question, answer: DecideAnswer, T: number): DecideAnswer {
+  if (T === 1) return answer;
+  const probabilities = applyTemperatureToRecord(answer.probabilities, T);
+  const confidence = Math.max(0, ...Object.values(probabilities));
+  const raw = answer.raw ?? { probabilities: answer.probabilities, confidence: answer.confidence };
+  return {
+    ...answer,
+    ...(question.type === 'noul' ? { noul: probabilities['true'] ?? answer.noul ?? 0 } : {}),
+    probabilities,
+    confidence,
+    raw,
+  };
 }

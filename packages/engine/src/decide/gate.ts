@@ -84,6 +84,7 @@ export async function gate(answer: DecideAnswer, opts: GateOptions): Promise<Gat
     probabilities: answer.probabilities,
     ...(chosen === undefined ? {} : { chosen }),
     confidence: answer.confidence,
+    ...(answer.raw ? { raw: answer.raw } : {}),
     model: opts.model,
     latencyMs: opts.latencyMs ?? 0,
     ...(escalatedTo === undefined ? {} : { escalatedTo }),

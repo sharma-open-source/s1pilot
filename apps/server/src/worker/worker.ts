@@ -26,6 +26,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import { ingestCaseArtifacts } from '../artifacts/ingest.js';
 import { FsArtifactStore, type ArtifactStore } from '../artifacts/store.js';
 import type { AuthService } from '../auth/service.js';
+import { loadCalibrator } from '../calibration/service.js';
 import type { ServerConfig } from '../config.js';
 import type { HumanControl } from '../live/control.js';
 import { WORKSPACE_MODEL_KEY } from '../trpc/routers/helpers.js';
@@ -329,7 +330,9 @@ export class WorkerPool {
       patterns: project.dataPolicy.redactPatterns,
     });
     // Models are built per attempt so a retry starts with fresh model state.
-    const buildModels = (): ReturnType<ModelFactory> => (this.opts.createModels ?? createModelFactory())(settings, redactor);
+    // Calibration fitted from human review outcomes (S-058) is applied to every System 1 answer.
+    const calibrator = await loadCalibrator(db, project.id);
+    const buildModels = (): ReturnType<ModelFactory> => (this.opts.createModels ?? createModelFactory())(settings, redactor, calibrator);
 
     const flows = await repos.sharedSteps.listByProject(db, project.id);
     const flowMap = new Map<string, SharedStep>(

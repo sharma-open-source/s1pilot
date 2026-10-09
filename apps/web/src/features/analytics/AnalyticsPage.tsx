@@ -275,12 +275,30 @@ function SlowestCard({ projectKey, data }: { projectKey: string; data: Slowest |
 }
 
 /** The six System 1 quality tiles with the recalibration row. */
-export function AiQualityCard({ data, error, onRetry }: { data: AiQuality | undefined; error: unknown; onRetry: () => void }) {
+export function AiQualityCard({
+  projectKey,
+  data,
+  error,
+  onRetry,
+}: {
+  projectKey: string;
+  data: AiQuality | undefined;
+  error: unknown;
+  onRetry: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const refresh = () => {
+    void utils.analytics.aiQuality.invalidate();
+    void utils.calibration.status.invalidate();
+  };
+  const fit = trpc.calibration.fit.useMutation({ onSuccess: refresh });
+  const apply = trpc.calibration.applyThresholds.useMutation({ onSuccess: refresh });
   const tiles = (d: AiQuality): Array<[string, string]> => [
     ['Escalated to S2 / human', formatPct(d.escalationRate)],
     ['Verdicts needing review', formatPct(d.needsReviewRate)],
     ['Overridden by humans', formatPct(d.overrideRate)],
     ['Calibration error (ECE)', d.ece === null ? '—' : d.ece.toFixed(3)],
+    ...(d.eceCalibrated === null ? [] : ([['ECE after calibration', d.eceCalibrated.toFixed(3)]] as Array<[string, string]>)),
     ['Decision latency p50 / p95', `${formatDuration(d.latencyP50)} / ${formatDuration(d.latencyP95)}`],
     ['Heal success', formatPct(d.healSuccessRate)],
   ];
@@ -306,12 +324,28 @@ export function AiQualityCard({ data, error, onRetry }: { data: AiQuality | unde
           </div>
           {data.decisions === 0 && <p className="m-0 text-[13px] text-muted">No model decisions in this period.</p>}
           <div className="flex flex-wrap items-center gap-2.5 text-[13px] text-secondary">
-            {/* TODO(S-058): enable once calibration.fit exists. */}
-            <Button size="sm" disabled title="Calibration is added by S-058">
+            <Button
+              size="sm"
+              disabled={fit.isPending || data.reviewedDecisions === 0}
+              onClick={() => fit.mutate({ projectKey })}
+            >
               Recalibrate from {data.reviewedDecisions} reviewed decisions
             </Button>
             {data.lastTunedAt === null ? 'Thresholds have not been tuned yet.' : `Thresholds were last tuned ${data.lastTunedAt.slice(0, 10)}.`}
           </div>
+          {(fit.error ?? apply.error) && <QueryError error={fit.error ?? apply.error} onRetry={() => (fit.error ? fit.mutate({ projectKey }) : apply.mutate({ projectKey }))} />}
+          {data.suggestion && (
+            <div className="flex flex-wrap items-center gap-2.5 rounded-control bg-surface-subtle p-3 text-[13px]" role="status">
+              <span>
+                Suggested thresholds: pass ≥ <span className="font-mono">{data.suggestion.pass}</span>, fail ≤{' '}
+                <span className="font-mono">{data.suggestion.fail}</span> (false passes {(data.suggestion.falsePassRate * 100).toFixed(1)}% on{' '}
+                {data.suggestion.n} reviewed). Not applied until you confirm.
+              </span>
+              <Button size="sm" disabled={apply.isPending} onClick={() => apply.mutate({ projectKey })}>
+                Apply suggested thresholds
+              </Button>
+            </div>
+          )}
         </>
       )}
     </Card>
@@ -360,7 +394,7 @@ function QualityView({
         <h2 className="text-base font-semibold">How steps were executed</h2>
         {q.mix.data === undefined ? <Skeleton className="h-7 w-full" /> : <ModeMixBar mix={q.mix.data} />}
       </Card>
-      <AiQualityCard data={q.ai.data} error={q.ai.error} onRetry={() => void q.ai.refetch()} />
+      <AiQualityCard projectKey={projectKey} data={q.ai.data} error={q.ai.error} onRetry={() => void q.ai.refetch()} />
     </>
   );
 }
@@ -665,7 +699,7 @@ export function AnalyticsPage({ projectKey, view, search }: { projectKey: string
           {q.ai.data !== undefined && (
             <StatTile label="System 1 decisions in this period" value={q.ai.data.decisions} className="max-w-[320px]" />
           )}
-          <AiQualityCard data={q.ai.data} error={q.ai.error} onRetry={() => void q.ai.refetch()} />
+          <AiQualityCard projectKey={projectKey} data={q.ai.data} error={q.ai.error} onRetry={() => void q.ai.refetch()} />
         </>
       )}
     </>

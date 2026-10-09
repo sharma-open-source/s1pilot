@@ -26,8 +26,11 @@ export function outcomeFor(steps: StepResult[], human: Verdict, decidedBy: strin
   const withP = steps.flatMap((s) => s.assertions.filter((a) => a.probability !== undefined).map((a) => ({ a, s })));
   const picked = withP.find((x) => x.a.verdict === 'needs-review') ?? withP.at(-1);
   const model = [...(picked?.s.decisions ?? []), ...steps.flatMap((s) => s.decisions)].reverse().find((d) => d.model)?.model ?? null;
+  // Calibration (S-058) must learn from the model's raw output, not from already-calibrated probabilities.
+  const dual = picked?.s.decisions.some((d) => d.questionId === 'expected_true_negated') ?? false;
+  const rawTrue = dual ? undefined : picked?.s.decisions.find((d) => d.questionId === 'expected_true')?.raw?.probabilities['true'];
   return {
-    pTrue: picked?.a.probability ?? null,
+    pTrue: rawTrue ?? picked?.a.probability ?? null,
     humanVerdict: human,
     questionType: 'noul',
     optionCount: 2,

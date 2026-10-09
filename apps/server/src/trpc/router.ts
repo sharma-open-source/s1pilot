@@ -2,6 +2,7 @@ import { getVersion } from '../version.js';
 
 import { analyticsRouter } from './routers/analytics.js';
 import { authRouter } from './routers/auth.js';
+import { calibrationRouter } from './routers/calibration.js';
 import { casesRouter } from './routers/cases.js';
 import { dashboardRouter } from './routers/dashboard.js';
 import { defectsRouter } from './routers/defects.js';
@@ -46,6 +47,7 @@ export const appRouter = router({
   syncStatus: syncStatusProcedure,
   dashboard: dashboardRouter,
   analytics: analyticsRouter,
+  calibration: calibrationRouter,
   auth: authRouter,
 });
 

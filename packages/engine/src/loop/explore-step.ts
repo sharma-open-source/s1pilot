@@ -56,6 +56,7 @@ function noulRecord(id: string, answer: DecideAnswer | undefined, model: string,
     probabilities,
     chosen: p >= 0.5 ? 'true' : 'false',
     confidence: answer?.confidence ?? 0,
+    ...(answer?.raw ? { raw: answer.raw } : {}),
     model,
     latencyMs,
   };
@@ -68,6 +69,7 @@ function choiceRecord(id: string, options: string[], answer: DecideAnswer | unde
     probabilities: answer?.probabilities ?? {},
     ...(answer?.choice === undefined ? {} : { chosen: answer.choice }),
     confidence: answer?.confidence ?? 0,
+    ...(answer?.raw ? { raw: answer.raw } : {}),
     model,
     latencyMs,
   };

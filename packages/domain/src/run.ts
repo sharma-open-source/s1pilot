@@ -25,6 +25,8 @@ export const DecisionRecordSchema = z.object({
   probabilities: ProbabilitiesSchema,
   chosen: z.string().optional(),
   confidence: ProbabilitySchema,
+  /** Model output before calibration; `probabilities`/`confidence` above are the calibrated values the gate used (S-058). */
+  raw: z.object({ probabilities: ProbabilitiesSchema, confidence: ProbabilitySchema }).optional(),
   model: z.string().min(1),
   latencyMs: z.number().min(0),
   escalatedTo: EscalationTargetSchema.optional(),

@@ -68,13 +68,14 @@ function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));
 }
 
-function record(id: string, model: string, latencyMs: number, pTrue: number): DecisionRecord {
+function record(id: string, model: string, latencyMs: number, pTrue: number, raw?: DecideAnswer['raw']): DecisionRecord {
   return {
     questionId: id,
     options: ['true', 'false'],
     probabilities: { true: pTrue, false: 1 - pTrue },
     chosen: pTrue >= 0.5 ? 'true' : 'false',
     confidence: Math.max(pTrue, 1 - pTrue),
+    ...(raw ? { raw } : {}),
     model,
     latencyMs,
   };
@@ -108,24 +109,25 @@ export async function judgeExpected(ctx: VerifyContext, expected: string, opts: 
   const images = opts.allowImages && ctx.s1.capabilities.supportsImages ? await screenshot(ctx.page) : [];
   const state = { note: SYSTEM_NOTE, expected: text, page };
 
-  const ask = async (id: string, instructions: string): Promise<{ p: number; ms: number }> => {
+  const ask = async (id: string, instructions: string): Promise<{ p: number; ms: number; raw?: DecideAnswer['raw'] }> => {
     const t = performance.now();
     const answers: Record<string, DecideAnswer> = await ctx.s1.decide({
       state,
       ...(images.length ? { images } : {}),
       questions: { [id]: { type: 'noul', instructions } },
     });
-    return { p: clamp01(answers[id]?.noul ?? 0.5), ms: Math.round(performance.now() - t) };
+    const raw = answers[id]?.raw;
+    return { p: clamp01(answers[id]?.noul ?? 0.5), ms: Math.round(performance.now() - t), ...(raw ? { raw } : {}) };
   };
 
   const straight = await ask('expected_true', `Is this scenario one where: ${text}?`);
-  const decisions = [record('expected_true', model, straight.ms, straight.p)];
+  const decisions = [record('expected_true', model, straight.ms, straight.p, straight.raw)];
   let pTrue = straight.p;
   let agreed: boolean | undefined;
   if (opts.dualOrder) {
     const negated = await ask('expected_true_negated', `Is this scenario one where it is NOT true that: ${text}?`);
     const inverted = 1 - negated.p;
-    decisions.push(record('expected_true_negated', model, negated.ms, negated.p));
+    decisions.push(record('expected_true_negated', model, negated.ms, negated.p, negated.raw));
     agreed = straight.p >= 0.5 === inverted >= 0.5;
     pTrue = (straight.p + inverted) / 2;
   }

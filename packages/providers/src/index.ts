@@ -43,5 +43,6 @@ export { FANOUT_CONCURRENCY, fanOut } from './util/fanout.js';
 export type { DecideCall } from './util/fanout.js';
 export { guardDecisionModel, isRetryable, withRetry, withTimeout } from './util/guard.js';
 export type { GuardOptions } from './util/guard.js';
-export { normalizeAnswer, normalizeProbabilities } from './util/normalize.js';
+export { calibratedDecisionModel } from './util/calibrated.js';
+export { calibrateAnswer, normalizeAnswer, normalizeProbabilities } from './util/normalize.js';
 export type { RawAnswer } from './util/normalize.js';
