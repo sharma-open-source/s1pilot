@@ -1,3 +1,4 @@
+import { analytics } from './analytics.js';
 import { artifacts } from './artifacts.js';
 import { authSetups } from './auth-setups.js';
 import { cases } from './cases.js';
@@ -33,6 +34,7 @@ export const repos = {
   settings,
   artifacts,
   authSetups,
+  analytics,
 };
 
 export type { AuthSetupsRepo, NewAuthSetup } from './auth-setups.js';
@@ -53,3 +55,4 @@ export type { RunsRepo } from './runs.js';
 export type { SettingsRepo } from './settings.js';
 export type { SharedStepsRepo } from './shared-steps.js';
 export type { SuitesRepo } from './suites.js';
+export type { AnalyticsRepo } from './analytics.js';

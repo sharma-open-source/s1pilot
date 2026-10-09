@@ -59,6 +59,7 @@ export async function applyVerdict(
         : ('passed' as const)
       : undefined;
   await ctx.repos.runs.update(ctx.db, run.id, { summary, ...(status ? { status } : {}) });
+  await ctx.repos.analytics.refreshForRun(ctx.db, run.projectId, run.startedAt);
   const steps = await ctx.repos.results.listSteps(ctx.db, result.id);
   const outcome = outcomeFor(steps, verdict, ctx.user.id);
   const pending = (await ctx.repos.reviews.list(ctx.db, { projectId: run.projectId, kind: 'verdict', status: 'pending' })).find((r) => r.refId === result.id);

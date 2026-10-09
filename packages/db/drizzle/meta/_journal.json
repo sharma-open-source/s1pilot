@@ -64,6 +64,13 @@
       "when": 1791532989706,
       "tag": "0008_defect_details",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1791538697907,
+      "tag": "0009_analytics_daily",
+      "breakpoints": true
     }
   ]
 }

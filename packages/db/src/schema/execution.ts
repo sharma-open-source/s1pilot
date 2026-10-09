@@ -50,7 +50,7 @@ export const testRuns = sqliteTable(
     finishedAt: text('finished_at'),
     summary: text('summary', { mode: 'json' }).$type<RunSummary>().notNull(),
   },
-  (t) => [index('test_runs_project_idx').on(t.projectId)],
+  (t) => [index('test_runs_project_idx').on(t.projectId), index('test_runs_project_started_idx').on(t.projectId, t.startedAt)],
 );
 
 export const caseResults = sqliteTable(
@@ -76,7 +76,7 @@ export const caseResults = sqliteTable(
     escalations: integer('escalations').notNull(),
     reason: text('reason'),
   },
-  (t) => [index('case_results_run_idx').on(t.runId), index('case_results_case_idx').on(t.caseId)],
+  (t) => [index('case_results_run_idx').on(t.runId), index('case_results_case_idx').on(t.caseId), index('case_results_run_case_idx').on(t.runId, t.caseId, t.attempt)],
 );
 
 export const stepResults = sqliteTable(
@@ -234,4 +234,33 @@ export const artifacts = sqliteTable(
     createdAt: text('created_at').notNull(),
   },
   (t) => [index('artifacts_project_idx').on(t.projectId, t.createdAt), index('artifacts_result_idx').on(t.caseResultId)],
+);
+
+/**
+ * Daily pre-aggregation of final case results (S-057), one row per project x UTC day x environment x suite
+ * (`''` = none). Rebuilt per day when a run finishes or a verdict changes; see `repos.analytics`.
+ */
+export const analyticsDaily = sqliteTable(
+  'analytics_daily',
+  {
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    day: text('day').notNull(),
+    environmentId: text('environment_id').notNull(),
+    suiteId: text('suite_id').notNull(),
+    passed: integer('passed').notNull(),
+    review: integer('review').notNull(),
+    failed: integer('failed').notNull(),
+    flaky: integer('flaky').notNull(),
+    skipped: integer('skipped').notNull(),
+    stepsReplay: integer('steps_replay').notNull(),
+    stepsHeal: integer('steps_heal').notNull(),
+    stepsExplore: integer('steps_explore').notNull(),
+    decisions: integer('decisions').notNull(),
+    escalated: integer('escalated').notNull(),
+    /** Decision latency histogram: counts per bucket of `LATENCY_EDGES_MS`. */
+    latencyHist: text('latency_hist', { mode: 'json' }).$type<number[]>().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.projectId, t.day, t.environmentId, t.suiteId] })],
 );

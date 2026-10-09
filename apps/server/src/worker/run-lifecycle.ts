@@ -202,6 +202,7 @@ export function createRunLifecycle(deps: { db: Db; queue: JobQueue; bus: RunEven
               ? 'needs-review'
               : 'passed';
         await repos.runs.update(db, runId, { status, finishedAt: ts() });
+        await repos.analytics.refreshForRun(db, run.projectId, run.startedAt);
         bus.emit({ type: 'run.finished', runId, ts: ts(), status, summary: s });
         return status;
       }),
@@ -212,6 +213,7 @@ export function createRunLifecycle(deps: { db: Db; queue: JobQueue; bus: RunEven
         const run = await repos.runs.get(db, runId);
         if (run && !isTerminalRunStatus(run.status)) {
           await repos.runs.update(db, runId, { status: 'cancelled', finishedAt: ts() });
+          await repos.analytics.refreshForRun(db, run.projectId, run.startedAt);
           bus.emit({ type: 'run.finished', runId, ts: ts(), status: 'cancelled', summary: run.summary });
         }
         return { runningJobIds: affected.filter((j) => j.status === 'running').map((j) => j.id) };
