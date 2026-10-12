@@ -133,6 +133,19 @@ async function projectOfCase(ctx: Context, c: TestCase): Promise<Project> {
 
 const prioRank = (p: Priority): number => Number(p.slice(1));
 
+/** Removes deleted cases from plans that list cases by id, so those plans stay valid and can still be saved. */
+async function dropFromPlans(ctx: Context, deleted: TestCase[]): Promise<void> {
+  const gone = new Set(deleted.map((c) => c.id));
+  for (const projectId of new Set(deleted.map((c) => c.projectId))) {
+    for (const plan of await ctx.repos.plans.listByProject(ctx.db, projectId)) {
+      if (plan.selection.kind !== 'list' || !plan.selection.caseIds.some((id) => gone.has(id))) continue;
+      await ctx.repos.plans.update(ctx.db, plan.id, {
+        selection: { kind: 'list', caseIds: plan.selection.caseIds.filter((id) => !gone.has(id)) },
+      });
+    }
+  }
+}
+
 const BulkInput = z.discriminatedUnion('action', [
   z.object({ action: z.literal('move'), suiteId: IdSchema.nullable() }),
   z.object({
@@ -258,6 +271,7 @@ export const casesRouter = router({
         if (!c) throw new S1PilotError('CASE_NOT_FOUND', `Case not found: ${id}`, { id });
         cases.push(c);
       }
+      if (input.action === 'delete' && ctx.user.role === 'viewer') throw new S1PilotError('FORBIDDEN', 'Viewers cannot delete cases');
       if (input.action === 'move' && input.suiteId !== null) {
         for (const projectId of new Set(cases.map((c) => c.projectId))) {
           await requireSuiteIn(ctx, input.suiteId, projectId);
@@ -275,6 +289,7 @@ export const casesRouter = router({
           await ctx.repos.cases.delete(ctx.db, c.id);
         }
       }
+      if (input.action === 'delete') await dropFromPlans(ctx, cases);
       return { action: input.action, affected: cases.length, keys: cases.map((c) => c.key) };
     }),
 

@@ -256,6 +256,24 @@ describe('CasesPage', () => {
     });
   });
 
+  it('Delete asks for confirmation, then bulk-deletes the selected cases', async () => {
+    const user = userEvent.setup();
+    const fake = createFakeTrpc(handlers());
+    render(<Host fake={fake} />);
+    await screen.findByText('SHOP-TC-1');
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
+    await user.click(screen.getByLabelText('Select SHOP-TC-1'));
+    await user.click(screen.getByLabelText('Select SHOP-TC-2'));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete 2 test cases?' });
+    expect(within(dialog).getByText(/results in past runs, version history and learned scripts are deleted too/)).toBeInTheDocument();
+    expect(callsTo(fake, 'cases.bulk')).toHaveLength(0);
+    await user.click(within(dialog).getByRole('button', { name: 'Delete 2 cases' }));
+    await waitFor(() => expect(callsTo(fake, 'cases.bulk')[0]?.input).toMatchObject({ action: 'delete' }));
+    expect((callsTo(fake, 'cases.bulk')[0]?.input as { ids: string[] }).ids).toHaveLength(2);
+    expect(await screen.findByText('Deleted 2 cases')).toBeInTheDocument();
+  });
+
   it('New test case creates a draft in the current suite and opens the editor', async () => {
     const user = userEvent.setup();
     const fake = createFakeTrpc(handlers());

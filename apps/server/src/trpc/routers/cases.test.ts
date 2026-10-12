@@ -19,7 +19,8 @@ async function setup() {
   });
   const api = makeCaller(ctx);
   await api.projects.create({ name: 'Shop', key: 'SHOP', baseUrl: 'http://a.test' });
-  return { api, db };
+  const viewer = makeCaller({ ...ctx, user: { id: 'v', role: 'viewer' } });
+  return { api, db, viewer };
 }
 
 afterEach(() => {
@@ -184,6 +185,26 @@ describe('bulk', () => {
     expect((await api.cases.list({ projectKey: 'SHOP' })).total).toBe(2);
     expect(await api.cases.bulk({ ids, action: 'delete' })).toMatchObject({ affected: 2 });
     expect((await api.cases.list({ projectKey: 'SHOP' })).total).toBe(0);
+  });
+
+  it('refuses deletes by viewers and drops deleted cases from list plans', async () => {
+    const { api, viewer } = await setup();
+    const a = await mk(api);
+    const b = await mk(api);
+    const env = (await api.environments.list({ projectKey: 'SHOP' }))[0];
+    if (!env) throw new Error('no environment');
+    const plan = await api.plans.create({
+      projectKey: 'SHOP',
+      name: 'Picked',
+      selection: { kind: 'list', caseIds: [a.id, b.id] },
+      matrix: [{ environmentId: env.id, browser: 'chromium' }],
+    });
+
+    await expect(viewer.cases.bulk({ ids: [a.id], action: 'delete' })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await api.cases.bulk({ ids: [a.id], action: 'delete' });
+    expect((await api.plans.get(plan.id)).selection).toEqual({ kind: 'list', caseIds: [b.id] });
+    // The plan can still be saved (its list no longer names a missing case).
+    await expect(api.plans.update({ id: plan.id, patch: { retries: 1 } })).resolves.toMatchObject({ retries: 1 });
   });
 });
 

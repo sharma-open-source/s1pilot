@@ -3,6 +3,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { CasePickerDialog } from './CasePickerDialog';
+import { DeletePlanDialog } from './DeletePlanDialog';
 import {
   blankForm,
   changeDevice,
@@ -136,6 +137,7 @@ function PlanBuilder({ projectKey, projectLabel, envs, plan }: BuilderProps) {
   const [form, setForm] = useState<PlanForm>(initial);
   const [baseline, setBaseline] = useState(() => JSON.stringify(toDraft(initial)));
   const [planId, setPlanId] = useState<string | undefined>(plan?.id);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [errors, setErrors] = useState<FormProblems>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -256,6 +258,11 @@ function PlanBuilder({ projectKey, projectLabel, envs, plan }: BuilderProps) {
                 {notice}
               </span>
             )}
+            {planId !== undefined && (
+              <Button variant="danger-outline" disabled={busy} onClick={() => setDeleteOpen(true)}>
+                Delete
+              </Button>
+            )}
             <Button disabled={busy} onClick={() => void onSave()}>
               {create.isPending || update.isPending ? 'Saving…' : 'Save plan'}
             </Button>
@@ -271,6 +278,12 @@ function PlanBuilder({ projectKey, projectLabel, envs, plan }: BuilderProps) {
         </p>
       )}
       {serverError !== null && <Callout tone="danger">{serverError}</Callout>}
+      <DeletePlanDialog
+        plan={deleteOpen && planId !== undefined ? { id: planId, name: form.name || 'Untitled plan' } : null}
+        onOpenChange={setDeleteOpen}
+        onDeleted={() => void navigate({ to: `/p/${encodeURIComponent(projectKey)}/plans` as never })}
+        onError={setServerError}
+      />
 
       <div className="flex flex-wrap items-start gap-5">
         <div className="flex min-w-0 flex-[999_1_600px] flex-col gap-5">

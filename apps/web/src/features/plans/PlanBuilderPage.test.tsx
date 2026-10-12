@@ -231,6 +231,21 @@ describe('PlanBuilderPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Plan saved');
   });
 
+  it('deletes a saved plan from the builder and returns to the list', async () => {
+    const user = userEvent.setup();
+    const { fake, router } = renderAt('/p/SHOP/plans/plan1', { plans: [SAVED] }, { 'plans.delete': () => ({ ok: true }) });
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete plan' }));
+    await waitFor(() => expect(calls(fake, 'plans.delete')[0]?.input).toBe('plan1'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/p/SHOP/plans'));
+  });
+
+  it('offers no Delete for a plan that is not saved yet', async () => {
+    renderAt('/p/SHOP/plans/new', { plans: [] });
+    await screen.findByRole('button', { name: 'Save plan' });
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+  });
+
   it('picks cases manually through the dialog', async () => {
     const user = userEvent.setup();
     const { fake } = renderAt('/p/SHOP/plans/new', { plans: [] });
@@ -256,6 +271,24 @@ describe('PlansListPage', () => {
     expect(within(row).getByText('2 combos · staging')).toBeInTheDocument();
     expect(within(row).getByText('At 02:00, Mon–Fri')).toBeInTheDocument();
     expect(await within(row).findByText('Passed')).toBeInTheDocument();
+  });
+
+  it('deletes a plan from its row after confirmation', async () => {
+    const user = userEvent.setup();
+    const store = { plans: [SAVED] as Record<string, unknown>[] };
+    const { fake } = renderAt('/p/SHOP/plans', store, {
+      'plans.delete': (id) => {
+        store.plans = store.plans.filter((p) => p['id'] !== id);
+        return { ok: true };
+      },
+    });
+    await user.click(await screen.findByRole('button', { name: 'Delete plan Checkout regression' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete plan "Checkout regression"?' });
+    expect(within(dialog).getByText(/past runs are kept/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Delete plan' }));
+    await waitFor(() => expect(calls(fake, 'plans.delete')[0]?.input).toBe('plan1'));
+    expect(await screen.findByText('Deleted plan "Checkout regression"')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'Checkout regression' })).toBeNull());
   });
 
   it('shows an empty state', async () => {

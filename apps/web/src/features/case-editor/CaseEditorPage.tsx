@@ -1,6 +1,7 @@
 import { useBlocker } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { DeleteCasesWarning } from '../cases/DeleteCasesWarning';
 import { RecorderDialog } from '../recorder/RecorderDialog';
 
 import { CaseAside } from './CaseAside';
@@ -26,7 +27,7 @@ import { StepGuide } from './StepGuide';
 import { YamlTab } from './YamlTab';
 
 import { PageHeader } from '@/components/app/PageHeader';
-import { Breadcrumb, Button, Callout, Dialog, Select, Skeleton, Tabs } from '@/components/ui';
+import { Breadcrumb, Button, Callout, ConfirmDialog, Dialog, Select, Skeleton, Tabs } from '@/components/ui';
 import { errorMessage, trpcCode } from '@/lib/errors';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
@@ -85,6 +86,8 @@ function CaseEditor({ projectKey, caseKey, tab: rawTab, navigate }: CaseEditorPa
   const sharedList = trpc.sharedSteps.list.useQuery({ projectKey });
   const update = trpc.cases.update.useMutation();
   const createRun = trpc.runs.create.useMutation();
+  const bulk = trpc.cases.bulk.useMutation();
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const [base, setBase] = useState<Base | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -282,11 +285,37 @@ function CaseEditor({ projectKey, caseKey, tab: rawTab, navigate }: CaseEditorPa
           <Button variant="secondary" disabled={runTargets.length === 0 || saving || createRun.isPending} onClick={() => void runNow()}>
             Run now
           </Button>
+          <Button variant="danger-outline" disabled={saving || bulk.isPending} onClick={() => setDeleteOpen(true)}>
+            Delete
+          </Button>
           <Button variant="primary" disabled={saving || !dirty} onClick={() => void save()} title="Ctrl/Cmd+S">
             {saving ? 'Saving…' : 'Save'}
           </Button>
         </div>
       </header>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete ${data.key}?`}
+        description={<DeleteCasesWarning count={1} />}
+        confirmLabel="Delete case"
+        tone="danger"
+        onConfirm={() =>
+          bulk.mutate(
+            { ids: [data.id], action: 'delete' },
+            {
+              onSuccess: () => {
+                // Unsaved edits go with the case: leave without the "unsaved changes" prompt.
+                dirtyRef.current = false;
+                void utils.cases.list.invalidate();
+                void utils.suites.tree.invalidate();
+                navigate(`/p/${encodeURIComponent(projectKey)}/cases`);
+              },
+              onError: (err) => setSaveError(errorMessage(err)),
+            },
+          )
+        }
+      />
 
       {saveError !== null && <Callout tone="danger">{saveError}</Callout>}
       {dirty && (

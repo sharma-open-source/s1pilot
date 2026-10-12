@@ -6,6 +6,7 @@ import { ImportWizard } from '../import/ImportWizard';
 import { AddToPlanDialog } from '../plans/AddToPlanDialog';
 import { RecorderDialog } from '../recorder/RecorderDialog';
 
+import { DeleteCasesWarning } from './DeleteCasesWarning';
 import { fieldValue, quoteValue, setFieldTerm } from './query';
 import { RunLauncherDialog } from './RunLauncherDialog';
 import { flattenSuites, SuiteTree } from './SuiteTree';
@@ -16,6 +17,7 @@ import {
   Button,
   Callout,
   Card,
+  ConfirmDialog,
   Dialog,
   DropdownContent,
   DropdownItem,
@@ -273,6 +275,7 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
   const ids = [...selected.keys()];
   const n = selected.size;
   const [tagOpen, setTagOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [runOpen, setRunOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [recordOpen, setRecordOpen] = useState(false);
@@ -411,6 +414,9 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
               </DropdownMenu>
               <Button size="sm" disabled={n === 0 || bulk.isPending} onClick={() => setTagOpen(true)}>
                 Tag
+              </Button>
+              <Button size="sm" variant="danger-outline" disabled={n === 0 || bulk.isPending} onClick={() => setDeleteOpen(true)}>
+                Delete
               </Button>
               <Button size="sm" variant="primary" disabled={n === 0} onClick={() => setRunOpen(true)}>
                 Run now
@@ -583,6 +589,17 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
               },
             },
           )
+        }
+      />
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete ${n} test case${n === 1 ? '' : 's'}?`}
+        description={<DeleteCasesWarning count={n} />}
+        confirmLabel={`Delete ${n} case${n === 1 ? '' : 's'}`}
+        tone="danger"
+        onConfirm={() =>
+          bulk.mutate({ ids, action: 'delete' }, { onSuccess: () => void afterBulk(`Deleted ${n} case${n === 1 ? '' : 's'}`) })
         }
       />
       <RecorderDialog

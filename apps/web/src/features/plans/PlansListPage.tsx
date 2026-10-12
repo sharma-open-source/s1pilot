@@ -1,9 +1,11 @@
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
 
+import { DeletePlanDialog } from './DeletePlanDialog';
 import { describeCron, matrixSummary, type PlanEnv } from './model';
 
 import { PageHeader } from '@/components/app/PageHeader';
-import { Callout, EmptyState, LinkButton, Skeleton, StatusPill } from '@/components/ui';
+import { Button, Callout, EmptyState, LinkButton, Skeleton, StatusPill } from '@/components/ui';
 import { relativeTime } from '@/features/dashboard/model';
 import { shortRunId } from '@/features/run-report/model';
 import { errorMessage } from '@/lib/errors';
@@ -18,6 +20,8 @@ export function PlansListPage({ projectKey }: { projectKey: string }) {
   const base = `/p/${encodeURIComponent(projectKey)}/plans`;
   const rows = plans.data ?? [];
   const envList: PlanEnv[] = envs.data ?? [];
+  const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
 
   return (
     <>
@@ -29,6 +33,19 @@ export function PlansListPage({ projectKey }: { projectKey: string }) {
             New plan
           </LinkButton>
         }
+      />
+      {notice !== null && (
+        <div role="status">
+          <Callout tone={notice.tone}>{notice.text}</Callout>
+        </div>
+      )}
+      <DeletePlanDialog
+        plan={toDelete}
+        onOpenChange={(open) => {
+          if (!open) setToDelete(null);
+        }}
+        onDeleted={(plan) => setNotice({ tone: 'success', text: `Deleted plan "${plan.name}"` })}
+        onError={(text) => setNotice({ tone: 'danger', text })}
       />
       {plans.isError && <Callout tone="danger">Could not load plans: {errorMessage(plans.error)}</Callout>}
       {plans.isLoading ? (
@@ -42,7 +59,7 @@ export function PlansListPage({ projectKey }: { projectKey: string }) {
           No test plans yet. A plan picks cases, where to run them and when.
         </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-card border border-line bg-surface">
+        <div className="relative overflow-x-auto rounded-card border border-line bg-surface">
           <table className="w-full min-w-[820px] border-collapse text-left text-sm">
             <caption className="sr-only">Test plans</caption>
             <thead className="bg-surface-subtle text-xs uppercase tracking-[0.05em] text-muted">
@@ -52,6 +69,9 @@ export function PlansListPage({ projectKey }: { projectKey: string }) {
                     {h}
                   </th>
                 ))}
+                <th scope="col" className="px-3.5 py-2.5">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -92,6 +112,11 @@ export function PlansListPage({ projectKey }: { projectKey: string }) {
                     ) : (
                       <span className="text-muted">Never run</span>
                     )}
+                  </td>
+                  <td className="px-3.5 py-3 text-right">
+                    <Button size="sm" variant="danger-outline" aria-label={`Delete plan ${p.name}`} onClick={() => setToDelete({ id: p.id, name: p.name })}>
+                      Delete
+                    </Button>
                   </td>
                 </tr>
               ))}

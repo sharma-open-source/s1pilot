@@ -407,6 +407,18 @@ describe('CaseEditorPage', () => {
     expect(await screen.findByText('Other page')).toBeInTheDocument();
   });
 
+  it('Delete confirms, deletes the case and returns to the list without the unsaved-changes prompt', async () => {
+    const user = userEvent.setup();
+    const { fake, navigate } = setup({ 'cases.bulk': () => ({ action: 'delete', affected: 1, keys: ['SHOP-TC-42'] }) });
+    await user.type(await screen.findByLabelText('Title'), '!');
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete SHOP-TC-42?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete case' }));
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/p/SHOP/cases'));
+    expect(callsTo(fake, 'cases.bulk')[0]?.input).toEqual({ ids: ['c1'], action: 'delete' });
+    expect(callsTo(fake, 'cases.update')).toHaveLength(0);
+  });
+
   it('Run now saves first, then starts an attended run and opens the live view', async () => {
     const user = userEvent.setup();
     const { fake, navigate } = setup();
