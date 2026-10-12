@@ -4,11 +4,13 @@ import {
   ProbeResultSchema,
   ProjectKeySchema,
   type ModelEndpoint,
+  type ModelSettings,
   type ProbeResult,
 } from '@s1pilot/domain';
 import { probe } from '@s1pilot/providers';
 import { z } from 'zod';
 
+import { modelKeys } from '../../worker/models.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
 
@@ -45,15 +47,25 @@ export interface EndpointStatus {
 }
 const statusCache = new WeakMap<object, Map<string, { at: number; value: EndpointStatus }>>();
 
-async function endpointStatus(ctx: Context, ep: ModelEndpoint | undefined): Promise<EndpointStatus> {
+/** Keys the runs would use for `settings` (see {@link modelKeys}); a missing referenced variable becomes an error text. */
+function statusKeys(settings: ModelSettings | null | undefined): { s1?: string; s2?: string; error?: string } {
+  if (!settings) return {};
+  try {
+    return modelKeys(settings);
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function endpointStatus(ctx: Context, ep: ModelEndpoint | undefined, apiKey: string | undefined, keyError?: string): Promise<EndpointStatus> {
   if (!ep) return { configured: false, reachable: false };
   if (ep.adapter === 'mock' || ep.baseUrl === undefined) return { configured: true, reachable: true, model: ep.model };
+  if (keyError !== undefined) return { configured: true, reachable: false, model: ep.model, error: keyError };
   let cache = statusCache.get(ctx.db);
   if (!cache) statusCache.set(ctx.db, (cache = new Map()));
-  const cacheKey = `${ep.adapter}|${ep.baseUrl}|${ep.model}`;
+  const cacheKey = `${ep.adapter}|${ep.baseUrl}|${ep.model}|${apiKey === undefined ? 'nokey' : 'key'}`;
   const hit = cache.get(cacheKey);
   if (hit && Date.now() - hit.at < STATUS_TTL_MS) return hit.value;
-  const apiKey = resolveKey(ep.apiKeyRef);
   const r = await probe(
     { baseUrl: ep.baseUrl, model: ep.model, adapter: ep.adapter, ...(apiKey ? { apiKey } : {}) },
     { timeoutMs: 3000, samples: 1 },
@@ -127,9 +139,11 @@ export const modelsRouter = router({
     .input(z.object({ projectKey: ProjectKeySchema.optional() }).optional())
     .query(async ({ ctx, input }) => {
       const { effective } = await readSettings(ctx, input?.projectKey ?? 'workspace');
+      // Same keys as the runs use, so "reachable" means a run (or test generation) will authenticate.
+      const keys = statusKeys(effective);
       const [system1, system2] = await Promise.all([
-        endpointStatus(ctx, effective?.system1),
-        endpointStatus(ctx, effective?.system2),
+        endpointStatus(ctx, effective?.system1, keys.s1, keys.error),
+        endpointStatus(ctx, effective?.system2, keys.s2, keys.error),
       ]);
       return { system1, system2 };
     }),

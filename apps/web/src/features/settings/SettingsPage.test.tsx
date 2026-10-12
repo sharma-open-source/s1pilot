@@ -163,6 +163,29 @@ describe('SettingsPage', () => {
     expect(dump).not.toContain(TOKEN);
   });
 
+  it('warns on save that a pasted System 2 key is not stored, and never sends it', async () => {
+    const user = userEvent.setup();
+    const saved = {
+      system1: { adapter: 'systemone', baseUrl: 'https://openrouter.ai/api/alpha/decisions', model: 'cloudflare/clef', apiKeyRef: 'env:OR_KEY' },
+      system2: { adapter: 'openai-chat', baseUrl: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-haiku-4.5' },
+      thresholds: { act: 0.8, pass: 0.8, fail: 0.2, escalate: 0.5 },
+      dualOrderSensitive: true,
+    };
+    const { fake } = renderPage('models', {
+      'models.getSettings': () => ({ scope: 'workspace', settings: saved, effective: saved, inheritsFromWorkspace: false }),
+      'models.updateSettings': () => saved,
+      'models.status': () => ({ system1: { configured: true, reachable: true }, system2: { configured: true, reachable: true } }),
+    });
+    await screen.findByDisplayValue('anthropic/claude-haiku-4.5');
+    expect(screen.getByText(/Without a reference, S1PILOT_S2_API_KEY is used/)).toBeInTheDocument();
+    const keyFields = screen.getAllByLabelText(/API key \(optional\)/);
+    await user.type(keyFields[1] as HTMLElement, 'sk-or-pasted-key');
+    await user.click(screen.getByRole('button', { name: 'Save model defaults' }));
+    expect(await screen.findByText(/the pasted API key was not stored/)).toBeInTheDocument();
+    const call = fake.calls.find((c) => c.path === 'models.updateSettings');
+    expect(JSON.stringify(call?.input)).not.toContain('sk-or-pasted-key');
+  });
+
   it('revokes a token after confirmation', async () => {
     const user = userEvent.setup();
     const { fake } = renderPage('tokens', {

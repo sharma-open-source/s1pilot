@@ -18,6 +18,7 @@ import { z } from 'zod';
 
 import type { Context } from '../trpc/context.js';
 import { effectiveModelSettings } from '../trpc/routers/helpers.js';
+import { system2KeySource } from '../worker/models.js';
 
 const nowIso = (): string => new Date().toISOString();
 
@@ -47,7 +48,7 @@ const CRAWL_SYSTEM = `You are a QA engineer suggesting smoke tests for a web app
 export const draftsKey = (projectId: string): string => `generation:drafts:${projectId}`;
 
 /** System 2 of the project, or a `S2_NOT_CONFIGURED` error. */
-async function systemTwo(ctx: Context, project: Project): Promise<{ s2: ChatModel; redact: (text: string) => string }> {
+async function systemTwo(ctx: Context, project: Project): Promise<{ s2: ChatModel; redact: (text: string) => string; keySource: string }> {
   const settings = await effectiveModelSettings(ctx, project);
   if (!settings?.system2) {
     throw new S1PilotError('S2_NOT_CONFIGURED', 'Test generation needs a System 2 model. Configure one in the model settings.', { projectKey: project.key });
@@ -55,7 +56,7 @@ async function systemTwo(ctx: Context, project: Project): Promise<{ s2: ChatMode
   const redactor = createRedactor({ secrets: [], patterns: project.dataPolicy.redactPatterns });
   const s2 = ctx.runtime.createModels(settings, redactor).s2;
   if (!s2) throw new S1PilotError('S2_NOT_CONFIGURED', 'Test generation needs a System 2 model. Configure one in the model settings.', { projectKey: project.key });
-  return { s2, redact: (t) => redactor.redact(t) };
+  return { s2, redact: (t) => redactor.redact(t), keySource: system2KeySource(settings) };
 }
 
 /** Whether System 2 is configured for the project (effective settings). */
@@ -65,11 +66,15 @@ export async function s2Status(ctx: Context, project: Project): Promise<{ s2Conf
 }
 
 /** Asks System 2 for cases; invalid output is repaired once by the adapter, then reported (nothing is saved). */
-async function askForCases(s2: ChatModel, system: string, user: string): Promise<GeneratedCase[]> {
+async function askForCases(s2: ChatModel, system: string, user: string, keySource: string): Promise<GeneratedCase[]> {
   try {
     const out = await s2.chatJson({ system, messages: [{ role: 'user', content: user }], maxTokens: 4000 }, GeneratedCasesSchema);
     return out.cases;
   } catch (error) {
+    const status = error instanceof S1PilotError ? error.details?.['status'] : undefined;
+    if (status === 401 || status === 403) {
+      throw new S1PilotError('MODEL_HTTP', `System 2 rejected the API key (HTTP ${status}). ${keySource}`, { status });
+    }
     if (error instanceof S1PilotError && error.code === 'MODEL_BAD_RESPONSE') {
       throw new S1PilotError('GENERATION_FAILED', 'System 2 returned test cases in an unusable format. Nothing was saved; try again.', { cause: error.message });
     }
@@ -205,8 +210,8 @@ export async function generateFromStory(ctx: Context, project: Project, input: F
     if (!req) throw new S1PilotError('REQUIREMENT_NOT_FOUND', `Requirement not found: ${input.requirementKey}`, { key: input.requirementKey });
   }
   const count = Math.min(MAX_COUNT, Math.max(1, input.count ?? DEFAULT_COUNT));
-  const { s2, redact } = await systemTwo(ctx, project);
-  const generated = (await askForCases(s2, STORY_SYSTEM, `Write ${count} test cases for this story.\n<story>\n${redact(story)}\n</story>`)).slice(0, count);
+  const { s2, redact, keySource } = await systemTwo(ctx, project);
+  const generated = (await askForCases(s2, STORY_SYSTEM, `Write ${count} test cases for this story.\n<story>\n${redact(story)}\n</story>`, keySource)).slice(0, count);
   return saveDrafts(ctx, project, generated, {
     source: 'story',
     ...(input.requirementKey ? { requirementKey: input.requirementKey } : {}),
@@ -245,7 +250,7 @@ export async function generateFromCrawl(ctx: Context, project: Project, input: F
   const envs = await ctx.repos.environments.listByProject(ctx.db, project.id);
   const env = input.environment ? envs.find((e) => e.name === input.environment || e.id === input.environment) : envs[0];
   if (!env) throw new S1PilotError('ENVIRONMENT_NOT_FOUND', `Environment not found: ${input.environment ?? '(none configured)'}`, { environment: input.environment });
-  const { s2, redact } = await systemTwo(ctx, project);
+  const { s2, redact, keySource } = await systemTwo(ctx, project);
   const browser = await ctx.runtime.launch('chromium');
   let crawl;
   try {
@@ -255,7 +260,7 @@ export async function generateFromCrawl(ctx: Context, project: Project, input: F
   }
   if (crawl.pages.length === 0) throw new S1PilotError('CRAWL_FAILED', `No page could be read at ${env.baseUrl}`, { skipped: crawl.skipped.slice(0, 5) });
   const summary = crawl.pages.map((p) => describePage(p, redact)).join('\n---\n');
-  const generated = (await askForCases(s2, CRAWL_SYSTEM, `Suggest up to ${MAX_CRAWL_CASES} smoke tests.\n<pages>\n${summary}\n</pages>`)).slice(0, MAX_CRAWL_CASES);
+  const generated = (await askForCases(s2, CRAWL_SYSTEM, `Suggest up to ${MAX_CRAWL_CASES} smoke tests.\n<pages>\n${summary}\n</pages>`, keySource)).slice(0, MAX_CRAWL_CASES);
   const cases = await saveDrafts(ctx, project, generated, { source: 'crawl', ...(input.suiteId ? { suiteId: input.suiteId } : {}) });
   return { cases, pagesVisited: crawl.pages.length, skipped: crawl.skipped.length };
 }

@@ -377,7 +377,10 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
                 />
               )}
             </Field>
-            <Field label="API key (optional)">
+            <Field
+              label="API key (optional)"
+              hint="Enter env:NAME to save a reference. A pasted key is used for Test connection only and is never stored. Without a reference, S1PILOT_S2_API_KEY is used, or the System 1 key when both use the same host."
+            >
               {(id) => (
                 <Input id={id} type="password" autoComplete="off" {...form.register('s2.apiKey')} />
               )}

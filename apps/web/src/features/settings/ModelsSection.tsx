@@ -21,6 +21,10 @@ interface Form {
   dual: boolean;
 }
 
+/** Where System 2 gets its key at run time when none is referenced. */
+const KEY_HINT_S2 =
+  'Enter env:NAME to save a reference. A pasted key is used for Test connection only and is never stored. Without a reference, S1PILOT_S2_API_KEY is used, or the System 1 key when both use the same host.';
+
 const EMPTY: Form = { adapter: 'systemone', s1Url: '', s1Model: '', s1Key: '', s2Url: '', s2Model: '', s2Key: '', act: 0.8, escalate: 0.5, dual: true };
 
 type Saved = NonNullable<RouterOutputs['models']['getSettings']['settings']>;
@@ -47,7 +51,7 @@ export function ModelsSection() {
   const q = trpc.models.getSettings.useQuery('workspace');
   const [form, setForm] = useState<Form>(EMPTY);
   const [probe, setProbe] = useState<{ state: 'idle' | 'pending' | 'done'; result?: Probe; error?: string; which?: 's1' | 's2' }>({ state: 'idle' });
-  const [msg, setMsg] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ tone: 'success' | 'warning' | 'danger'; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     if (q.data) setForm(fromSaved(q.data.settings as Saved | null));
@@ -128,7 +132,16 @@ export function ModelsSection() {
         });
       }
       await Promise.all([utils.models.getSettings.invalidate(), utils.models.status.invalidate()]);
-      setMsg({ tone: 'success', text: 'Workspace model defaults saved' });
+      // Pasted keys are never stored: say so, or runs and test generation fail later with HTTP 401.
+      const pasted = [form.s1Key, form.s2Url.trim() !== '' ? form.s2Key : ''].some((k) => k.trim() !== '' && apiKeyRefFrom(k) === undefined);
+      setMsg(
+        pasted
+          ? {
+              tone: 'warning',
+              text: 'Saved, but the pasted API key was not stored (keys are never saved). Add it to the server environment and enter env:NAME here, for example env:OPENROUTER_API_KEY, then restart the server.',
+            }
+          : { tone: 'success', text: 'Workspace model defaults saved' },
+      );
     } catch (err) {
       setMsg({ tone: 'danger', text: errorMessage(err) });
     } finally {
@@ -207,7 +220,7 @@ export function ModelsSection() {
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
           <Field label="Base URL">{(id) => <Input id={id} mono type="url" placeholder="http://localhost:11434/v1" value={form.s2Url} onChange={(e) => set('s2Url', e.target.value)} />}</Field>
           <Field label="Model">{(id) => <Input id={id} mono autoComplete="off" value={form.s2Model} onChange={(e) => set('s2Model', e.target.value)} />}</Field>
-          <Field label="API key (optional)">{(id) => <Input id={id} type="password" autoComplete="off" value={form.s2Key} onChange={(e) => setForm((f) => ({ ...f, s2Key: e.target.value }))} />}</Field>
+          <Field label="API key (optional)" hint={KEY_HINT_S2}>{(id) => <Input id={id} type="password" autoComplete="off" value={form.s2Key} onChange={(e) => setForm((f) => ({ ...f, s2Key: e.target.value }))} />}</Field>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <Button disabled={probe.state === 'pending'} onClick={() => void test('s2')}>Test connection</Button>
