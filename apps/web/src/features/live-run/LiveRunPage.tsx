@@ -272,7 +272,7 @@ function buildStepItems(state: LiveRunState, definition: string[] | undefined, r
     if (live === undefined) {
       items.push({ index: i, title, status: 'pending' });
     } else {
-      items.push({ index: i, title, status: live.status, suffix: stepMode(live, runMode) });
+      items.push({ index: i, title, status: live.status, suffix: stepMode(live, runMode, state.currentCase?.mode) });
     }
   }
   return items;

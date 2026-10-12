@@ -447,6 +447,8 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
         action = { kind: 'scroll', dir: 'into-view', ...where };
       } else if (kind === 'fill' || kind === 'selectOption') {
         let resolved;
+        // Through the wrapper so a question to the human surfaces as an escalation in the live view.
+        const inputHuman = attended ? humanHook(false) : undefined;
         try {
           resolved = await resolveInput({
             element,
@@ -455,7 +457,7 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
             params: ctx.params,
             s1: ctx.s1,
             ...(ctx.s2 ? { s2: ctx.s2 } : {}),
-            ...(attended && ctx.human ? { human: ctx.human } : {}),
+            ...(inputHuman ? { human: inputHuman } : {}),
             literals,
           });
         } catch (error) {

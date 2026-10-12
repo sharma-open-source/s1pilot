@@ -381,6 +381,7 @@ export class WorkerPool {
             caseResultId: event.caseResultId,
             caseId: testCase.id,
             caseKey: event.key,
+            mode: event.mode,
           });
           break;
         case 'note':

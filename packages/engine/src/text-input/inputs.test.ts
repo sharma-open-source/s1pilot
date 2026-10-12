@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { HUMAN_UNAVAILABLE, type HumanHook } from '../decide/human.js';
 import { captureElements } from '../observer/elements.js';
 
-import { NONE_FITS, resolveInput, type InputVars } from './inputs.js';
+import { NONE_FITS, quotedValue, resolveInput, type InputVars } from './inputs.js';
 import { createLiteralStore, createValueResolver } from './literals.js';
 
 const PASSWORD = 'hunter2-s3cret-pw';
@@ -66,6 +66,29 @@ describe('resolveInput (unit)', () => {
     const s1 = new MockDecisionModel({ fallback: () => ({ choice: 'param:size' }) });
     const r = await resolveInput({ element: el, step: { text: 'x' }, vars, params: { size: 'M' }, s1 });
     expect(r).toEqual({ valueRef: 'param:size' });
+  });
+
+  it('uses a value quoted in the step as a stable text: ref, without asking a model', async () => {
+    const s1 = new MockDecisionModel({ fallback: byKeyword });
+    const r = await resolveInput({ element: el, step: { text: 'Type "Grace Hopper" in the name box' }, vars, s1 });
+    expect(r).toEqual({ literal: 'Grace Hopper', source: 'step', valueRef: 'text:Grace Hopper' });
+    expect(s1.calls).toHaveLength(0);
+    expect(createValueResolver({ vars })('text:Grace Hopper')).toBe('Grace Hopper');
+  });
+
+  it('prefers bound step inputs over a quoted value', async () => {
+    const s1 = new MockDecisionModel({ fallback: () => ({ choice: 'var:shipping_name' }) });
+    const r = await resolveInput({ element: el, step: { text: 'Type "Grace" as name', inputs: ['shipping_name'] }, vars, s1 });
+    expect(r).toEqual({ valueRef: 'var:shipping_name' });
+  });
+
+  it('quotedValue finds exactly one quoted value', () => {
+    expect(quotedValue('Type "JavaScript" in the search box')).toBe('JavaScript');
+    expect(quotedValue('Type \u201cjs\u201d here')).toBe('js');
+    expect(quotedValue('Type "js" again: "js"')).toBe('js');
+    expect(quotedValue('Type "js" and pick "JavaScript"')).toBeUndefined();
+    expect(quotedValue("enter the user's name")).toBeUndefined();
+    expect(quotedValue('Type "" here')).toBeUndefined();
   });
 
   it('none_fits goes to S2 and stores a literal', async () => {

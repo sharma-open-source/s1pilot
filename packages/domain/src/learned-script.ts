@@ -31,7 +31,7 @@ export const ResolvedActionSchema = z.object({
   subIndex: z.number().int().min(0),
   action: ActionKindSchema,
   locators: z.array(LocatorCandidateSchema).default([]),
-  /** `secret:<key>` / `var:<key>` / `input:<key>`; never a literal secret. */
+  /** `secret:<key>` / `var:<key>` / `input:<key>` / `text:<value quoted in the step>`; never a literal secret. */
   valueRef: z.string().optional(),
   /** Hash of the page state this action was resolved against. */
   fingerprint: z.string().min(1),

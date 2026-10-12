@@ -40,13 +40,32 @@ export interface ResolveInputOptions {
 }
 
 /**
- * Outcome of {@link resolveInput}. `literal` results also carry the `valueRef`
- * (`literal:<hash>`) under which the value was registered in the literal store.
+ * Outcome of {@link resolveInput}. `literal` results also carry the `valueRef` under which the
+ * value can be resolved: `text:<value>` for a value quoted in the step text (stable across runs, so
+ * learned scripts replay it), `literal:<hash>` (run-scoped literal store) for System 2 / human values.
  */
 export type ResolvedInput =
   | { valueRef: string }
-  | { literal: string; source: 's2' | 'human'; valueRef: string }
+  | { literal: string; source: 'step' | 's2' | 'human'; valueRef: string }
   | { none: true };
+
+/** Prefix of value refs that carry a value quoted in the step text itself. */
+export const TEXT_REF_PREFIX = 'text:';
+
+const QUOTED = /"([^"\n]+)"|\u201c([^\u201d\n]+)\u201d/g;
+
+/**
+ * The value quoted in a step's text (`Type "JavaScript" in the search box` → `JavaScript`), or
+ * `undefined` when the text quotes nothing or several different values (ambiguous).
+ */
+export function quotedValue(text: string): string | undefined {
+  const values = new Set<string>();
+  for (const m of text.matchAll(QUOTED)) {
+    const v = (m[1] ?? m[2] ?? '').trim();
+    if (v) values.add(v);
+  }
+  return values.size === 1 ? [...values][0] : undefined;
+}
 
 const SECRET_FIELD = /pass(word|code|phrase)?|pwd|secret|token|cvv|cvc|otp|\bpin\b|api[\s_-]?key|card\s*(number|no)/i;
 
@@ -98,6 +117,7 @@ function parseValue(text: string): string | undefined {
 /**
  * Picks the value to type into a field.
  *
+ * 0. When the step binds no `inputs` and quotes exactly one value, that value (`text:<value>`).
  * 1. System 1 `choice` over the candidate keys plus `none_fits` (key names only, no values).
  * 2. On `none_fits` / low confidence: System 2 produces a literal from the step text, unless the
  *    field looks like a password/secret field (those never go to System 2).
@@ -112,6 +132,10 @@ export async function resolveInput(opts: ResolveInputOptions): Promise<ResolvedI
   const cands = candidates(opts);
   const what = describe(opts.element);
   const secretField = isSecretLookingField(opts.element);
+
+  // A value written in the step itself is test data the author chose; bound `inputs` take precedence.
+  const quoted = opts.step.inputs?.length ? undefined : quotedValue(opts.step.text);
+  if (quoted !== undefined) return { literal: quoted, source: 'step', valueRef: `${TEXT_REF_PREFIX}${quoted}` };
 
   if (cands.length > 0) {
     const options: Record<string, string> = Object.fromEntries(cands.map((c) => [c.ref, c.label]));

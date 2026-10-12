@@ -29,7 +29,8 @@ export interface VarLookup {
 }
 
 /**
- * Builds the executor's `resolveValue` for `var:`, `secret:`, `param:` and `literal:` refs.
+ * Builds the executor's `resolveValue` for `var:`, `secret:`, `param:`, `literal:` and `text:` refs
+ * (`text:<value>` carries a value quoted in the step text).
  * Throws for unknown refs, naming the ref (never a value).
  */
 export function createValueResolver(opts: {
@@ -45,6 +46,7 @@ export function createValueResolver(opts: {
     if (kind === 'var' || kind === 'secret') value = opts.vars.get(key);
     else if (kind === 'param') value = opts.params?.[key];
     else if (kind === 'literal') value = opts.literals?.get(ref);
+    else if (kind === 'text' && key.length > 0) value = key;
     if (value === undefined) throw new Error(`Unknown value reference ${ref}`);
     return value;
   };

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { IdSchema, IsoTimestampSchema } from './common.js';
 import {
   AssertionVerdictSchema,
+  CaseModeSchema,
   DecisionRecordSchema,
   EscalationTargetSchema,
   RunStatusSchema,
@@ -27,6 +28,8 @@ export const RunEventSchema = z.discriminatedUnion('type', [
     caseResultId: IdSchema,
     caseId: IdSchema,
     caseKey: z.string().optional(),
+    /** How the case starts: replaying its learned script (`replay`, healing on breaks) or `explore`. */
+    mode: CaseModeSchema.optional(),
   }),
   z.object({ type: z.literal('step.started'), ...stepRef, action: z.string() }),
   z.object({ type: z.literal('decision.made'), ...stepRef, decision: DecisionRecordSchema }),

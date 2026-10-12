@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LiveRunPage } from './LiveRunPage';
-import { applyMessage, buildDecisionView, decodeFrameBytes, describeEvent, INITIAL_LIVE_STATE, progressCounts } from './model';
+import { applyMessage, buildDecisionView, decodeFrameBytes, describeEvent, INITIAL_LIVE_STATE, progressCounts, stepMode } from './model';
 import { backoffDelay } from './useRunSocket';
 
 import { createFakeTrpc, FakeTrpcProvider, type Handler } from '@/test/fake-trpc';
@@ -279,6 +279,13 @@ describe('live-run model', () => {
     bytes.set([0xff, 0xd8], 9 + id.length);
     expect(decodeFrameBytes(bytes.buffer)).toMatchObject({ resultId: 'cr1', seq: 7, width: 1280, height: 720 });
     expect(decodeFrameBytes(new ArrayBuffer(4))).toBeNull();
+  });
+
+  it('labels decided steps of an exploring case "explore", even under a replay-heal plan', () => {
+    const decided = { index: 0, action: 'a', status: 'running' as const, decided: true };
+    expect(stepMode(decided, 'replay-heal', 'explore')).toBe('explore');
+    expect(stepMode(decided, 'replay-heal', 'replay')).toBe('heal');
+    expect(stepMode({ ...decided, decided: false }, 'replay-heal', 'replay')).toBe('replay');
   });
 
   it('builds a read-only view from the last decision and counts progress', () => {

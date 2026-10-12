@@ -173,7 +173,25 @@ describe('exploreStep: guards and gating', () => {
     expect(page.url()).toContain('/checkout/payment');
   });
 
-  it('ends blocked when the model says progress is blocked', async () => {
+  it('surfaces an attended input question as an escalation', async () => {
+    const page = await fresh('/shop');
+    const asked: string[] = [];
+    const human: HumanHook = {
+      async ask(req) {
+        asked.push(req.question);
+        return { choice: 'mug' };
+      },
+    };
+    const s1 = new MockDecisionModel({ fallback: scriptedS1({ 'Search the catalogue': ['[searchbox] Search products'] }) });
+    const { ctx, events } = makeCtx(page, s1, { human });
+    const result = await exploreStep(ctx, { index: 0, action: 'Search the catalogue', inputs: ['no_such_key'] });
+    expect(result).toMatchObject({ status: 'passed' });
+    expect(asked[0]).toMatch(/What should be typed/);
+    expect(events.find((e) => e.type === 'escalation.needed')).toMatchObject({ question: expect.stringMatching(/What should be typed/) });
+    expect(await page.getByRole('searchbox', { name: 'Search products' }).inputValue()).toBe('mug');
+  });
+
+    it('ends blocked when the model says progress is blocked', async () => {
     const page = await fresh('/shop');
     const s1 = new MockDecisionModel({
       fallback: (q: Question, _s, id) =>

@@ -1,4 +1,4 @@
-import type { DecisionRecord, RunControlMessage, RunEvent, RunStatus, RunSummary, TestRun } from '@s1pilot/domain';
+import type { CaseMode, DecisionRecord, RunControlMessage, RunEvent, RunStatus, RunSummary, TestRun } from '@s1pilot/domain';
 
 /** `escalation.needed` event as the panel sees it. */
 export type Escalation = Extract<RunEvent, { type: 'escalation.needed' }>;
@@ -35,7 +35,7 @@ export interface LiveRunState {
   /** True once a snapshot arrived on the current connection. */
   ready: boolean;
   run: TestRun | null;
-  currentCase: { caseResultId: string; caseId: string; caseKey?: string } | null;
+  currentCase: { caseResultId: string; caseId: string; caseKey?: string; mode?: CaseMode } | null;
   steps: LiveStepRow[];
   lastDecision: (DecisionRecord & { stepIndex?: number }) | null;
   pending: Escalation[];
@@ -162,7 +162,12 @@ export function applyEvent(prev: LiveRunState, ev: RunEvent): LiveRunState {
     case 'case.started':
       s = {
         ...s,
-        currentCase: { caseResultId: ev.caseResultId, caseId: ev.caseId, ...(ev.caseKey !== undefined ? { caseKey: ev.caseKey } : {}) },
+        currentCase: {
+          caseResultId: ev.caseResultId,
+          caseId: ev.caseId,
+          ...(ev.caseKey !== undefined ? { caseKey: ev.caseKey } : {}),
+          ...(ev.mode !== undefined ? { mode: ev.mode } : {}),
+        },
         steps: [],
         elements: [],
         chosenId: null,
@@ -379,9 +384,12 @@ export function progressCounts(results: Array<{ verdict: string }>, totalJobs: n
   return { passed, failed, review, queued: Math.max(0, total - passed - failed - review), total };
 }
 
-/** Mode suffix of a step row: `replay`, `heal`, or `explore`. */
-export function stepMode(row: LiveStepRow, runMode: string | undefined): string {
-  if (runMode === 'explore') return 'explore';
+/**
+ * Mode suffix of a step row: `replay`, `heal`, or `explore`. A case that starts in `explore` (no usable
+ * learned script, e.g. after its steps changed) explores every step even under a `replay-heal` plan.
+ */
+export function stepMode(row: LiveStepRow, runMode: string | undefined, caseMode?: CaseMode): string {
+  if (runMode === 'explore' || caseMode === 'explore') return 'explore';
   if (!row.decided) return 'replay';
   return runMode === 'replay-only' ? 'replay' : 'heal';
 }
