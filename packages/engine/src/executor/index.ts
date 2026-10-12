@@ -7,6 +7,7 @@ import { errors, type Dialog, type Download, type Frame, type Locator, type Page
 
 import { toPlaywrightLocator } from '../observer/locators.js';
 
+import { isTemporalInputType, normalizeTemporal } from './temporal.js';
 import type {
   ActionError,
   ActionOutcome,
@@ -214,9 +215,18 @@ export async function execute(page: Page, action: EngineAction, ctx: ExecutorCon
       case 'fill':
         await withTarget(action.locators, action.frame, async (l) => {
           const value = await resolve(action.valueRef);
-          const isSelect = await l.evaluate((el) => el.tagName === 'SELECT', undefined, { timeout });
-          if (isSelect) await l.selectOption({ label: value }, { timeout });
-          else await l.fill(value, { timeout });
+          const kind = await l.evaluate(
+            (el) => (el.tagName === 'SELECT' ? 'select' : el.tagName === 'INPUT' ? (el as HTMLInputElement).type : ''),
+            undefined,
+            { timeout },
+          );
+          if (kind === 'select') await l.selectOption({ label: value }, { timeout });
+          else if (isTemporalInputType(kind)) {
+            // Date/time inputs only accept their machine format (1990-01-15), not what the UI shows.
+            const normalized = normalizeTemporal(kind, value);
+            if (!normalized.ok) throw new ExecError({ code: 'action_failed', message: normalized.message });
+            await l.fill(normalized.value, { timeout });
+          } else await l.fill(value, { timeout });
         });
         break;
       case 'selectOption':

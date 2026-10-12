@@ -49,6 +49,26 @@ async function find(page: Page, role: string, name: string): Promise<ObservedEle
   return el;
 }
 
+describe('date inputs', () => {
+  it('observes the input type and fills human-written dates in ISO form', async () => {
+    const page = await fresh();
+    await page.goto(`${server.url}/forms`);
+    const dob = await find(page, 'textbox', 'Date of birth');
+    expect(dob.inputType).toBe('date');
+    const dateCtx = (v: string): ExecutorContext => ({ ...ctx, resolveValue: () => v });
+
+    const out = await execute(page, { kind: 'fill', valueRef: 'var:dob', locators: dob.locators }, dateCtx('15/01/1990'));
+    expect(out.ok).toBe(true);
+    expect(await page.locator('#dob').inputValue()).toBe('1990-01-15');
+
+    const bad = await execute(page, { kind: 'fill', valueRef: 'var:dob', locators: dob.locators }, dateCtx('01/02/1990'));
+    expect(bad.ok).toBe(false);
+    expect(bad.error).toMatchObject({ code: 'action_failed', message: expect.stringMatching(/ambiguous.*YYYY-MM-DD/) });
+    expect(bad.error?.message).not.toContain('01/02/1990');
+    await page.context().close();
+  });
+});
+
 describe('inferAction', () => {
   it('maps roles to actions', () => {
     expect(inferAction({ role: 'textbox' }, true)).toBe('fill');

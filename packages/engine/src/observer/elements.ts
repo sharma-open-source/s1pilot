@@ -53,6 +53,7 @@ async function captureFrames(page: Page, mode: 'interactive' | 'text', prefix: s
       };
       if (r.text !== undefined) el.text = r.text;
       if (r.placeholder !== undefined) el.placeholder = r.placeholder;
+      if (r.inputType !== undefined) el.inputType = r.inputType;
       if (r.value !== undefined) el.value = r.value;
       if (r.landmark !== undefined) el.landmark = r.landmark;
       if (r.clickable) el.clickable = true;

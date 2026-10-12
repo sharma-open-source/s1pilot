@@ -9,6 +9,8 @@ export interface RawElement {
   name: string;
   text?: string;
   placeholder?: string;
+  /** `date`, `time`, `datetime-local`, `month` or `week` for temporal inputs (they need a fixed format). */
+  inputType?: string;
   value?: string;
   state: { checked?: boolean; selected?: boolean; expanded?: boolean };
   landmark?: string;
@@ -392,6 +394,7 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
     if (text) d.text = text;
     const ph = el.getAttribute('placeholder');
     if (ph && isControl) d.placeholder = norm(ph);
+    if (type === 'date' || type === 'time' || type === 'datetime-local' || type === 'month' || type === 'week') d.inputType = type;
 
     if (isControl && type !== 'checkbox' && type !== 'radio' && type !== 'button' && type !== 'submit' && type !== 'reset' && type !== 'image') {
       let value = '';

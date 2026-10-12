@@ -91,6 +91,15 @@ describe('resolveInput (unit)', () => {
     expect(quotedValue('Type "" here')).toBeUndefined();
   });
 
+  it('tells System 2 the format a date field needs', async () => {
+    const s1 = new MockDecisionModel({ fallback: noneFits });
+    const s2 = new MockChatModel({ replies: ['{"value": "1990-01-15"}'] });
+    const dob = { role: 'textbox', name: 'Date of birth', inputType: 'date' };
+    const r = await resolveInput({ element: dob, step: { text: 'enter a date of birth' }, vars, s1, s2 });
+    expect(r).toMatchObject({ literal: '1990-01-15', source: 's2' });
+    expect(JSON.stringify(s2.chatCalls)).toContain('a date field that takes YYYY-MM-DD');
+  });
+
   it('none_fits goes to S2 and stores a literal', async () => {
     const s1 = new MockDecisionModel({ fallback: noneFits });
     const s2 = new MockChatModel({ replies: ['{"value": "Grace Hopper"}'] });

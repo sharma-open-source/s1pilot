@@ -2,6 +2,7 @@ import { createRedactor, type DecisionModel } from '@s1pilot/domain';
 import type { ChatModel } from '@s1pilot/providers';
 
 import type { HumanHook } from '../decide/human.js';
+import { TEMPORAL_FORMATS, isTemporalInputType } from '../executor/temporal.js';
 import type { ObservedElement } from '../observer/types.js';
 
 import { createLiteralStore, type LiteralStore } from './literals.js';
@@ -25,7 +26,7 @@ export interface InputStep {
 }
 
 export interface ResolveInputOptions {
-  element: Pick<ObservedElement, 'role' | 'name' | 'placeholder' | 'landmark'>;
+  element: Pick<ObservedElement, 'role' | 'name' | 'placeholder' | 'landmark' | 'inputType'>;
   step: InputStep;
   vars: InputVars;
   /** Test-case parameters (name -> value). Only names are shown to models. */
@@ -97,7 +98,8 @@ function candidates(opts: ResolveInputOptions): Candidate[] {
 }
 
 function describe(el: ResolveInputOptions['element']): string {
-  return `the field labelled ${el.name || '(unlabelled)'}${el.placeholder ? ` (${el.placeholder})` : ''}`;
+  const format = isTemporalInputType(el.inputType) ? `, a ${el.inputType} field that takes ${TEMPORAL_FORMATS[el.inputType]}` : '';
+  return `the field labelled ${el.name || '(unlabelled)'}${el.placeholder ? ` (${el.placeholder})` : ''}${format}`;
 }
 
 /** Extracts `value` from a System 2 reply (plain JSON object, optionally fenced). */
@@ -146,6 +148,7 @@ export async function resolveInput(opts: ResolveInputOptions): Promise<ResolvedI
         name: opts.element.name,
         placeholder: opts.element.placeholder,
         landmark: opts.element.landmark,
+        ...(opts.element.inputType ? { type: opts.element.inputType } : {}),
       },
       step: opts.step.text,
     });
