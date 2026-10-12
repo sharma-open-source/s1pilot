@@ -27,6 +27,7 @@ import { TraceLineSchema, type StepEnd, type TraceLine } from '../trace/schema.j
 
 import { stepIntent } from './intent.js';
 import type { EngineContext, ExecutedAction, ExploreStepInput, StepExecution } from './types.js';
+import { describeWait, parseWait, performWait } from './wait.js';
 
 /** Meta options offered next to the candidate elements (plan section 6). */
 const META_DESCRIPTIONS: Record<string, string> = {
@@ -298,6 +299,14 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
       durationMs,
     };
   };
+
+  // A pure wait step ("Wait 5 seconds", "Wait until "Saved" appears") needs no model: just wait.
+  const wait = parseWait(text);
+  if (wait) {
+    const waited = await performWait(ctx.page, wait);
+    actions.push({ kind: 'wait', target: describeWait(wait), ok: waited.ok, ...(waited.message ? { error: r(waited.message) } : {}) });
+    return waited.ok ? finish('passed', 'step_done') : finish('failed', 'error', waited.message);
+  }
 
   for (;;) {
     iterations += 1;

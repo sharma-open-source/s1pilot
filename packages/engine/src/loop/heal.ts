@@ -6,6 +6,7 @@ import { bindParams, createLiteralStore } from '../text-input/index.js';
 import { exploreStep } from './explore-step.js';
 import { actionsForStep, replayStep, type ReplayBreak, type ReplayContext, type ReplayStepResult } from './replay-step.js';
 import type { EngineContext, ExploreStepInput, StepExecution } from './types.js';
+import { parseWait, performWait } from './wait.js';
 
 /** A heal proposal as the engine produces it; the repo stores it as `pending`. */
 export type HealProposalDraft = Omit<HealProposal, 'status' | 'createdAt'>;
@@ -162,6 +163,25 @@ export async function replayWithHeal(ctx: EngineContext, input: ReplayWithHealIn
     const before = actionsForStep(input.script, step.index);
     replayCtx.page = ctx.page;
     replayCtx.stepText = bindParams(step.action, ctx.params);
+    // Wait steps are replayed by waiting again; a timed-out wait is a failure, not something to heal.
+    const wait = parseWait(replayCtx.stepText);
+    if (wait) {
+      const started = performance.now();
+      const waited = await performWait(ctx.page, wait);
+      const replay: ReplayStepResult = {
+        stepIndex: step.index,
+        mode: 'replay',
+        status: waited.ok ? 'passed' : 'failed',
+        actions: [{ subIndex: 0, kind: 'wait', ok: waited.ok, ...(waited.message ? { error: ctx.redactor.redact(waited.message) } : {}) }],
+        ...(waited.ok
+          ? {}
+          : { break: { stepIndex: step.index, subIndex: 0, reason: 'action-error' as const, message: ctx.redactor.redact(waited.message ?? 'Wait failed') } }),
+        durationMs: performance.now() - started,
+      };
+      steps.push({ stepIndex: step.index, mode: 'replay', status: replay.status, replay });
+      if (!waited.ok) return finish('failed');
+      continue;
+    }
     const replay: ReplayStepResult =
       before.length > 0
         ? await replayStep(replayCtx, step.index, before)

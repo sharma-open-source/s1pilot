@@ -1,4 +1,5 @@
 export { exploreStep } from './explore-step.js';
+export { DEFAULT_WAIT_TIMEOUT_MS, MAX_PAUSE_MS, describeWait, parseWait, performWait, type WaitOutcome, type WaitStep } from './wait.js';
 export {
   healStep,
   replayWithHeal,

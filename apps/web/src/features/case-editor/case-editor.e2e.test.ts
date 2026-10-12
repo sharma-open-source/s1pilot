@@ -114,7 +114,11 @@ describe('case editor (headless Chromium, fake server)', () => {
     await page.goto(`${base}/p/SHOP/cases/SHOP-TC-42`);
     await page.waitForURL(/\/cases\/SHOP-TC-42\/steps$/);
     await page.getByLabel('Action of step 1').waitFor();
-    if (SHOTS) await page.screenshot({ path: `${SHOTS}/case-editor-1440.png`, fullPage: true });
+    if (SHOTS) {
+      await page.getByText('How to write steps').click();
+      await page.screenshot({ path: `${SHOTS}/case-editor-1440.png`, fullPage: true });
+      await page.getByText('How to write steps').click();
+    }
 
     await page.getByLabel('Action of step 4').fill('Stop before payment now');
     await page.getByRole('button', { name: 'Add check to step 4' }).click();
@@ -143,6 +147,9 @@ describe('case editor (headless Chromium, fake server)', () => {
     const page = await browser.newPage({ viewport: { width: 400, height: 900 } });
     await page.goto(`${base}/p/SHOP/cases/SHOP-TC-42/steps`);
     await page.getByLabel('Action of step 1').waitFor();
+    // The step-writing guide's examples must wrap too.
+    await page.getByText('How to write steps').click();
+    await page.getByText('Wait until "Upload complete" appears').waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/case-editor-400.png`, fullPage: true });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     const wide = await page.evaluate(() =>

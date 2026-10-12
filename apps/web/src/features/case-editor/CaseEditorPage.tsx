@@ -22,6 +22,7 @@ import { PreconditionStrip } from './PreconditionStrip';
 import { ResultsTab } from './ResultsTab';
 import { SharedStepPicker } from './SharedStepPicker';
 import { StepGrid } from './StepGrid';
+import { StepGuide } from './StepGuide';
 import { YamlTab } from './YamlTab';
 
 import { PageHeader } from '@/components/app/PageHeader';
@@ -319,6 +320,7 @@ function CaseEditor({ projectKey, caseKey, tab: rawTab, navigate }: CaseEditorPa
                 onInsertShared={() => setPickerOpen(true)}
                 onRecord={() => void recordFromHere()}
               />
+              <StepGuide defaultOpen={draft.steps.every((s) => s.action.trim() === '')} />
             </>
           )}
           {tab === 'parameters' && <ParametersTab parameters={draft.parameters} onChange={(parameters) => patchDraft({ parameters })} />}
