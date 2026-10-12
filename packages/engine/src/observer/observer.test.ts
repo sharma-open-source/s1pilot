@@ -109,6 +109,24 @@ describe('captureElements on fixture sites', () => {
     expect(more.find((e) => e.name === 'Pass')?.value).toBeUndefined();
   });
 
+  it('records a nearby label for unnamed controls, without using it as a locator', async () => {
+    const p = await fresh();
+    await p.setContent(`
+      <div><label>Favorite Color</label>
+        <div><input type="color" id="colorPicker" value="#6366f1" data-testid="color-picker"><span>#6366f1</span></div></div>
+      <div><label for="n">Name</label><input id="n"></div>
+      <div><input aria-label="First"><input id="second"></div>
+      <div><p>${'Long explanation. '.repeat(10)}</p><input id="third"></div>`);
+    const els = await captureElements(p);
+    const color = els.find((e) => e.inputType === 'color');
+    expect(color).toMatchObject({ name: '', nearLabel: 'Favorite Color' });
+    expect(color?.locators.map((l) => l.kind)).toEqual(['role', 'testId', 'css']);
+    expect(color?.locators[0]).toEqual({ kind: 'role', value: 'textbox' });
+    expect(els.find((e) => e.name === 'Name')?.nearLabel).toBeUndefined(); // has a real name
+    const unnamed = els.filter((e) => e.name === '' && e.inputType === undefined);
+    expect(unnamed.map((e) => e.nearLabel)).toEqual([undefined, undefined]); // next to another field / long text
+  });
+
   it('excludes hidden and disabled elements and tags dialog contents with dialog:<name>', async () => {
     const p = await fresh();
     await p.goto(`${server.url}/settings`);

@@ -50,7 +50,8 @@ function actionKindOf(element: ObservedElement): ReturnType<typeof inferAction> 
 
 /** Option label for the `next_action` question. */
 function describeOption(element: ObservedElement): string {
-  const label = `[${element.role}] ${element.name || element.text || element.placeholder || ''}`.trim();
+  const shown = element.name || element.text || element.placeholder || (element.nearLabel ? `near "${element.nearLabel}"` : '');
+  const label = `[${element.role}] ${shown}`.trim();
   if (element.range) return `${label} (slider ${element.range.min}-${element.range.max})`;
   if (element.inputType) return `${label} (${element.inputType} field)`;
   if (!isTextBlock(element)) return label;
@@ -352,7 +353,7 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
       elements: obs.elements.slice(0, MAX_OVERLAY_ELEMENTS).map((e) => ({
         id: e.id,
         role: e.role,
-        label: r((e.name || e.text || e.placeholder || '').slice(0, 80)),
+        label: r((e.name || e.text || e.placeholder || e.nearLabel || '').slice(0, 80)),
         box: e.box,
       })),
       ...(next.choice !== undefined && obs.elementMap.has(next.choice) ? { chosenId: next.choice } : {}),

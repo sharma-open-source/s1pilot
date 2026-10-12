@@ -26,7 +26,7 @@ export interface InputStep {
 }
 
 export interface ResolveInputOptions {
-  element: Pick<ObservedElement, 'role' | 'name' | 'placeholder' | 'landmark' | 'inputType' | 'range'>;
+  element: Pick<ObservedElement, 'role' | 'name' | 'placeholder' | 'landmark' | 'inputType' | 'range' | 'nearLabel'>;
   step: InputStep;
   vars: InputVars;
   /** Test-case parameters (name -> value). Only names are shown to models. */
@@ -107,7 +107,8 @@ function describe(el: ResolveInputOptions['element']): string {
         : el.role === 'spinbutton'
           ? ', a number field'
           : '';
-  return `the field labelled ${el.name || '(unlabelled)'}${el.placeholder ? ` (${el.placeholder})` : ''}${format}`;
+  const name = el.name || (el.nearLabel ? `${el.nearLabel} (nearby text)` : '(unlabelled)');
+  return `the field labelled ${name}${el.placeholder ? ` (${el.placeholder})` : ''}${format}`;
 }
 
 /** Extracts `value` from a System 2 reply (plain JSON object, optionally fenced). */
@@ -153,7 +154,7 @@ export async function resolveInput(opts: ResolveInputOptions): Promise<ResolvedI
     const state = redactor.redactDeep({
       field: {
         role: opts.element.role,
-        name: opts.element.name,
+        name: opts.element.name || opts.element.nearLabel,
         placeholder: opts.element.placeholder,
         landmark: opts.element.landmark,
         ...(opts.element.inputType ? { type: opts.element.inputType } : {}),

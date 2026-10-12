@@ -11,6 +11,8 @@ export interface RawElement {
   placeholder?: string;
   /** `date`, `time`, `datetime-local`, `month`, `week`, `range` or `color`: inputs that need a fixed value format. */
   inputType?: string;
+  /** Unnamed form controls only: short text just before the control (a label not linked with `for`). Never a locator. */
+  nearLabel?: string;
   /** Sliders: `min`/`max` (`<input type="range">` attributes or `aria-valuemin`/`aria-valuemax`). */
   range?: { min: number; max: number };
   value?: string;
@@ -75,6 +77,25 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
   };
 
   /** Text of a subtree for name computation: skips hidden nodes and embedded form controls. */
+  /**
+   * Text of the nearest preceding sibling (of the control or of up to 3 ancestors), e.g. a
+   * `<label>Favorite Color</label>` without `for`. Stops at long text or at a block holding another
+   * control, which would belong to a different field.
+   */
+  const nearLabelOf = (el: Element): string => {
+    let cur: Element | null = el;
+    for (let depth = 0; depth < 4 && cur; depth += 1) {
+      for (let sib = cur.previousElementSibling; sib; sib = sib.previousElementSibling) {
+        if (sib.matches('input, select, textarea, button') || sib.querySelector('input, select, textarea, button')) return '';
+        const t = norm(sib.textContent ?? '');
+        if (!t) continue;
+        return t.length <= 60 ? t : '';
+      }
+      cur = cur.parentElement;
+    }
+    return '';
+  };
+
   const subtreeText = (node: Node, seen: Set<Node>): string => {
     if (seen.has(node)) return '';
     seen.add(node);
@@ -396,6 +417,10 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
     if (text) d.text = text;
     const ph = el.getAttribute('placeholder');
     if (ph && isControl) d.placeholder = norm(ph);
+    if (!name && (isControl || role === 'slider')) {
+      const near = nearLabelOf(el);
+      if (near) d.nearLabel = near;
+    }
     if (['date', 'time', 'datetime-local', 'month', 'week', 'range', 'color'].includes(type)) d.inputType = type;
     if (role === 'slider') {
       const num = (v: string | null | undefined, dflt: number): number => (v != null && v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : dflt);

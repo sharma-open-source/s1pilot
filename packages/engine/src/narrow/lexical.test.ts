@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ObservedElement } from '../observer/types.js';
 
-import { matchingTexts } from './lexical.js';
+import { lexicalScore, matchingTexts, tokenize } from './lexical.js';
 
 function text(i: number, body: string, role = 'text'): ObservedElement {
   return { id: `t${i}`, role, name: body, text: body, state: {}, box: { x: 0, y: i * 20, w: 100, h: 20 }, locators: [] };
@@ -24,5 +24,16 @@ describe('matchingTexts', () => {
   it('offers nothing for unrelated steps and respects the limit', () => {
     expect(matchingTexts(texts, 'Log in with valid credentials')).toEqual([]);
     expect(matchingTexts(texts, 'Scroll to reviews', 1).map((t) => t.id)).toEqual(['t3']);
+  });
+});
+
+describe('lexicalScore', () => {
+  const picker: ObservedElement = { id: 'e9', role: 'textbox', name: '', inputType: 'color', nearLabel: 'Favorite Color', state: {}, box: { x: 0, y: 0, w: 20, h: 20 }, locators: [] };
+
+  it('matches unnamed controls by nearby label and input type', () => {
+    // "set", "favorite", "color", "red": the label and the type match two of the four words.
+    expect(lexicalScore(tokenize('set favorite color to red'), picker)).toBe(0.5);
+    expect(lexicalScore(tokenize('set colour to red'), { ...picker, nearLabel: undefined })).toBeCloseTo(1 / 3);
+    expect(lexicalScore(tokenize('set colour to red'), { ...picker, nearLabel: undefined, inputType: undefined })).toBe(0);
   });
 });

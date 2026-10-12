@@ -18,12 +18,14 @@ export function tokenize(text: string): string[] {
 
 /**
  * Lexical relevance of an element to a step: fraction of distinct step tokens found (exactly, or as a
- * prefix of length >= 3 in either direction) in the element's name, text, placeholder and role. 0..1.
+ * prefix of length >= 3 in either direction) in the element's name, text, placeholder, nearby label,
+ * role and input type (`color` also matches "colour"). 0..1.
  */
 export function lexicalScore(stepTokens: readonly string[], element: ObservedElement): number {
   const wanted = new Set(stepTokens);
   if (wanted.size === 0) return 0;
-  const hay = tokenize([element.name, element.text ?? '', element.placeholder ?? '', element.role].join(' '));
+  const type = element.inputType === 'color' ? 'color colour' : (element.inputType ?? '');
+  const hay = tokenize([element.name, element.text ?? '', element.placeholder ?? '', element.nearLabel ?? '', element.role, type].join(' '));
   if (hay.length === 0) return 0;
   let hits = 0;
   for (const s of wanted) {

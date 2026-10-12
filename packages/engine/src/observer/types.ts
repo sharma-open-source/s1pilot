@@ -24,6 +24,11 @@ export interface ObservedElement {
   placeholder?: string;
   /** `date`, `time`, `datetime-local`, `month`, `week`, `range` or `color`: inputs that accept one fixed value format. */
   inputType?: string;
+  /**
+   * Unnamed form controls only: short text just before the control (e.g. a `<label>` not linked with
+   * `for`). A hint for models and ranking; never used as a locator, since it is not the accessible name.
+   */
+  nearLabel?: string;
   /** Sliders (native or ARIA): the value range. */
   range?: { min: number; max: number };
   /** Current value; omitted for password fields and masked for secret-like fields. */
