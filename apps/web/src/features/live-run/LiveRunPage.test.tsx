@@ -216,7 +216,7 @@ describe('LiveRunPage', () => {
     const ws = await connected();
     act(() => ws.push({ ...SNAPSHOT, pendingEscalations: [] }));
     const events = [
-      { type: 'observation.elements', runId: RUN.id, ts: TS, caseResultId: 'cr1', stepIndex: 2, chosenId: 'e3', elements: [{ id: 'e3', role: 'button', label: 'Checkout as guest', box: { x: 100, y: 200, w: 300, h: 40 } }, { id: 'e2', role: 'link', label: 'Continue shopping', box: { x: 10, y: 20, w: 100, h: 30 } }] },
+      { type: 'observation.elements', runId: RUN.id, ts: TS, caseResultId: 'cr1', stepIndex: 2, chosenId: 'e3', elements: [{ id: 'e3', role: 'button', label: 'Checkout as guest', box: { x: 100, y: 200, w: 300, h: 40 } }, { id: 'e2', role: 'link', label: 'Continue shopping', box: { x: 10, y: 20, w: 100, h: 30 } }, { id: 'e5', role: 'textbox', label: 'Coupon', box: { x: 10, y: 80, w: 200, h: 30 } }] },
       ESC,
       { type: 'log', runId: RUN.id, ts: TS, level: 'warn', message: 'console: Failed to load https://staging.shop.example/cart.js' },
     ];
@@ -224,13 +224,23 @@ describe('LiveRunPage', () => {
 
     const log = await screen.findByRole('log', { name: 'Run events' });
     expect(within(log).getByText(/awaiting approval/)).toHaveClass('text-warning-log');
-    expect(within(log).getByText(/^\[10:00:01\] observe · 2 elements/)).toBeInTheDocument();
+    expect(within(log).getByText(/^\[10:00:01\] observe · 3 elements/)).toBeInTheDocument();
     expect(screen.getByText('https://staging.shop.example/cart.js')).toBeInTheDocument();
 
     const chosen = document.querySelector('[data-element="e3"]');
     expect(chosen).toHaveAttribute('data-chosen', 'true');
     expect(document.querySelector('[data-element="e2"]')).not.toHaveAttribute('data-chosen');
-    expect(screen.getByText('2 interactive elements · numbered boxes shown')).toBeInTheDocument();
+    // Thin outlines coloured by category, id + name chip at the top-left, and a colour key.
+    expect(document.querySelector('[data-element="e2"]')).toHaveAttribute('data-category', 'action');
+    expect(document.querySelector('[data-element="e2"]')).toHaveClass('border', 'border-warning');
+    expect(document.querySelector('[data-element="e5"]')).toHaveAttribute('data-category', 'input');
+    expect(within(document.querySelector('[data-element="e5"]') as HTMLElement).getByText('e5 Coupon')).toHaveClass('left-[-1px]', 'bottom-full');
+    const legend = screen.getByTestId('element-legend');
+    expect(within(legend).getByText('3 interactive elements')).toBeInTheDocument();
+    expect(within(legend).getByText('Button / link')).toBeInTheDocument();
+    expect(within(legend).getByText('Input')).toBeInTheDocument();
+    expect(within(legend).queryByText('Choice')).toBeNull();
+    expect(within(legend).getByText('Chosen')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Toggle element boxes' }));
     expect(document.querySelector('[data-element="e3"]')).toBeNull();
 

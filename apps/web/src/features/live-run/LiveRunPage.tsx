@@ -7,6 +7,7 @@ import { useRunSocket } from './useRunSocket';
 import {
   BrowserFrame,
   DecisionPanel,
+  ElementBoxLegend,
   ElementBoxOverlay,
   EventLog,
   RunProgressBar,
@@ -189,9 +190,7 @@ export function LiveRunPage({ projectKey, runId }: LiveRunPageProps) {
               showBoxes && state.elements.length > 0 ? (
                 <>
                   <ElementBoxOverlay elements={state.elements} chosenId={state.chosenId} width={vw} height={vh} />
-                  <div className="absolute bottom-[6%] left-[3%] rounded-tag bg-ink px-2.5 py-1.5 text-xs text-ink-text">
-                    {interactive} interactive elements · numbered boxes shown
-                  </div>
+                  <ElementBoxLegend elements={state.elements} chosenId={state.chosenId} caption={`${interactive} interactive elements`} />
                 </>
               ) : null
             }

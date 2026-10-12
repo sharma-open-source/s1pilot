@@ -115,13 +115,59 @@ export function StepStatusList({ steps }: { steps: StepStatusItem[] }) {
 
 export interface OverlayBox {
   id: string;
+  /** ARIA role from the observer (`button`, `textbox`, `text`, …); decides the box colour. */
+  role?: string;
   label: string;
   box: { x: number; y: number; w: number; h: number };
 }
 
+/** Kind of element a box marks, for its colour. */
+export type ElementCategory = 'action' | 'input' | 'choice' | 'text' | 'other';
+
+const CATEGORY_OF_ROLE: Record<string, ElementCategory> = {
+  button: 'action',
+  link: 'action',
+  menuitem: 'action',
+  tab: 'action',
+  treeitem: 'action',
+  textbox: 'input',
+  searchbox: 'input',
+  combobox: 'input',
+  spinbutton: 'input',
+  slider: 'input',
+  listbox: 'input',
+  checkbox: 'choice',
+  radio: 'choice',
+  switch: 'choice',
+  option: 'choice',
+  menuitemcheckbox: 'choice',
+  menuitemradio: 'choice',
+  text: 'text',
+  heading: 'text',
+};
+
+/** Category of an observed element's role; unknown roles are `other`. */
+export function elementCategory(role: string | undefined): ElementCategory {
+  return (role !== undefined && CATEGORY_OF_ROLE[role]) || 'other';
+}
+
+/** Box border, label chip and legend swatch classes per category (design tokens only). */
+const CATEGORY_STYLE: Record<ElementCategory, { label: string; border: string; chip: string }> = {
+  action: { label: 'Button / link', border: 'border-warning', chip: 'bg-warning' },
+  input: { label: 'Input', border: 'border-success', chip: 'bg-success' },
+  choice: { label: 'Choice', border: 'border-flaky', chip: 'bg-flaky' },
+  text: { label: 'Text', border: 'border-chart-2 border-dashed', chip: 'bg-chart-2' },
+  other: { label: 'Other', border: 'border-chart-1', chip: 'bg-chart-1' },
+};
+
+/** Height of a label chip in page pixels, used to keep chips of boxes at the very top inside the frame. */
+const CHIP_HEIGHT_PX = 16;
+
 /**
- * Numbered boxes over the screencast. Boxes are positioned in percentages of the viewport size, so they stay
- * aligned with the frame at any panel width. Chosen = 3 px solid primary, candidates = 2 px dashed muted.
+ * Element boxes over the screencast. Boxes are positioned in percentages of the viewport size, so they stay
+ * aligned with the frame at any panel width. Each box is a thin 1 px outline coloured by category with its
+ * id and name in a chip on its top-left corner (just above the box, so the element itself stays visible); the chosen element gets a 2 px primary outline, a soft fill
+ * and a primary chip on top of the others.
  */
 export function ElementBoxOverlay({
   elements,
@@ -139,16 +185,17 @@ export function ElementBoxOverlay({
     <div className="pointer-events-none absolute inset-0" data-testid="element-overlay">
       {elements.map((el) => {
         const chosen = el.id === chosenId;
+        const category = elementCategory(el.role);
+        const style = CATEGORY_STYLE[category];
         return (
           <div
             key={el.id}
             data-element={el.id}
+            data-category={category}
             data-chosen={chosen ? 'true' : undefined}
             className={cn(
-              'absolute box-border flex items-center justify-center overflow-hidden rounded-tag px-1 text-center text-xs leading-tight',
-              chosen
-                ? 'z-10 border-[3px] border-solid border-primary bg-primary-soft font-semibold text-primary-text'
-                : 'border-2 border-dashed border-muted text-strong-2',
+              'absolute box-border rounded-tag',
+              chosen ? 'z-10 border-2 border-solid border-primary bg-[color-mix(in_srgb,var(--primary-soft)_45%,transparent)]' : cn('border border-solid', style.border),
             )}
             style={{
               left: `${(el.box.x / width) * 100}%`,
@@ -157,12 +204,46 @@ export function ElementBoxOverlay({
               height: `${(el.box.h / height) * 100}%`,
             }}
           >
-            <span className="truncate">
-              {el.id} {el.label}
+            <span
+              className={cn(
+                'absolute left-[-1px] max-w-[14rem] truncate whitespace-nowrap px-1 font-mono text-[10px] leading-[14px] text-white',
+                // Above the box so the element stays visible; inside it when the box touches the top edge.
+                el.box.y < CHIP_HEIGHT_PX ? 'top-[-1px] rounded-br-tag rounded-tl-tag' : 'bottom-full rounded-t-tag',
+                chosen ? 'bg-primary font-semibold' : cn(style.chip, 'opacity-90'),
+              )}
+            >
+              {el.id}
+              {el.label ? ` ${el.label}` : ''}
             </span>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** Colour key for {@link ElementBoxOverlay}: one swatch per category present, plus the chosen element. */
+export function ElementBoxLegend({ elements, chosenId, caption }: { elements: OverlayBox[]; chosenId: string | null; caption?: string }) {
+  const present = new Set(elements.map((e) => elementCategory(e.role)));
+  const shown = (Object.keys(CATEGORY_STYLE) as ElementCategory[]).filter((c) => present.has(c));
+  return (
+    <div
+      className="absolute bottom-[3%] left-[2%] flex max-w-[96%] flex-wrap items-center gap-x-2.5 gap-y-1 rounded-tag border border-line bg-surface px-2.5 py-1.5 text-xs text-fg shadow-sm"
+      data-testid="element-legend"
+    >
+      {caption !== undefined && <span className="text-secondary">{caption}</span>}
+      {shown.map((c) => (
+        <span key={c} className="inline-flex items-center gap-1">
+          <span aria-hidden="true" className={cn('h-2.5 w-2.5 rounded-[2px]', CATEGORY_STYLE[c].chip)} />
+          {CATEGORY_STYLE[c].label}
+        </span>
+      ))}
+      {chosenId !== null && elements.some((e) => e.id === chosenId) && (
+        <span className="inline-flex items-center gap-1 font-semibold">
+          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-[2px] bg-primary" />
+          Chosen
+        </span>
+      )}
     </div>
   );
 }
