@@ -75,6 +75,7 @@ export class LoopGuard {
 
 /** Stable key for an action: kind plus target and value reference (never literal values). */
 export function actionKey(action: { kind: string } & Record<string, unknown>): string {
-  const { kind, locators, url, key, dir, label, valueRef, fileRef } = action;
-  return JSON.stringify([kind, locators ?? null, url ?? null, key ?? null, dir ?? null, label ?? null, valueRef ?? fileRef ?? null]);
+  const { kind, locators, url, key, dir, label, valueRef, fileRef, target } = action;
+  const drop = (target as { locators?: unknown } | undefined)?.locators ?? null;
+  return JSON.stringify([kind, locators ?? null, url ?? null, key ?? null, dir ?? null, label ?? null, valueRef ?? fileRef ?? null, drop]);
 }

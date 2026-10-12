@@ -8,7 +8,9 @@ export type InferredAction = 'click' | 'fill' | 'selectOption' | 'check';
  * combobox -> fill only when a value is available (else click to open);
  * listbox/select -> selectOption; checkbox/radio/switch -> check; everything else -> click.
  */
-export function inferAction(element: Pick<ObservedElement, 'role'>, hasValue: boolean): InferredAction {
+export function inferAction(element: Pick<ObservedElement, 'role'> & { state?: ObservedElement['state'] }, hasValue: boolean): InferredAction {
+  // A read-only text input (a date picker opening a calendar) is clicked, not typed into.
+  if (element.state?.readonly) return 'click';
   switch (element.role) {
     case 'textbox':
     case 'searchbox':

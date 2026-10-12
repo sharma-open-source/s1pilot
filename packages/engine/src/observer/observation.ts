@@ -112,7 +112,8 @@ export function serializeObservation(obs: Observation, opts: SerializeOptions): 
   out.push('elements:');
   for (const e of obs.elements.slice(0, max)) {
     let line = `${e.id} [${e.role}] ${JSON.stringify(r(e.name, MAX_NAME))}`;
-    if (!e.name && e.nearLabel) line += ` near=${JSON.stringify(r(e.nearLabel, 60))}`;
+    if (e.nearLabel) line += ` near=${JSON.stringify(r(e.nearLabel, 60))}`;
+    if (e.idHint) line += ` hint=${JSON.stringify(r(e.idHint, 60))}`;
     if (e.inputType) line += ` type=${e.inputType}`;
     if (e.range) line += ` range=${e.range.min}..${e.range.max}`;
     if (e.value !== undefined && e.value !== '') line += ` value=${JSON.stringify(r(e.value, 60))}`;
@@ -124,8 +125,10 @@ export function serializeObservation(obs: Observation, opts: SerializeOptions): 
       if (e.clickable) states.push('clickable');
       if (e.inView === false) states.push('offscreen');
     }
+    if (e.empty) states.push('empty');
     if (states.length) line += ` (${states.join(',')})`;
     if (e.landmark) line += ` @${r(landmarkName(e.landmark), 60)}`;
+    if (e.section) line += ` in ${JSON.stringify(r(e.section, 60))}`;
     if (e.frame) line += ` [frame ${r(e.frame, 40)}]`;
     out.push(line);
   }

@@ -20,7 +20,7 @@ describe('profiles', () => {
   });
 
   it('encodes the reference limits and recommended adapters', () => {
-    expect(loadProfile('jev').capabilities.maxOptions).toBe(256);
+    expect(loadProfile('jev').capabilities.maxOptions).toBe(255); // the OpenRouter decisions endpoint rejects more than 255 choices
     expect(loadProfile('laya').capabilities.maxOptions).toBe(20);
     expect(loadProfile('clef').capabilities.maxOptions).toBe(64);
     expect(loadProfile('jev').recommendedAdapter).toBe('decide');

@@ -78,7 +78,7 @@ describe('decide adapter: success', () => {
 
   it('declares multiQuestionPerCall: false and keeps the profile limits', () => {
     const model = createDecisionModel(endpoint('http://x.test', { profileId: 'jev' }));
-    expect(model.capabilities).toMatchObject({ multiQuestionPerCall: false, maxOptions: 256, supportsImages: true });
+    expect(model.capabilities).toMatchObject({ multiQuestionPerCall: false, maxOptions: 255, supportsImages: true });
     expect(createDecisionModel(endpoint('http://x.test')).capabilities).toMatchObject({ multiQuestionPerCall: false, maxOptions: 256 });
   });
 

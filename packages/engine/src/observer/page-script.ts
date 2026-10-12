@@ -9,14 +9,22 @@ export interface RawElement {
   name: string;
   text?: string;
   placeholder?: string;
-  /** `date`, `time`, `datetime-local`, `month`, `week`, `range` or `color`: inputs that need a fixed value format. */
+  /** `date`, `time`, `datetime-local`, `month`, `week`, `range`, `color` or `file`: inputs with special handling. */
   inputType?: string;
-  /** Unnamed form controls only: short text just before the control (a label not linked with `for`). Never a locator. */
+  /** Text of the nearest heading before the element in its part of the page (e.g. the card title). */
+  section?: string;
+  /** Text-like form controls: true when nothing is entered (also for password fields, whose value is never exposed). */
+  empty?: boolean;
+  /** Links to `#fragment` on the same page: they only scroll to a section. */
+  inPage?: boolean;
+  /** Unnamed controls without a nearby label: words from `title`, test id or id (`video-play`). */
+  idHint?: string;
+  /** Form controls named only by their placeholder (or not at all): short text just before the control (a label not linked with `for`). Never a locator. */
   nearLabel?: string;
   /** Sliders: `min`/`max` (`<input type="range">` attributes or `aria-valuemin`/`aria-valuemax`). */
   range?: { min: number; max: number };
   value?: string;
-  state: { checked?: boolean; selected?: boolean; expanded?: boolean };
+  state: { checked?: boolean; selected?: boolean; expanded?: boolean; readonly?: boolean };
   landmark?: string;
   box: Box;
   locators: LocatorCandidate[];
@@ -59,6 +67,7 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
     '[contenteditable=""]',
     '[contenteditable="true"]',
     '[onclick]',
+    '[draggable="true"]',
     ...INTERACTIVE_ROLES.split('|').map((r) => `[role~="${r}"]`),
   ].join(',');
   const TEST_ID_ATTRS = ['data-testid', 'data-test', 'data-qa'];
@@ -94,6 +103,42 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
       cur = cur.parentElement;
     }
     return '';
+  };
+
+  /**
+   * Nearest heading before `el` inside its closest ancestor that has one, e.g. the title of the card
+   * a button sits in. Lets models tell apart same-named controls ("Upload" in two upload cards).
+   */
+  const HEADING_SEL = 'h1, h2, h3, h4, h5, h6, [role="heading"]';
+  const headingsOf = new Map<Element, Element[]>();
+  const sectionOf = (el: Element): string => {
+    let cur = el.parentElement;
+    for (let depth = 0; depth < 12 && cur; depth += 1) {
+      let hs = headingsOf.get(cur);
+      if (!hs) {
+        hs = Array.from(cur.querySelectorAll(HEADING_SEL));
+        headingsOf.set(cur, hs);
+      }
+      for (let i = hs.length - 1; i >= 0; i -= 1) {
+        const h = hs[i] as Element;
+        if (h === el || h.contains(el) || !(h.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+        // A hidden heading (the title of a step not shown yet) names no visible section.
+        if (!(h as HTMLElement).checkVisibility({ checkVisibilityCSS: true } as CheckVisibilityOptions)) continue;
+        const t = norm(h.textContent ?? '');
+        if (t) return t.length <= 60 ? t : `${t.slice(0, 59)}…`;
+      }
+      cur = cur.parentElement;
+    }
+    return '';
+  };
+
+  /** `title`, else test id / id split into words: a hint for icon-only controls (`video-play` → "video play"). */
+  const idHintOf = (el: Element): string => {
+    const title = el.getAttribute('title');
+    if (title && norm(title)) return norm(title).slice(0, 60);
+    const raw = TEST_ID_ATTRS.map((a) => el.getAttribute(a)).find((v) => v) ?? el.id;
+    if (!raw) return '';
+    return norm(raw.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[-_.]+/g, ' ')).toLowerCase().slice(0, 60);
   };
 
   const subtreeText = (node: Node, seen: Set<Node>): string => {
@@ -137,6 +182,7 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
       if (type === 'checkbox' || type === 'radio') return type;
       if (type === 'button' || type === 'submit' || type === 'reset' || type === 'image') return 'button';
       if (type === 'range') return 'slider';
+      if (type === 'file') return 'button';
       if (type === 'number') return 'spinbutton';
       if (type === 'search') return 'searchbox';
       return 'textbox';
@@ -389,12 +435,31 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
   walk(document);
 
   const out: RawElement[] = [];
+  /**
+   * File inputs are usually hidden behind a styled drop zone or "browse" link. They are kept, with the
+   * box of their nearest visible ancestor, so a step can upload to them (files are set directly).
+   */
+  const visibleProxy = (el: Element): DOMRect | undefined => {
+    let cur = el.parentElement;
+    for (let depth = 0; depth < 4 && cur; depth += 1) {
+      const r = cur.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && (cur as HTMLElement).checkVisibility({ checkVisibilityCSS: true } as CheckVisibilityOptions)) return r;
+      cur = cur.parentElement;
+    }
+    return undefined;
+  };
+
   for (const el of found) {
-    if (!(el as HTMLElement).checkVisibility({ checkVisibilityCSS: true } as CheckVisibilityOptions)) continue;
+    const fileInput = el instanceof HTMLInputElement && el.type === 'file';
+    let rect = el.getBoundingClientRect();
+    const shown = (el as HTMLElement).checkVisibility({ checkVisibilityCSS: true } as CheckVisibilityOptions) && rect.width > 0 && rect.height > 0;
+    if (!shown) {
+      const proxy = fileInput ? visibleProxy(el) : undefined;
+      if (!proxy) continue;
+      rect = proxy;
+    }
     if (el.closest('[aria-hidden="true"]')) continue;
     if (el.matches(':disabled') || el.getAttribute('aria-disabled') === 'true') continue;
-    const rect = el.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) continue;
     const role = roleOf(el);
     const tag = el.tagName.toLowerCase();
     const name = nameOf(el, role);
@@ -417,11 +482,20 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
     if (text) d.text = text;
     const ph = el.getAttribute('placeholder');
     if (ph && isControl) d.placeholder = norm(ph);
-    if (!name && (isControl || role === 'slider')) {
+    // A name that is only the placeholder ("John") hides the field's visible label ("First Name").
+    if ((!name || name === d.placeholder) && (isControl || role === 'slider')) {
       const near = nearLabelOf(el);
-      if (near) d.nearLabel = near;
+      if (near && near !== name) d.nearLabel = near;
     }
-    if (['date', 'time', 'datetime-local', 'month', 'week', 'range', 'color'].includes(type)) d.inputType = type;
+    if (isControl && (el as HTMLInputElement).readOnly) d.state.readonly = true;
+    if (!name && !d.nearLabel && !text && !d.placeholder) {
+      const hint = idHintOf(el);
+      if (hint) d.idHint = hint;
+    }
+    if (tag === 'a' && /^#./.test(el.getAttribute('href') ?? '')) d.inPage = true;
+    const section = sectionOf(el);
+    if (section && section !== name) d.section = section;
+    if (['date', 'time', 'datetime-local', 'month', 'week', 'range', 'color', 'file'].includes(type)) d.inputType = type;
     if (role === 'slider') {
       const num = (v: string | null | undefined, dflt: number): number => (v != null && v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : dflt);
       d.range =
@@ -439,6 +513,7 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
       } else {
         value = (el as HTMLInputElement | HTMLTextAreaElement).value;
       }
+      if (tag !== 'select' && !['range', 'color', 'file'].includes(type)) d.empty = value === '';
       const secretLike =
         type === 'password' || SECRET_RE.test(`${el.getAttribute('name') ?? ''} ${el.getAttribute('id') ?? ''} ${el.getAttribute('autocomplete') ?? ''}`);
       if (type === 'password') {

@@ -127,6 +127,29 @@ describe('captureElements on fixture sites', () => {
     expect(unnamed.map((e) => e.nearLabel)).toEqual([undefined, undefined]); // next to another field / long text
   });
 
+  it('names sections by visible headings only and flags in-page links', async () => {
+    const p = await fresh();
+    await p.setContent(`
+      <section><h3>Personal Information</h3><input aria-label="First"><h3 hidden>Order Submitted!</h3><button>Next</button></section>
+      <nav><a href="#frames">Frames</a><a href="/other">Other</a></nav>`);
+    const els = await captureElements(p);
+    expect(els.find((e) => e.name === 'Next')?.section).toBe('Personal Information');
+    expect(els.find((e) => e.name === 'Frames')?.inPage).toBe(true);
+    expect(els.find((e) => e.name === 'Other')?.inPage).toBeUndefined();
+  });
+
+  it('keeps the visible label of placeholder-named fields and flags read-only and empty inputs', async () => {
+    const p = await fresh();
+    await p.setContent(`
+      <div><label>First Name *</label><input id="fn" placeholder="John"></div>
+      <div><label>Select a Date</label><input id="dp" placeholder="Click to select date..." readonly></div>
+      <input aria-label="Filled" value="x">`);
+    const els = await captureElements(p);
+    expect(els.find((e) => e.name === 'John')).toMatchObject({ nearLabel: 'First Name *', empty: true });
+    expect(els.find((e) => e.name === 'Click to select date...')?.state.readonly).toBe(true);
+    expect(els.find((e) => e.name === 'Filled')?.empty).toBe(false);
+  });
+
   it('excludes hidden and disabled elements and tags dialog contents with dialog:<name>', async () => {
     const p = await fresh();
     await p.goto(`${server.url}/settings`);

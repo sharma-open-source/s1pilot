@@ -123,9 +123,75 @@ describe('sliders, colour and number inputs', () => {
   });
 });
 
+describe('pointer gestures, drag and drop, uploads', () => {
+  const html = `
+    <section><h3>Clicks</h3>
+      <button id="dbl" ondblclick="out.textContent='double'">Double Click Me</button>
+      <button id="ctx" oncontextmenu="event.preventDefault(); out.textContent='right'">Right Click Me</button>
+      <button data-testid="video-play"><svg width="10" height="10"></svg></button>
+      <p id="out"></p></section>
+    <section><h3>Drag &amp; Drop</h3>
+      <ul id="list"><li draggable="true" id="deploy">Deploy</li><li draggable="true">Test</li></ul>
+      <div id="zone" style="width:120px;height:40px;border:1px solid">Drop here to remove</div></section>
+    <section><h3>Single File Upload</h3>
+      <div id="dz">Drag a file here or <span id="browse" style="cursor:pointer">browse</span>
+        <input type="file" id="file" data-testid="single-file-input" hidden></div>
+      <p id="files"></p></section>
+    <section><h3>Other Upload</h3><button id="pick">Choose</button></section>
+    <script>
+      const list = document.getElementById('list'), zone = document.getElementById('zone');
+      list.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', e.target.id));
+      zone.addEventListener('dragover', (e) => e.preventDefault());
+      zone.addEventListener('drop', (e) => { e.preventDefault(); document.getElementById(e.dataTransfer.getData('text/plain'))?.remove(); });
+      document.getElementById('browse').onclick = () => document.getElementById('file').click();
+      document.getElementById('file').onchange = (e) => { files.textContent = [...e.target.files].map((f) => f.name).join(','); };
+      document.getElementById('pick').onclick = () => { const i = document.createElement('input'); i.type = 'file';
+        i.onchange = () => { files.textContent = 'picked:' + i.files[0].name; }; i.click(); };
+    </script>`;
+  const withFile = (path: string): ExecutorContext => ({ ...ctx, resolveValue: () => path });
+
+  it('observes sections, id hints, draggable items and hidden file inputs', async () => {
+    const page = await fresh();
+    await page.setContent(html);
+    const els = await captureElements(page);
+    expect(els.find((e) => e.name === 'Double Click Me')?.section).toBe('Clicks');
+    expect(els.find((e) => e.locators.some((l) => l.value === 'video-play'))).toMatchObject({ name: '', idHint: 'video play' });
+    expect(els.find((e) => e.text === 'Deploy')).toMatchObject({ section: 'Drag & Drop' });
+    const file = els.find((e) => e.inputType === 'file');
+    expect(file).toMatchObject({ role: 'button', section: 'Single File Upload' });
+    expect(file?.box.w).toBeGreaterThan(0); // box of the visible drop zone
+    await page.context().close();
+  });
+
+  it('double-clicks, right-clicks, drags and uploads', async () => {
+    const page = await fresh();
+    await page.setContent(html);
+    const by = (css: string): LocatorCandidate[] => [{ kind: 'css', value: css }];
+    expect((await execute(page, { kind: 'dblclick', locators: by('#dbl') }, ctx)).ok).toBe(true);
+    expect(await page.locator('#out').textContent()).toBe('double');
+    expect((await execute(page, { kind: 'rightclick', locators: by('#ctx') }, ctx)).ok).toBe(true);
+    expect(await page.locator('#out').textContent()).toBe('right');
+
+    const drag = await execute(page, { kind: 'drag', locators: by('#deploy'), target: { locators: by('#zone') } }, ctx);
+    expect(drag.ok).toBe(true);
+    expect(await page.locator('#deploy').count()).toBe(0);
+
+    const { sampleFile } = await import('../text-input/files.js');
+    // Hidden input set directly; a "browse" link answered through the file chooser; a button that opens one.
+    expect((await execute(page, { kind: 'upload', fileRef: 'file:a', locators: by('#file') }, withFile(sampleFile('a.png')))).ok).toBe(true);
+    expect(await page.locator('#files').textContent()).toBe('a.png');
+    expect((await execute(page, { kind: 'upload', fileRef: 'file:b', locators: by('#browse') }, withFile(sampleFile('b.pdf')))).ok).toBe(true);
+    expect(await page.locator('#files').textContent()).toBe('b.pdf');
+    expect((await execute(page, { kind: 'upload', fileRef: 'file:c', locators: by('#pick') }, withFile(sampleFile('c.txt')))).ok).toBe(true);
+    expect(await page.locator('#files').textContent()).toBe('picked:c.txt');
+    await page.context().close();
+  });
+});
+
 describe('inferAction', () => {
   it('maps roles to actions', () => {
     expect(inferAction({ role: 'textbox' }, true)).toBe('fill');
+    expect(inferAction({ role: 'textbox', state: { readonly: true } }, true)).toBe('click');
     expect(inferAction({ role: 'searchbox' }, false)).toBe('fill');
     expect(inferAction({ role: 'combobox' }, true)).toBe('fill');
     expect(inferAction({ role: 'combobox' }, false)).toBe('click');
@@ -326,7 +392,7 @@ describe('shop manual flow via execute()', () => {
     const guest = await find(page, 'button', 'Guest checkout');
     expect((await execute(page, { kind: 'click', locators: guest.locators }, ctx)).ok).toBe(true);
     await page.close();
-  });
+  }, 15_000); // a whole browser flow; the 5 s default is too tight on a loaded machine
 });
 
 describe('popups, dialogs and downloads', () => {

@@ -30,6 +30,8 @@ export interface ReplayContext {
   params: Record<string, string>;
   redactor: Redactor;
   literals?: LiteralStore;
+  /** Unredacted, parameter-bound text of the step being replayed, for `quote:` value refs. */
+  stepText?: string;
   /** Extra executor options. Replay settles faster than explore unless `stable` is given. */
   executor?: Omit<ExecutorContext, 'resolveValue'>;
 }
@@ -77,10 +79,23 @@ function toEngineAction(a: ResolvedAction): EngineAction | { unreplayable: strin
   const locators = semantic.length > 0 ? semantic : a.locators;
   switch (a.action) {
     case 'click':
+    case 'dblclick':
+    case 'rightclick':
     case 'hover':
     case 'check':
     case 'uncheck':
       return { kind: a.action, locators };
+    case 'drag': {
+      const drop = (a.targetLocators ?? []).filter((l) => l.kind !== 'css');
+      return a.targetLocators && a.targetLocators.length > 0
+        ? { kind: 'drag', locators, target: { locators: drop.length > 0 ? drop : a.targetLocators } }
+        : { unreplayable: 'drag without a drop target' };
+    }
+    case 'upload':
+      return a.valueRef ? { kind: 'upload', fileRef: a.valueRef, locators } : { unreplayable: 'upload without a file reference' };
+    case 'press':
+      // Without a key (scripts learned before keys were recorded) there is nothing to replay.
+      return a.key ? { kind: 'press', key: a.key, ...(a.locators.length > 0 ? { locators } : {}) } : { unreplayable: 'press without a recorded key' };
     case 'fill':
       return a.valueRef
         ? { kind: 'fill', valueRef: a.valueRef, locators }
@@ -95,7 +110,7 @@ function toEngineAction(a: ResolvedAction): EngineAction | { unreplayable: strin
       // Targeted scrolls only (page scrolls are skipped by the caller): page text scrolled into view.
       return { kind: 'scroll', dir: 'into-view', locators };
     default:
-      // press / goto: the learned script keeps no key or URL for these.
+      // goto: the learned script keeps no URL.
       return { unreplayable: `${a.action} cannot be replayed from the learned script` };
   }
 }
@@ -119,7 +134,12 @@ export async function replayStep(
   const started = performance.now();
   const done: ReplayedAction[] = [];
   const literals = (ctx.literals ??= createLiteralStore());
-  const resolveValue = createValueResolver({ vars: ctx.vars, params: ctx.params, literals });
+  const resolveValue = createValueResolver({
+    vars: ctx.vars,
+    params: ctx.params,
+    literals,
+    ...(ctx.stepText !== undefined ? { stepText: ctx.stepText } : {}),
+  });
   const r = (s: string): string => ctx.redactor.redact(s);
   const ordered = [...actions].sort((a, b) => a.subIndex - b.subIndex);
 

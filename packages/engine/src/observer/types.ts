@@ -22,10 +22,18 @@ export interface ObservedElement {
   /** Visible text, trimmed to 120 chars. Omitted for form controls. */
   text?: string;
   placeholder?: string;
-  /** `date`, `time`, `datetime-local`, `month`, `week`, `range` or `color`: inputs that accept one fixed value format. */
+  /** `date`, `time`, `datetime-local`, `month`, `week`, `range`, `color` or `file`: inputs with special handling. */
   inputType?: string;
+  /** Text of the nearest heading before the element in its part of the page (e.g. the card title). */
+  section?: string;
+  /** Text-like form controls: true when nothing is entered (also for password fields, whose value is never exposed). */
+  empty?: boolean;
+  /** Links to `#fragment` on the same page: they only scroll to a section. */
+  inPage?: boolean;
+  /** Unnamed controls without other text: words from `title`, test id or id (`video-play` → "video play"). */
+  idHint?: string;
   /**
-   * Unnamed form controls only: short text just before the control (e.g. a `<label>` not linked with
+   * Form controls named only by their placeholder (or not at all): short text just before the control (e.g. a `<label>` not linked with
    * `for`). A hint for models and ranking; never used as a locator, since it is not the accessible name.
    */
   nearLabel?: string;
@@ -33,7 +41,8 @@ export interface ObservedElement {
   range?: { min: number; max: number };
   /** Current value; omitted for password fields and masked for secret-like fields. */
   value?: string;
-  state: { checked?: boolean; selected?: boolean; expanded?: boolean; disabled?: false };
+  /** `readonly`: a text input that cannot be typed into (date pickers that open a calendar on click). */
+  state: { checked?: boolean; selected?: boolean; expanded?: boolean; disabled?: false; readonly?: boolean };
   /** Nearest landmark as `<kind>:<name>` (kinds: dialog, nav, main, form, region). */
   landmark?: string;
   box: Box;

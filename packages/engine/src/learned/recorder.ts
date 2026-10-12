@@ -70,13 +70,17 @@ export class LearnedRecorder implements ActionRecorder {
     const locators = first ? [first, ...raw.filter((l) => !sameLocator(l, first))] : raw;
     const sub = this.subIndex.get(entry.stepIndex) ?? 0;
     this.subIndex.set(entry.stepIndex, sub + 1);
-    const valueRef = 'valueRef' in action ? action.valueRef : undefined;
+    const valueRef = 'valueRef' in action ? action.valueRef : action.kind === 'upload' ? action.fileRef : undefined;
+    const key = action.kind === 'press' ? action.key : undefined;
+    const targetLocators = action.kind === 'drag' ? [...action.target.locators] : undefined;
     const step = this.steps[entry.stepIndex];
     this.out.push({
       stepIndex: entry.stepIndex,
       subIndex: sub,
       action: kind.data,
       locators,
+      ...(targetLocators ? { targetLocators } : {}),
+      ...(key ? { key } : {}),
       ...(valueRef ? { valueRef } : {}),
       fingerprint: entry.preFingerprint,
       postFingerprint: entry.postFingerprint,

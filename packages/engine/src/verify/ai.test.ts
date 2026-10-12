@@ -147,6 +147,19 @@ describe('dual order and policy', () => {
 });
 
 describe('judgeExpected safety', () => {
+  it('shows the model text that appeared during the step, redacted', async () => {
+    const page = await cartPage(healthy);
+    const { captureTexts } = await import('../observer/elements.js');
+    const beforeTexts = (await captureTexts(page)).map((t) => t.text ?? t.name);
+    await page.evaluate(() => document.body.insertAdjacentHTML('afterbegin', '<p>Registration successful for hunter2-secret</p>'));
+    const { ctx, model } = ctxFor(page, honestJudge, ['hunter2-secret']);
+    await judgeExpected(ctx, 'A success message is shown', { beforeTexts });
+    const state = model.calls[0]?.request.state as { appeared_during_step?: string };
+    expect(state.appeared_during_step).toContain('Registration successful');
+    expect(state.appeared_during_step).not.toContain('hunter2-secret');
+    expect(state.appeared_during_step).not.toContain('Classic Tee'); // was there before the step
+  });
+
   it('wraps page data as untrusted and never sends secrets', async () => {
     const page = await cartPage(healthy);
     await page.evaluate(() => {

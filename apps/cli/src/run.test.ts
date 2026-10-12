@@ -162,7 +162,7 @@ describe('s1pilot run (in-process)', () => {
     const learned = JSON.parse(learnedText) as { actions: { stepIndex: number; action: string; valueRef?: string }[] };
     const perStep = [0, 1, 2, 3].map((i) => learned.actions.filter((a) => a.stepIndex === i).length);
     expect(perStep.every((n) => n >= 1)).toBe(true);
-    expect(learned.actions.filter((a) => a.valueRef).every((a) => /^(secret|var|input):/.test(a.valueRef ?? ''))).toBe(true);
+    expect(learned.actions.filter((a) => a.valueRef).every((a) => /^(secret|var|input|quote):/.test(a.valueRef ?? ''))).toBe(true);
   });
 
   it('writes valid JUnit XML and JSON reports, and the second run replays the learned script', async () => {

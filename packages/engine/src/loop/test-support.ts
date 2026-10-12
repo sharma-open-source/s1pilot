@@ -47,7 +47,12 @@ export function scriptedS1(plan: Record<string, string[]>): MockResolver {
     if (id === 'step_done') return { noul: n > queue.length ? 0.97 : 0.03 };
     if (question.type !== 'choice') return { noul: 0.5 };
     const want = queue[n - 1];
-    const hit = want === undefined ? 'step_done' : Object.entries(question.criteria).find(([, d]) => d === want)?.[0];
+    // Labels may carry context after the element ("[button] Pay now in \"Payment\"", "(empty)"): an exact match wins.
+    const entries = Object.entries(question.criteria);
+    const hit =
+      want === undefined
+        ? 'step_done'
+        : (entries.find(([, d]) => d === want) ?? entries.find(([, d]) => d.startsWith(`${want} (`) || d.startsWith(`${want} in "`)))?.[0];
     return { choice: hit ?? 'stuck' };
   };
 }

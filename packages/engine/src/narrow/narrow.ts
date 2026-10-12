@@ -33,7 +33,7 @@ interface Region {
 const SAMPLE_LABELS = 3;
 
 function label(e: ObservedElement): string {
-  const raw = (e.name || e.text || e.placeholder || e.nearLabel || e.role).replace(/\s+/g, ' ').trim();
+  const raw = (e.name || e.text || e.placeholder || e.nearLabel || e.idHint || e.role).replace(/\s+/g, ' ').trim();
   return raw.length > 30 ? `${raw.slice(0, 29)}…` : raw;
 }
 

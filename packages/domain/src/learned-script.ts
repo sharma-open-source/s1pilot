@@ -22,6 +22,10 @@ export const ActionKindSchema = z.enum([
   'scroll',
   'goBack',
   'wait',
+  'dblclick',
+  'rightclick',
+  'drag',
+  'upload',
 ]);
 export type ActionKind = z.infer<typeof ActionKindSchema>;
 
@@ -31,7 +35,11 @@ export const ResolvedActionSchema = z.object({
   subIndex: z.number().int().min(0),
   action: ActionKindSchema,
   locators: z.array(LocatorCandidateSchema).default([]),
-  /** `secret:<key>` / `var:<key>` / `input:<key>` / `text:<value quoted in the step>`; never a literal secret. */
+  /** `drag` only: where the element is dropped, most robust candidate first. */
+  targetLocators: z.array(LocatorCandidateSchema).optional(),
+  /** `press` only: the key or chord, in Playwright notation (`Enter`, `Control+A`). */
+  key: z.string().min(1).optional(),
+  /** `secret:<key>` / `var:<key>` / `input:<key>` / `quote:1` (value quoted in the step) / `file:<name>` (upload); never a literal secret. */
   valueRef: z.string().optional(),
   /** Hash of the page state this action was resolved against. */
   fingerprint: z.string().min(1),

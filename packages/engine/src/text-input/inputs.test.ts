@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+
 import { S1PilotError } from '@s1pilot/domain';
 import { startFixtureServer, type FixtureServer } from '@s1pilot/fixture-sites';
 import { MockChatModel, MockDecisionModel, type MockResolver } from '@s1pilot/providers';
@@ -7,8 +9,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { HUMAN_UNAVAILABLE, type HumanHook } from '../decide/human.js';
 import { captureElements } from '../observer/elements.js';
 
-import { NONE_FITS, quotedValue, resolveInput, type InputVars } from './inputs.js';
+import { NONE_FITS, resolveInput, type InputVars } from './inputs.js';
 import { createLiteralStore, createValueResolver } from './literals.js';
+import { quotedValue } from './quoted.js';
 
 const PASSWORD = 'hunter2-s3cret-pw';
 
@@ -68,18 +71,57 @@ describe('resolveInput (unit)', () => {
     expect(r).toEqual({ valueRef: 'param:size' });
   });
 
-  it('uses a value quoted in the step as a stable text: ref, without asking a model', async () => {
+  it('uses a value quoted in the step as a quote: ref, without asking a model', async () => {
     const s1 = new MockDecisionModel({ fallback: byKeyword });
-    const r = await resolveInput({ element: el, step: { text: 'Type "Grace Hopper" in the name box' }, vars, s1 });
-    expect(r).toEqual({ literal: 'Grace Hopper', source: 'step', valueRef: 'text:Grace Hopper' });
+    const step = 'Type "Grace Hopper" in the name box';
+    const r = await resolveInput({ element: el, step: { text: step }, vars, s1 });
+    expect(r).toEqual({ literal: 'Grace Hopper', source: 'step', valueRef: 'quote:1' });
     expect(s1.calls).toHaveLength(0);
-    expect(createValueResolver({ vars })('text:Grace Hopper')).toBe('Grace Hopper');
+    expect(createValueResolver({ vars, stepText: step })('quote:1')).toBe('Grace Hopper');
+    expect(createValueResolver({ vars })('text:Grace Hopper')).toBe('Grace Hopper'); // older scripts
+  });
+
+  it('reads the quoted value from the unredacted step text', async () => {
+    const s1 = new MockDecisionModel({ fallback: byKeyword });
+    const r = await resolveInput({
+      element: el,
+      step: { text: 'Type "[REDACTED:email]" in Email', raw: 'Type "jane@example.com" in Email' },
+      vars,
+      s1,
+    });
+    expect(r).toMatchObject({ literal: 'jane@example.com', valueRef: 'quote:1' });
   });
 
   it('prefers bound step inputs over a quoted value', async () => {
     const s1 = new MockDecisionModel({ fallback: () => ({ choice: 'var:shipping_name' }) });
     const r = await resolveInput({ element: el, step: { text: 'Type "Grace" as name', inputs: ['shipping_name'] }, vars, s1 });
     expect(r).toEqual({ valueRef: 'var:shipping_name' });
+  });
+
+  it('picks which quoted value belongs in the field when a step quotes several', async () => {
+    const s1 = new MockDecisionModel({
+      fallback: (q, _s, id) => (id === 'input_value' && q.type === 'choice' ? { choice: 'q2', confidence: 0.9 } : { choice: NONE_FITS }),
+    });
+    const step = 'Fill title "Hello" and body "World"';
+    const r = await resolveInput({ element: { role: 'textbox', name: 'Body' }, step: { text: step }, vars, s1 });
+    expect(r).toMatchObject({ literal: 'World', valueRef: 'quote:2' });
+    const criteria = (s1.calls[0]?.request.questions.input_value as { criteria: Record<string, string> }).criteria;
+    expect(criteria).toMatchObject({ q1: 'Hello', q2: 'World' });
+    expect(createValueResolver({ vars, stepText: step })('quote:2')).toBe('World');
+  });
+
+  it('selects every quoted value in a multi-select', async () => {
+    const s1 = new MockDecisionModel({ fallback: noneFits });
+    const step = 'select "React" and "Svelte"';
+    const r = await resolveInput({ element: { role: 'listbox', name: 'Frameworks' }, step: { text: step }, vars, s1 });
+    expect(r).toMatchObject({ valueRef: 'quote:all' });
+    expect(createValueResolver({ vars, stepText: step })('quote:all')).toBe('React\nSvelte');
+  });
+
+  it('resolves file: refs to a generated sample file', async () => {
+    const path = createValueResolver({ vars })('file:dir/photo.png');
+    expect(path).toMatch(/s1pilot-upload-.*photo\.png$/);
+    expect((await readFile(path)).subarray(1, 4).toString()).toBe('PNG');
   });
 
   it('quotedValue finds exactly one quoted value', () => {

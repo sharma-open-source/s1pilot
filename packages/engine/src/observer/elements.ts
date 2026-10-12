@@ -56,6 +56,10 @@ async function captureFrames(page: Page, mode: 'interactive' | 'text', prefix: s
       if (r.inputType !== undefined) el.inputType = r.inputType;
       if (r.range !== undefined) el.range = r.range;
       if (r.nearLabel !== undefined) el.nearLabel = r.nearLabel;
+      if (r.idHint !== undefined) el.idHint = r.idHint;
+      if (r.section !== undefined) el.section = r.section;
+      if (r.empty !== undefined) el.empty = r.empty;
+      if (r.inPage) el.inPage = true;
       if (r.value !== undefined) el.value = r.value;
       if (r.landmark !== undefined) el.landmark = r.landmark;
       if (r.clickable) el.clickable = true;

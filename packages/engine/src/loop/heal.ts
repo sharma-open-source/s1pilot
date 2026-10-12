@@ -1,7 +1,7 @@
 import { newId, type HealProposal, type LearnedScript, type ResolvedAction } from '@s1pilot/domain';
 
 import { LearnedRecorder, hashStep, type ActionRecorder } from '../learned/recorder.js';
-import { createLiteralStore } from '../text-input/index.js';
+import { bindParams, createLiteralStore } from '../text-input/index.js';
 
 import { exploreStep } from './explore-step.js';
 import { actionsForStep, replayStep, type ReplayBreak, type ReplayContext, type ReplayStepResult } from './replay-step.js';
@@ -11,7 +11,7 @@ import type { EngineContext, ExploreStepInput, StepExecution } from './types.js'
 export type HealProposalDraft = Omit<HealProposal, 'status' | 'createdAt'>;
 
 /** Meta choices of the explore loop that are not elements and so carry no locator. */
-const META_CHOICES = new Set(['scroll_down', 'scroll_up', 'go_back', 'step_done', 'stuck']);
+const META_CHOICES = new Set(['scroll_down', 'scroll_up', 'go_back', 'step_done', 'stuck', 'press_key']);
 
 /** What {@link healStep} needs besides the engine context. */
 export interface HealStepOptions {
@@ -161,6 +161,7 @@ export async function replayWithHeal(ctx: EngineContext, input: ReplayWithHealIn
   for (const step of input.steps) {
     const before = actionsForStep(input.script, step.index);
     replayCtx.page = ctx.page;
+    replayCtx.stepText = bindParams(step.action, ctx.params);
     const replay: ReplayStepResult =
       before.length > 0
         ? await replayStep(replayCtx, step.index, before)

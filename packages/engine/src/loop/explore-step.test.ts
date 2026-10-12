@@ -190,14 +190,14 @@ describe('exploreStep: guards and gating', () => {
     expect(events.find((e) => e.type === 'escalation.needed')).toMatchObject({ question: expect.stringMatching(/What should be typed/) });
     expect(await page.getByRole('searchbox', { name: 'Search products' }).inputValue()).toBe('mug');
     const pick = result.decisions.find((d) => d.questionId === 'next_action' && d.chosen !== undefined && d.chosen !== 'step_done');
-    expect(pick?.optionLabels?.[pick.chosen as string]).toBe('[searchbox] Search products');
+    expect(pick?.optionLabels?.[pick.chosen as string]).toMatch(/^\[searchbox\] Search products/);
   });
 
     it('ends blocked when the model says progress is blocked', async () => {
     const page = await fresh('/shop');
     const s1 = new MockDecisionModel({
       fallback: (q: Question, _s, id) =>
-        q.type === 'noul' ? { noul: id === 'blocked' ? 0.95 : 0.05 } : { choice: Object.keys(q.criteria)[0] as string },
+        q.type === 'noul' ? { noul: id === 'blocked' ? 0.95 : 0.05 } : { choice: Object.keys(q.criteria)[0] as string, confidence: 0.4 },
     });
     const { ctx } = makeCtx(page, s1);
     expect(await exploreStep(ctx, { index: 0, action: 'Do something' })).toMatchObject({
@@ -206,13 +206,43 @@ describe('exploreStep: guards and gating', () => {
       actions: [],
     });
   });
+
+  it('marks elements the step already acted on, and unticks for "turn off" steps', async () => {
+    const page = await fresh('/shop');
+    await page.setContent('<label><input type="checkbox" checked> Autoplay</label><input aria-label="Name">');
+    let calls = 0;
+    const seen: string[] = [];
+    const s1 = new MockDecisionModel({
+      fallback: (q, _s, id) => {
+        if (q.type === 'noul') return { noul: id === 'step_done' && calls > 1 ? 0.95 : 0.02 };
+        if (id !== 'next_action') return { choice: Object.keys(q.criteria)[0] as string };
+        calls += 1;
+        seen.push(...Object.values(q.criteria));
+        return { choice: Object.entries(q.criteria).find(([, d]) => d.startsWith('[checkbox] Autoplay'))?.[0] as string };
+      },
+    });
+    const { ctx } = makeCtx(page, s1);
+    const result = await exploreStep(ctx, { index: 0, action: 'Turn off autoplay' });
+    expect(result.actions.map((a) => a.kind)).toEqual(['uncheck']);
+    expect(await page.getByRole('checkbox', { name: 'Autoplay' }).isChecked()).toBe(false);
+    expect(seen.some((d) => d.startsWith('[checkbox] Autoplay') && d.includes('(already acted on in this step)'))).toBe(true);
+  });
+
+  it('acts on a confident pick even when the blocked question leans yes (a login step behind a login wall)', async () => {
+    const page = await fresh('/shop');
+    const script = scriptedS1({ 'Open the cart': ['[link] Cart 0'] });
+    const blockedToo: MockResolver = (q, st, id) => (id === 'blocked' ? { noul: 0.95 } : script(q, st, id));
+    const { ctx } = makeCtx(page, new MockDecisionModel({ fallback: blockedToo }));
+    const result = await exploreStep(ctx, { index: 0, action: 'Open the cart' });
+    expect(result.actions.map((a) => a.kind)).toEqual(['click']);
+  });
 });
 
 describe('exploreStep: budgets and loop termination', () => {
   const clickApplyForever: MockResolver = (q, _s, id) => {
     if (q.type === 'noul') return { noul: 0.05 };
     if (id !== 'next_action') return { choice: Object.keys(q.criteria)[0] as string };
-    return { choice: Object.entries(q.criteria).find(([, d]) => d === '[button] Apply code')?.[0] as string };
+    return { choice: Object.entries(q.criteria).find(([, d]) => d.startsWith('[button] Apply code'))?.[0] as string };
   };
 
   it('stops with a stuck verdict when the same state and action repeat 3 times', async () => {

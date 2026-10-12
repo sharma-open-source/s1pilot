@@ -25,6 +25,7 @@ import {
   LearnedRecorder,
   StepCapture,
   buildLearnedScript,
+  captureTexts,
   caseVerdict,
   chooseMode,
   createJsonlTraceWriter,
@@ -389,8 +390,14 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
   const health = input.checks ? new CaseChecks(input.checks, environment.baseUrl, redactor) : undefined;
   health?.attach(context);
   const guards: InstalledGuard[] = [];
+  // One note per reason (the domain guard's reason names the host): pages with analytics beacons
+  // would otherwise flood the log. Query strings are dropped; they are long and carry tracking ids.
+  const noted = new Set<string>();
   const onEvent = (e: { method?: string; url?: string; reason: string }): void => {
-    note(`! blocked ${e.method ?? ''} ${r(e.url ?? '')}: ${e.reason}`.replace(/\s+/g, ' '));
+    if (noted.has(e.reason)) return;
+    noted.add(e.reason);
+    const url = (e.url ?? '').split(/[?#]/)[0] ?? '';
+    note(`! blocked ${e.method ?? ''} ${r(url)}: ${e.reason} (further requests for the same reason are not logged)`.replace(/\s+/g, ' '));
   };
   const recorder = new LearnedRecorder(runId, hashable);
   const onAbort = (): void => void context.close().catch(() => undefined);
@@ -465,6 +472,13 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
         continue;
       }
       const capture = StepCapture.start(ctx.page);
+      // Page text before the step, so the AI check of `expected` can be shown what appeared since.
+      const judged = Boolean(step.expected) || step.assert.some((a) => a.type === 'ai');
+      const beforeTexts = judged
+        ? await captureTexts(ctx.page)
+            .then((ts) => ts.map((t) => t.text ?? t.name))
+            .catch(() => undefined)
+        : undefined;
       let record: StepReport;
       try {
         const stepInput = { index, action: step.action, inputs: step.inputs, ...(step.sharedStepId ? { sharedStepId: step.sharedStepId } : {}) };
@@ -528,6 +542,7 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
             priority: testCase.priority,
             capture,
             executionStatus,
+            ...(beforeTexts ? { beforeTexts } : {}),
           },
         );
         record = {

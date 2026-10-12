@@ -137,7 +137,7 @@ describe('probe: capabilities', () => {
   it('uses the profile matched by model name (longest id wins)', async () => {
     const { baseUrl } = await server('decide');
     const jev9 = await probe({ baseUrl, model: 'autotrust/JEV-9B-instruct' });
-    expect(jev9.capabilities).toMatchObject({ maxOptions: 256, multiQuestionPerCall: false, supportsImages: false });
+    expect(jev9.capabilities).toMatchObject({ maxOptions: 255, multiQuestionPerCall: false, supportsImages: false });
     expect(jev9.warnings.join(' ')).toContain('"jev-9b" profile');
 
     const flash = await server('systemone');

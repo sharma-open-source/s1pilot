@@ -8,6 +8,7 @@ import { errors, type Dialog, type Download, type Frame, type Locator, type Page
 import { toPlaywrightLocator } from '../observer/locators.js';
 
 import { normalizeColor, normalizeRange, rangeBounds, setAriaSlider, type ValueResult } from './input-values.js';
+import { dragOnto, uploadVia } from './pointer.js';
 import { isTemporalInputType, normalizeTemporal, type TemporalResult } from './temporal.js';
 import type {
   ActionError,
@@ -204,6 +205,22 @@ export async function execute(page: Page, action: EngineAction, ctx: ExecutorCon
       case 'click':
         await withTarget(action.locators, action.frame, (l) => l.click({ timeout }));
         break;
+      case 'dblclick':
+        await withTarget(action.locators, action.frame, (l) => l.dblclick({ timeout }));
+        break;
+      case 'rightclick':
+        await withTarget(action.locators, action.frame, (l) => l.click({ button: 'right', timeout }));
+        break;
+      case 'drag': {
+        const scope = findScope(page, action.target.frame);
+        const targets = await uniqueCandidates(scope, action.target.locators);
+        const drop = targets[0];
+        if (!drop) {
+          throw new ExecError({ code: 'locator_not_found', message: 'No drop target candidate resolved to a unique element' });
+        }
+        await withTarget(action.locators, action.frame, (l) => dragOnto(page, l, drop.locator, timeout));
+        break;
+      }
       case 'hover':
         await withTarget(action.locators, action.frame, (l) => l.hover({ timeout }));
         break;
@@ -232,7 +249,8 @@ export async function execute(page: Page, action: EngineAction, ctx: ExecutorCon
             if (!r.ok) throw new ExecError({ code: 'action_failed', message: r.message });
             return r.value;
           };
-          if (kind === 'select') await l.selectOption({ label: value }, { timeout });
+          // `quote:all` resolves to newline-separated values: several options of a multi-select.
+          if (kind === 'select') await l.selectOption(value.split('\n').map((label) => ({ label })), { timeout });
           // Date/time, range and colour inputs only accept their machine format, not what the UI shows.
           else if (isTemporalInputType(kind)) await l.fill(check(normalizeTemporal(kind, value)), { timeout });
           else if (kind === 'range') await l.fill(check(normalizeRange(value, await rangeBounds(l, timeout))), { timeout });
@@ -243,14 +261,14 @@ export async function execute(page: Page, action: EngineAction, ctx: ExecutorCon
         break;
       case 'selectOption':
         await withTarget(action.locators, action.frame, async (l) => {
-          if (action.valueRef !== undefined) await l.selectOption(await resolve(action.valueRef), { timeout });
+          if (action.valueRef !== undefined) await l.selectOption((await resolve(action.valueRef)).split('\n'), { timeout });
           else if (action.label !== undefined) await l.selectOption({ label: action.label }, { timeout });
           else throw new ExecError({ code: 'missing_value', message: 'selectOption needs a label or valueRef' });
         });
         break;
       case 'upload':
         await withTarget(action.locators, action.frame, async (l) => {
-          await l.setInputFiles(await resolve(action.fileRef), { timeout });
+          await uploadVia(page, l, await resolve(action.fileRef), timeout);
         });
         break;
     }

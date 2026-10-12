@@ -220,3 +220,47 @@ describe('replay benchmark', () => {
     expect(ratio).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe('replay of drag, key and upload actions', () => {
+  const html = `<h3>Board</h3>
+    <ul id="list"><li draggable="true" id="deploy">Deploy</li><li draggable="true">Test</li></ul>
+    <div id="zone" style="width:120px;height:40px">Drop here</div>
+    <input aria-label="Keys" id="keys"><p id="key"></p>
+    <input type="file" id="file" aria-label="Attachment"><p id="files"></p>
+    <script>
+      list.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', e.target.id));
+      zone.addEventListener('dragover', (e) => e.preventDefault());
+      zone.addEventListener('drop', (e) => { e.preventDefault(); document.getElementById(e.dataTransfer.getData('text/plain'))?.remove(); });
+      keys.addEventListener('keydown', (e) => { key.textContent = e.key; });
+      file.onchange = () => { files.textContent = file.files[0].name; };
+    </script>`;
+
+  it('records the drop target, key and file ref, and replays them without a model', async () => {
+    const steps = [{ action: 'Drag Deploy to the zone' }, { action: 'Press Enter in Keys' }, { action: 'Upload "photo.png"' }];
+    const recorder = new LearnedRecorder('run-1', steps);
+    const page = await (await browser.newContext()).newPage();
+    await page.setContent(html);
+    const fp = async (): Promise<string> => pageFingerprint(await observer.capture(page, { texts: false }));
+    const css = (v: string) => [{ kind: 'css' as const, value: v }];
+    const f0 = await fp();
+    recorder.record({ stepIndex: 0, action: { kind: 'drag', locators: css('#deploy'), target: { locators: css('#zone') } }, preFingerprint: f0, postFingerprint: f0, navigated: false });
+    recorder.record({ stepIndex: 1, action: { kind: 'press', key: 'Enter', locators: css('#keys') }, preFingerprint: f0, postFingerprint: f0, navigated: false });
+    recorder.record({ stepIndex: 2, action: { kind: 'upload', fileRef: 'file:photo.png', locators: css('#file') }, preFingerprint: f0, postFingerprint: f0, navigated: false });
+    const actions = recorder.actions();
+    expect(actions.map((a) => [a.action, a.key, a.targetLocators?.[0]?.value, a.valueRef])).toEqual([
+      ['drag', undefined, '#zone', undefined],
+      ['press', 'Enter', undefined, undefined],
+      ['upload', undefined, undefined, 'file:photo.png'],
+    ]);
+
+    const rctx: ReplayContext = { page, vars, params: {}, redactor };
+    for (const [i] of steps.entries()) {
+      const result = await replayStep(rctx, i, actions.filter((a) => a.stepIndex === i));
+      expect(result.status, JSON.stringify(result.break)).toBe('passed');
+    }
+    expect(await page.locator('#deploy').count()).toBe(0);
+    expect(await page.locator('#key').textContent()).toBe('Enter');
+    expect(await page.locator('#files').textContent()).toBe('photo.png');
+    await page.context().close();
+  });
+});

@@ -1,4 +1,4 @@
-import { createRedactor, type DecisionModel } from '@s1pilot/domain';
+import { createRedactor, type DecisionModel, type Redactor } from '@s1pilot/domain';
 import type { ChatModel } from '@s1pilot/providers';
 
 import type { HumanHook } from '../decide/human.js';
@@ -6,6 +6,7 @@ import { TEMPORAL_FORMATS, isTemporalInputType } from '../executor/temporal.js';
 import type { ObservedElement } from '../observer/types.js';
 
 import { createLiteralStore, type LiteralStore } from './literals.js';
+import { QUOTE_ALL_REF, QUOTE_REF, quotedValues } from './quoted.js';
 
 /** Option id meaning "none of the candidate keys fits this field". */
 export const NONE_FITS = 'none_fits';
@@ -19,8 +20,13 @@ export interface InputVars {
 }
 
 export interface InputStep {
-  /** The step's plain-language text (untrusted data for models). */
+  /** The step's plain-language text (untrusted data for models; redacted). */
   text: string;
+  /**
+   * The unredacted step text, used only to find a quoted value (redaction would mask an email such
+   * as `"jane@example.com"`). Never sent to a model. Defaults to `text`.
+   */
+  raw?: string;
   /** When listed, candidates are restricted to these keys (bare keys or full refs). */
   inputs?: string[];
 }
@@ -42,31 +48,17 @@ export interface ResolveInputOptions {
 
 /**
  * Outcome of {@link resolveInput}. `literal` results also carry the `valueRef` under which the
- * value can be resolved: `text:<value>` for a value quoted in the step text (stable across runs, so
- * learned scripts replay it), `literal:<hash>` (run-scoped literal store) for System 2 / human values.
+ * value can be resolved: `quote:1` for the value quoted in the step text (re-read from the step on
+ * every run, so learned scripts replay it and the value itself is never stored in traces or scripts),
+ * `literal:<hash>` (run-scoped literal store) for System 2 / human values.
  */
 export type ResolvedInput =
   | { valueRef: string }
   | { literal: string; source: 'step' | 's2' | 'human'; valueRef: string }
   | { none: true };
 
-/** Prefix of value refs that carry a value quoted in the step text itself. */
+/** Prefix of value refs written by earlier versions with the quoted value inline (`text:<value>`); still resolvable. */
 export const TEXT_REF_PREFIX = 'text:';
-
-const QUOTED = /"([^"\n]+)"|\u201c([^\u201d\n]+)\u201d/g;
-
-/**
- * The value quoted in a step's text (`Type "JavaScript" in the search box` → `JavaScript`), or
- * `undefined` when the text quotes nothing or several different values (ambiguous).
- */
-export function quotedValue(text: string): string | undefined {
-  const values = new Set<string>();
-  for (const m of text.matchAll(QUOTED)) {
-    const v = (m[1] ?? m[2] ?? '').trim();
-    if (v) values.add(v);
-  }
-  return values.size === 1 ? [...values][0] : undefined;
-}
 
 const SECRET_FIELD = /pass(word|code|phrase)?|pwd|secret|token|cvv|cvc|otp|\bpin\b|api[\s_-]?key|card\s*(number|no)/i;
 
@@ -107,7 +99,7 @@ function describe(el: ResolveInputOptions['element']): string {
         : el.role === 'spinbutton'
           ? ', a number field'
           : '';
-  const name = el.name || (el.nearLabel ? `${el.nearLabel} (nearby text)` : '(unlabelled)');
+  const name = el.nearLabel ? `${el.nearLabel} (${el.name ? `placeholder ${el.name}` : 'nearby text'})` : el.name || '(unlabelled)';
   return `the field labelled ${name}${el.placeholder ? ` (${el.placeholder})` : ''}${format}`;
 }
 
@@ -126,9 +118,41 @@ function parseValue(text: string): string | undefined {
 }
 
 /**
+ * Asks System 1 which of the step's quoted values belongs in this field ("first name "Jane", last
+ * name "Tester""). Option labels are the quoted values of the redacted step text, so nothing the
+ * redactor masks reaches the model; the answer maps back to `quote:<n>`.
+ */
+async function pickQuoted(
+  opts: ResolveInputOptions,
+  what: string,
+  quoted: readonly string[],
+  redactor: Redactor,
+): Promise<ResolvedInput | undefined> {
+  const shown = quotedValues(opts.step.text);
+  if (shown.length !== quoted.length) return undefined;
+  const criteria: Record<string, string> = {};
+  shown.forEach((v, i) => {
+    criteria[`q${i + 1}`] = redactor.redact(v);
+  });
+  criteria[NONE_FITS] = 'none of these values belongs in this field';
+  const answers = await opts.s1.decide({
+    state: redactor.redactDeep({ step: opts.step.text, field: { role: opts.element.role, name: opts.element.name || opts.element.nearLabel } }),
+    questions: {
+      input_value: { type: 'choice', instructions: redactor.redact(`Which value from the step belongs in ${what}?`), criteria },
+    },
+  });
+  const a = answers.input_value;
+  const pick = a?.choice;
+  if (!a || pick === undefined || pick === NONE_FITS || !(pick in criteria) || a.confidence < (opts.minConfidence ?? 0.5)) return undefined;
+  const n = Number(pick.slice(1));
+  return { literal: quoted[n - 1] as string, source: 'step', valueRef: `quote:${n}` };
+}
+
+/**
  * Picks the value to type into a field.
  *
- * 0. When the step binds no `inputs` and quotes exactly one value, that value (`text:<value>`).
+ * 0. When the step binds no `inputs` and quotes values: the only one (`quote:1`); all of them for a
+ *    multi-select (`quote:all`); otherwise the one System 1 matches to this field (`quote:<n>`).
  * 1. System 1 `choice` over the candidate keys plus `none_fits` (key names only, no values).
  * 2. On `none_fits` / low confidence: System 2 produces a literal from the step text, unless the
  *    field looks like a password/secret field (those never go to System 2).
@@ -145,8 +169,16 @@ export async function resolveInput(opts: ResolveInputOptions): Promise<ResolvedI
   const secretField = isSecretLookingField(opts.element);
 
   // A value written in the step itself is test data the author chose; bound `inputs` take precedence.
-  const quoted = opts.step.inputs?.length ? undefined : quotedValue(opts.step.text);
-  if (quoted !== undefined) return { literal: quoted, source: 'step', valueRef: `${TEXT_REF_PREFIX}${quoted}` };
+  if (!opts.step.inputs?.length) {
+    const quoted = quotedValues(opts.step.raw ?? opts.step.text);
+    if (quoted.length === 1) return { literal: quoted[0] as string, source: 'step', valueRef: QUOTE_REF };
+    // A multi-select gets every quoted value ("select "React" and "Svelte"").
+    if (quoted.length > 1 && opts.element.role === 'listbox') return { literal: quoted.join('\n'), source: 'step', valueRef: QUOTE_ALL_REF };
+    if (quoted.length > 1) {
+      const picked = await pickQuoted(opts, what, quoted, redactor);
+      if (picked !== undefined) return picked;
+    }
+  }
 
   if (cands.length > 0) {
     const options: Record<string, string> = Object.fromEntries(cands.map((c) => [c.ref, c.label]));

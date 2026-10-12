@@ -16,6 +16,10 @@ export type ScrollDirection = 'up' | 'down' | 'left' | 'right' | 'top' | 'bottom
 /** An action the executor can perform. Values are always references (`secret:`, `var:`, `input:`). */
 export type EngineAction =
   | ({ kind: 'click' } & ActionTarget)
+  | ({ kind: 'dblclick' } & ActionTarget)
+  | ({ kind: 'rightclick' } & ActionTarget)
+  /** Drags the element onto `target` (HTML5 drag and drop or mouse-driven). */
+  | ({ kind: 'drag'; target: ActionTarget } & ActionTarget)
   | ({ kind: 'fill'; valueRef: string } & ActionTarget)
   | ({ kind: 'selectOption'; label?: string; valueRef?: string } & ActionTarget)
   | ({ kind: 'check' } & ActionTarget)
@@ -25,6 +29,10 @@ export type EngineAction =
   | { kind: 'scroll'; dir: ScrollDirection; locators?: readonly LocatorCandidate[]; frame?: string }
   | { kind: 'goBack' }
   | { kind: 'goto'; url: string }
+  /**
+   * Sets a file on the target: an `<input type="file">` directly; otherwise the element is clicked and
+   * the file chooser it opens is answered, falling back to the nearest file input around it.
+   */
   | ({ kind: 'upload'; fileRef: string } & ActionTarget);
 
 /** Execution context supplied by the caller (engine loop, runner, tests). */

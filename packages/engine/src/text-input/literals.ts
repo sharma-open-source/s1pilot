@@ -1,5 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 
+import { FILE_REF_PREFIX, sampleFile } from './files.js';
+import { resolveQuoteRef } from './quoted.js';
+
 /** Run-scoped store for literal values produced by System 2 or a human. Never persisted. */
 export interface LiteralStore {
   /** Stores `value` and returns its `literal:<hash>` reference (same value, same ref). */
@@ -29,14 +32,18 @@ export interface VarLookup {
 }
 
 /**
- * Builds the executor's `resolveValue` for `var:`, `secret:`, `param:`, `literal:` and `text:` refs
- * (`text:<value>` carries a value quoted in the step text).
+ * Builds the executor's `resolveValue` for `var:`, `secret:`, `param:`, `literal:`, `quote:` and
+ * `text:` refs (`quote:<n>` is the n-th value quoted in `stepText`, `quote:all` all of them
+ * newline-separated; `text:<value>` carries the value inline), and
+ * `file:<name>` refs, which resolve to the path of a generated sample file for uploads.
  * Throws for unknown refs, naming the ref (never a value).
  */
 export function createValueResolver(opts: {
   vars: VarLookup;
   params?: Record<string, string>;
   literals?: LiteralStore;
+  /** Unredacted, parameter-bound text of the current step, for `quote:` refs. */
+  stepText?: string;
 }): (ref: string) => string {
   return (ref) => {
     const idx = ref.indexOf(':');
@@ -47,6 +54,9 @@ export function createValueResolver(opts: {
     else if (kind === 'param') value = opts.params?.[key];
     else if (kind === 'literal') value = opts.literals?.get(ref);
     else if (kind === 'text' && key.length > 0) value = key;
+    else if (kind === 'empty') value = '';
+    else if (kind === 'quote' && opts.stepText !== undefined) value = resolveQuoteRef(key, opts.stepText);
+    else if (`${kind}:` === FILE_REF_PREFIX && key.length > 0) value = sampleFile(key);
     if (value === undefined) throw new Error(`Unknown value reference ${ref}`);
     return value;
   };

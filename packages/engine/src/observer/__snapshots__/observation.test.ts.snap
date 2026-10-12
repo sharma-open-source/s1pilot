@@ -11,9 +11,9 @@ elements:
 e1 [link] "Home" @Main
 e2 [link] "Cart 1" @Main
 e3 [link] "Log in" @Main
-e4 [textbox] "Promo code" @main
-e5 [button] "Apply code" @main
-e6 [link] "Checkout" @main
+e4 [textbox] "Promo code" (empty) @main in "Your cart"
+e5 [button] "Apply code" @main in "Your cart"
+e6 [link] "Checkout" @main in "Your cart"
 page text (in view):
   "Fixture Shop"
   # "Your cart"

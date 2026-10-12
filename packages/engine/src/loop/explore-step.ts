@@ -1,7 +1,9 @@
 import {
   newId,
+  S1PilotError,
   type DecideAnswer,
   type DecisionRecord,
+  type LocatorCandidate,
   type EscalationTarget,
   type Question,
   type RunEvent,
@@ -15,14 +17,15 @@ import type { ActionOutcome, EngineAction } from '../executor/types.js';
 import { actionKey, LoopGuard } from '../guards/loop.js';
 import { checkSensitive, type SensitiveCheck } from '../guards/sensitive.js';
 import { wrapUntrusted } from '../guards/untrusted.js';
-import { matchingTexts } from '../narrow/lexical.js';
+import { lexicalScore, matchingTexts, tokenize } from '../narrow/lexical.js';
 import { narrow } from '../narrow/narrow.js';
 import { ActionHistory } from '../observer/history.js';
 import { observer, pageFingerprint, serializeObservation, type Observation } from '../observer/observation.js';
 import { isTextBlock, type ObservedElement } from '../observer/types.js';
-import { createLiteralStore, createValueResolver, resolveInput } from '../text-input/index.js';
+import { FILE_REF_PREFIX, bindParams, createLiteralStore, createValueResolver, quotedValues, resolveInput } from '../text-input/index.js';
 import { TraceLineSchema, type StepEnd, type TraceLine } from '../trace/schema.js';
 
+import { stepIntent } from './intent.js';
 import type { EngineContext, ExecutedAction, ExploreStepInput, StepExecution } from './types.js';
 
 /** Meta options offered next to the candidate elements (plan section 6). */
@@ -37,23 +40,69 @@ const META_DESCRIPTIONS: Record<string, string> = {
 /** Upper bound of elements sent in one `observation.elements` event. */
 const MAX_OVERLAY_ELEMENTS = 300;
 const STEP_DONE_QUESTION = "Has this test step's action been fully performed?";
-const BLOCKED_QUESTION = 'Is progress blocked (error, login wall, captcha)?';
+const BLOCKED_QUESTION =
+  'Is this test step impossible to carry out here (error page, captcha, or a login wall that the step itself does not log in through)?';
+/** Waits after an action when the model then finds nothing to do: content may still be appearing. */
+const SETTLE_RETRIES = 2;
+const SETTLE_WAIT_MS = 3000;
+
+/** Same element across two captures: a shared test id or CSS path (names may change, "Volume: 50%" → "90%"). */
+function sameElement(a: readonly LocatorCandidate[], b: readonly LocatorCandidate[]): boolean {
+  const stable = (l: LocatorCandidate): boolean => l.kind === 'testId' || l.kind === 'css';
+  return a.some((x) => stable(x) && b.some((y) => y.kind === x.kind && y.value === x.value)) || JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Resolves on the next DOM mutation of the page, or after `ms`. Never throws. */
+async function waitForDomChange(page: EngineContext['page'], ms: number): Promise<void> {
+  await page
+    .evaluate(
+      (limit) =>
+        new Promise<void>((resolve) => {
+          const done = (): void => {
+            mo.disconnect();
+            clearTimeout(timer);
+            // Let the change finish rendering before the next observation.
+            setTimeout(resolve, 300);
+          };
+          const mo = new MutationObserver(done);
+          mo.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
+          const timer = setTimeout(done, limit);
+        }),
+      ms,
+    )
+    .catch(() => undefined);
+}
 
 /**
  * What choosing an element does. Text blocks are clicked when they look clickable (pointer cursor,
  * typically a script click handler) and otherwise scrolled into view; controls follow {@link inferAction}.
  */
-function actionKindOf(element: ObservedElement): ReturnType<typeof inferAction> | 'scroll' {
+function actionKindOf(element: ObservedElement): ReturnType<typeof inferAction> | 'scroll' | 'upload' {
   if (isTextBlock(element)) return element.clickable ? 'click' : 'scroll';
+  if (element.inputType === 'file') return 'upload';
   return inferAction(element, true);
 }
 
+/** Meta option offered when the step names a key to press. */
+const PRESS_KEY = 'press_key';
+/** Upper bound of page text blocks offered as drop targets. */
+const MAX_DROP_TEXTS = 15;
+const DROP_QUESTION = 'Where should the dragged element be dropped for this test step?';
+
 /** Option label for the `next_action` question. */
-function describeOption(element: ObservedElement): string {
-  const shown = element.name || element.text || element.placeholder || (element.nearLabel ? `near "${element.nearLabel}"` : '');
-  const label = `[${element.role}] ${shown}`.trim();
-  if (element.range) return `${label} (slider ${element.range.min}-${element.range.max})`;
-  if (element.inputType) return `${label} (${element.inputType} field)`;
+function describeOption(element: ObservedElement, actedOn = false): string {
+  const base = element.name || element.text || element.placeholder || '';
+  const near = element.nearLabel ? `near "${element.nearLabel}"` : '';
+  const shown = base ? [base, near].filter(Boolean).join(' ') : near || (element.idHint ? `(${element.idHint})` : '');
+  let label = `[${element.role}] ${shown}`.trim();
+  if (element.range) label += ` (slider ${element.range.min}-${element.range.max})`;
+  else if (element.inputType) label += ` (${element.inputType} field)`;
+  if (element.empty) label += ' (empty)';
+  if (element.inPage) label += ' (in-page link: only scrolls to that section)';
+  // Without this the model tends to pick the element it just filled or clicked again.
+  if (actedOn) label += ' (already acted on in this step)';
+  // Same-named controls ("Upload", "Add to Cart") differ only by the card they sit in.
+  if (element.section) label += ` in "${element.section.length > 40 ? `${element.section.slice(0, 39)}…` : element.section}"`;
   if (!isTextBlock(element)) return label;
   return `${label} (${element.clickable ? 'click it' : 'scroll it into view'})`;
 }
@@ -61,10 +110,6 @@ function describeOption(element: ObservedElement): string {
 type EventBody = RunEvent extends infer E ? (E extends { type: string } ? Omit<E, 'runId' | 'ts'> : never) : never;
 type IterationLine = Extract<TraceLine, { kind: 'iteration' }>;
 
-/** Replaces `{name}` placeholders with parameter values; unknown placeholders stay as written. */
-function bindParams(text: string, params: Record<string, string>): string {
-  return text.replace(/\{([\w.-]+)\}/g, (whole, name: string) => params[name] ?? whole);
-}
 
 function noulRecord(id: string, answer: DecideAnswer | undefined, model: string, latencyMs: number): DecisionRecord {
   const p = answer?.noul ?? 0;
@@ -118,12 +163,24 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
   const guard = (ctx.guard ??= new LoopGuard(ctx.budgets));
   const history = (ctx.history ??= new ActionHistory());
   const literals = (ctx.literals ??= createLiteralStore());
-  const resolveValue = createValueResolver({ vars: ctx.vars, params: ctx.params, literals });
+  const resolveValue = createValueResolver({ vars: ctx.vars, params: ctx.params, literals, stepText: text });
   guard.beginCaseStep();
 
   const attended = ctx.attended ?? ctx.human !== undefined;
   const decisions: DecisionRecord[] = [];
   const actions: ExecutedAction[] = [];
+  // How the step wants things done beyond click/fill (double-click, drag, key, upload), from its wording.
+  const intent = stepIntent(text);
+  let pointerUsed = false;
+  let pressed = false;
+  let dragged = false;
+  /** Locators of the element the last successful action targeted (a repeat pick hints the step is done). */
+  let lastTarget: readonly LocatorCandidate[] | undefined;
+  /** Locators of every element this step acted on successfully. */
+  const actedLocators: (readonly LocatorCandidate[])[] = [];
+  let settles = 0;
+  let cleared = false;
+  const quotedTexts = quotedValues(text).map((v) => v.toLowerCase());
   let iterations = 0;
 
   const emit = (body: EventBody): void => {
@@ -292,20 +349,33 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
     try {
       t = performance.now();
       // Page text matching the step joins the controls, so "scroll to Reviews" has something to point at.
-      const pool = [...obs.elements, ...matchingTexts(obs.texts ?? [], safeText)];
-      const narrowed = await narrow({ elements: pool }, ctx.caps, ctx.s1, safeText, { modelName });
+      // Page text equal to a value quoted in the step ("choose "High"") is a target too: custom
+      // dropdown options and suggestions are often plain list items.
+      // Hover / right-click / drag targets are often plain page text ("Right-click anywhere in this
+      // area"), so those steps get a lower bar for offering text blocks.
+      const gesture = (intent.pointer && !pointerUsed) || (intent.drag && !dragged);
+      const lexical = matchingTexts(obs.texts ?? [], safeText, undefined, gesture ? 0.25 : undefined);
+      const exact = (obs.texts ?? []).filter((t) => !lexical.includes(t) && quotedTexts.includes((t.text ?? t.name).trim().toLowerCase()));
+      const pool = [...obs.elements, ...lexical, ...exact.slice(0, 5)];
+      // Options added beyond narrow's own meta reserve (press_key) must fit within maxOptions too.
+      const extraOptions = intent.key && !pressed ? 1 : 0;
+      const narrowed = await narrow({ elements: pool }, { maxOptions: ctx.caps.maxOptions - extraOptions }, ctx.s1, safeText, { modelName });
       lap('narrow', t);
       // Region labels carry page text: redact them before they reach events, traces and reports.
       narrowed.trail.forEach((d) =>
         record(d.optionLabels ? { ...d, optionLabels: Object.fromEntries(Object.entries(d.optionLabels).map(([k, v]) => [k, r(v)])) } : d),
       );
       candidates = narrowed.candidates;
-      for (const e of candidates) optionDescriptions[e.id] = r(describeOption(e));
+      const actedOnIds = new Set(candidates.filter((c) => actedLocators.some((l) => sameElement(c.locators, l))).map((c) => c.id));
+      for (const e of candidates) optionDescriptions[e.id] = r(describeOption(e, actedOnIds.has(e.id)));
       Object.assign(optionDescriptions, META_DESCRIPTIONS);
+      if (intent.key && !pressed) optionDescriptions[PRESS_KEY] = `Press the ${intent.key} key (on the focused element)`;
 
       const shown: Observation = { ...obs, elements: candidates };
       const state = {
         step: safeText,
+        // What this step already did, so "is it done?" does not rely on spotting it in the page.
+        done_in_this_step: actions.filter((a) => a.ok).map((a) => r(`${a.kind} ${a.target ?? ''}`.trim())),
         page: wrapUntrusted(serializeObservation(shown, { redactor: ctx.redactor }), { label: 'observation', maxLength: 12000 }),
       };
       const questions: Record<string, Question> = {
@@ -322,7 +392,9 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
       decideMs = Math.round(performance.now() - t);
       timings.decide = decideMs;
     } catch (error) {
-      return finish('failed', 'error', `Decision failed: ${error instanceof Error ? error.message : String(error)}`);
+      // The model server's own message (a 400 body) says what it rejected; finish() redacts it.
+      const snippet = error instanceof S1PilotError && typeof error.details?.snippet === 'string' ? ` (${error.details.snippet.slice(0, 300)})` : '';
+      return finish('failed', 'error', `Decision failed: ${error instanceof Error ? error.message : String(error)}${snippet}`);
     }
     const offered: IterationLine['questions'] = {
       next_action: { type: 'choice', options: Object.keys(optionDescriptions) },
@@ -339,9 +411,28 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
       await iterationLine({}, offered);
       return finish('passed', 'step_done', 'Model judged the step fully performed');
     }
-    if ((answers.blocked?.noul ?? 0) >= ctx.thresholds.act) {
+    const confidentPick = answers.next_action?.choice !== undefined && !(answers.next_action.choice in META_DESCRIPTIONS) && answers.next_action.confidence >= ctx.thresholds.act;
+    if ((answers.blocked?.noul ?? 0) >= ctx.thresholds.act && !confidentPick) {
       await iterationLine({}, offered);
       return finish('blocked', 'blocked', 'Model judged progress blocked');
+    }
+    // After this step already acted, two answers agreeing that it is done (next_action picks
+    // `step_done` and the step_done question leans true, both at least `escalate`) end it. Finishing
+    // performs nothing, and the step's expectation is still verified afterwards.
+    // Likewise when it leans done and the top pick merely repeats the element just acted on (a second
+    // click on the same "Confirm"), which needs a stronger lean: halfway between escalate and act.
+    const nextAnswer = answers.next_action;
+    const doneP = answers.step_done?.noul ?? 0;
+    const repeatPick =
+      nextAnswer?.choice !== undefined && lastTarget !== undefined && candidates.some((c) => c.id === nextAnswer.choice && sameElement(c.locators, lastTarget as LocatorCandidate[]));
+    if (
+      actions.some((a) => a.ok) &&
+      ((nextAnswer?.choice === 'step_done' && doneP >= ctx.thresholds.escalate) ||
+        (repeatPick && doneP >= (ctx.thresholds.escalate + ctx.thresholds.act) / 2))
+    ) {
+      record(choiceRecord('next_action', optionDescriptions, nextAnswer, modelName, decideMs));
+      await iterationLine({}, offered);
+      return finish('passed', 'step_done', 'Model judged the step performed (next action and step-done answers agree)');
     }
 
     // 4b. Pre-gate sensitivity check on the most likely element.
@@ -420,7 +511,14 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
         if (verdict.resume) continue;
         return finish('blocked', 'takeover', verdict.reason);
       }
-      return finish('blocked', sensitivity?.gate && sensitivity.gate.allowed !== true ? 'sensitive' : 'blocked', verdict.reason);
+      const sensitiveStop = sensitivity?.gate !== undefined && sensitivity.gate.allowed !== true;
+      if (!sensitiveStop && actions.some((x) => x.ok) && settles < SETTLE_RETRIES) {
+        // Unsure right after acting: the page may still be updating (a button that appears later).
+        settles += 1;
+        await waitForDomChange(ctx.page, SETTLE_WAIT_MS);
+        continue;
+      }
+      return finish('blocked', sensitiveStop ? 'sensitive' : 'blocked', verdict.reason);
     }
     const choice = verdict.choice;
     if (choice === 'step_done') {
@@ -429,6 +527,11 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
     }
     if (choice === 'stuck' || choice === 'blocked') {
       await iterationLine(gateTrace, offered);
+      if (actions.some((x) => x.ok) && settles < SETTLE_RETRIES) {
+        settles += 1;
+        await waitForDomChange(ctx.page, SETTLE_WAIT_MS);
+        continue;
+      }
       return finish('blocked', 'blocked', `Chosen option "${choice}"`);
     }
 
@@ -450,8 +553,67 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
       target = r(element.name || element.text || element.role);
       const where = { locators: element.locators, ...(element.frame ? { frame: element.frame } : {}) };
       const kind = actionKindOf(element);
-      if (kind === 'scroll') {
+      const pointer = intent.pointer && !pointerUsed && (kind === 'click' || kind === 'scroll') ? intent.pointer : undefined;
+      if (intent.drag && !dragged && kind !== 'fill' && kind !== 'selectOption' && kind !== 'upload') {
+        // 5a. Drag: ask where the chosen element goes, among the other candidates and matching page text.
+        const tokens = tokenize(safeText);
+        const texts = (obs.texts ?? [])
+          .map((t) => ({ t, s: lexicalScore(tokens, t) }))
+          .filter((x) => x.s > 0)
+          .sort((x, y) => y.s - x.s)
+          .slice(0, MAX_DROP_TEXTS)
+          .map((x) => x.t);
+        const drops = [...candidates.filter((c) => c.id !== element.id && !isTextBlock(c)), ...texts].slice(0, Math.max(2, ctx.caps.maxOptions - 2));
+        const dropOptions: Record<string, string> = Object.fromEntries(drops.map((d) => [d.id, r(describeOption(d))]));
+        dropOptions.stuck = META_DESCRIPTIONS.stuck as string;
+        let dropVerdict: GateResult;
+        const dropHuman = attended ? humanHook(false) : undefined;
+        try {
+          const t0 = performance.now();
+          const dropAnswers = await ctx.s1.decide({
+            state: { step: safeText, dragging: r(describeOption(element)) },
+            questions: { drop_target: { type: 'choice', instructions: DROP_QUESTION, criteria: dropOptions } },
+          });
+          const dropAnswer = dropAnswers.drop_target ?? { probabilities: {}, confidence: 0 };
+          dropVerdict = await gate(dropAnswer, {
+            thresholds: ctx.thresholds,
+            questionId: 'drop_target',
+            question: DROP_QUESTION,
+            options: dropOptions,
+            model: modelName,
+            latencyMs: Math.round(performance.now() - t0),
+            context: wrapUntrusted(serializeObservation({ ...obs, elements: drops }, { redactor: ctx.redactor }), { label: 'observation' }),
+            attended,
+            ...(ctx.s2 ? { s2: ctx.s2 } : {}),
+            ...(dropHuman ? { human: dropHuman } : {}),
+          });
+        } catch (error) {
+          await iterationLine(gateTrace, offered);
+          return finish('failed', 'error', `Drop target decision failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        record(dropVerdict.record);
+        const drop = dropVerdict.outcome === 'act' ? drops.find((d) => d.id === dropVerdict.choice) : undefined;
+        if (!drop) {
+          await iterationLine(gateTrace, offered);
+          return finish('blocked', 'blocked', `No drop target chosen: ${dropVerdict.reason}`);
+        }
+        action = { kind: 'drag', ...where, target: { locators: drop.locators, ...(drop.frame ? { frame: drop.frame } : {}) } };
+      } else if (kind === 'upload' || (intent.upload && kind === 'click')) {
+        // 5b. Upload: a file input, or a "browse" control whose file chooser is answered. The file is a
+        // generated sample named as quoted in the step ("photo.png").
+        action = { kind: 'upload', fileRef: `${FILE_REF_PREFIX}${intent.upload ?? 'sample.txt'}`, ...where };
+      } else if (pointer) {
+        // 5c. Hover / double-click / right-click: only the first click-like action of the step, so
+        // "right-click the area and choose Copy" right-clicks once and then clicks Copy.
+        action = { kind: pointer, ...where };
+      } else if (kind === 'scroll') {
         action = { kind: 'scroll', dir: 'into-view', ...where };
+      } else if (kind === 'check' && intent.off) {
+        // "Turn off autoplay": untick (check() on a ticked box would do nothing).
+        action = { kind: 'uncheck', ...where };
+      } else if (kind === 'fill' && intent.clear && !cleared && element.value) {
+        // "Clear the search": empty a field that holds text.
+        action = { kind: 'fill', valueRef: 'empty:', ...where };
       } else if (kind === 'fill' || kind === 'selectOption') {
         let resolved;
         // Through the wrapper so a question to the human surfaces as an escalation in the live view.
@@ -459,7 +621,7 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
         try {
           resolved = await resolveInput({
             element,
-            step: { text: safeText, ...(step.inputs ? { inputs: step.inputs } : {}) },
+            step: { text: safeText, raw: text, ...(step.inputs ? { inputs: step.inputs } : {}) },
             vars: ctx.vars,
             params: ctx.params,
             s1: ctx.s1,
@@ -483,6 +645,9 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
       } else {
         action = { kind, ...where };
       }
+    } else if (choice === PRESS_KEY && intent.key) {
+      action = { kind: 'press', key: intent.key };
+      target = intent.key;
     } else if (choice === 'scroll_down' || choice === 'scroll_up') {
       action = { kind: 'scroll', dir: choice === 'scroll_down' ? 'down' : 'up' };
     } else if (choice === 'go_back') {
@@ -517,6 +682,14 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
     }
     lap('execute', t);
     if (outcome.newPage) ctx.page = outcome.newPage.page;
+    if (outcome.ok) {
+      if (action.kind === 'hover' || action.kind === 'dblclick' || action.kind === 'rightclick') pointerUsed = true;
+      if (action.kind === 'press') pressed = true;
+      if (action.kind === 'drag') dragged = true;
+      lastTarget = element ? element.locators : undefined;
+      if (element) actedLocators.push(element.locators);
+      if (action.kind === 'fill' && action.valueRef === 'empty:') cleared = true;
+    }
 
     const errorMessage = outcome.error ? r(outcome.error.message) : undefined;
     history.push({
