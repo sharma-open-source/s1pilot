@@ -81,6 +81,7 @@ export async function gate(answer: DecideAnswer, opts: GateOptions): Promise<Gat
   ): DecisionRecord => ({
     questionId: opts.questionId,
     options: Object.keys(options),
+    optionLabels: { ...options },
     probabilities: answer.probabilities,
     ...(chosen === undefined ? {} : { chosen }),
     confidence: answer.confidence,

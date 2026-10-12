@@ -1,5 +1,7 @@
 import type { CaseMode, DecisionRecord, RunControlMessage, RunEvent, RunStatus, RunSummary, TestRun } from '@s1pilot/domain';
 
+import { optionText } from '@/lib/decisions';
+
 /** `escalation.needed` event as the panel sees it. */
 export type Escalation = Extract<RunEvent, { type: 'escalation.needed' }>;
 
@@ -102,7 +104,7 @@ export function describeEvent(ev: RunEvent, caseKey: string | undefined): { text
     case 'decision.made': {
       const d = ev.decision;
       const target = d.escalatedTo !== undefined ? ` → ${d.escalatedTo}` : '';
-      return { text: `${d.model} top=${d.chosen ?? 'none'} conf=${pct(d.confidence)} (${Math.round(d.latencyMs)} ms)${target}`, warn: false };
+      return { text: `${d.model} top=${d.chosen !== undefined ? optionText(d, d.chosen) : 'none'} conf=${pct(d.confidence)} (${Math.round(d.latencyMs)} ms)${target}`, warn: false };
     }
     case 'observation.elements':
       return { text: `observe · ${ev.elements.length} elements${ev.chosenId !== undefined ? ` · chosen ${ev.chosenId}` : ''}`, warn: false };
@@ -344,7 +346,7 @@ export function buildDecisionView(state: LiveRunState): DecisionView | null {
   if (last !== null) {
     const ids = [...new Set([...last.options, ...Object.keys(last.probabilities)])];
     const all = ids
-      .map((id) => ({ id, label: labelFor(id, undefined, state.elements), p: last.probabilities[id] ?? 0 }))
+      .map((id) => ({ id, label: labelFor(id, last.optionLabels, state.elements), p: last.probabilities[id] ?? 0 }))
       .sort((a, b) => b.p - a.p);
     return {
       step: last.stepIndex !== undefined ? last.stepIndex + 1 : null,

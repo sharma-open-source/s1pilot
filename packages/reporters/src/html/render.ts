@@ -88,13 +88,20 @@ export async function renderHtml(report: RunReport, opts: HtmlOptions = {}): Pro
     return items.length ? `<div class="shots">${items.join('')}</div>` : '';
   }
 
+  /** `e29 · [textbox] Search` when the decision carries a readable label for the option. */
+  function optionLabel(d: StepReport['decisions'][number], id: string): string {
+    const label = d.optionLabels?.[id]?.trim();
+    if (!label || label === id) return id;
+    return `${id} · ${label.length > 80 ? `${label.slice(0, 79)}…` : label}`;
+  }
+
   function bars(step: StepReport): string {
     return step.decisions
       .map((d) => {
         const rows = d.options
           .map((o) => {
             const p = d.probabilities[o] ?? 0;
-            return `<div class="bar${d.chosen === o ? ' sel' : ''}"><span class="lab">${r(o)}</span><span class="track"><span class="fill" style="width:${(p * 100).toFixed(1)}%"></span></span><span class="pct">${(p * 100).toFixed(1)}%</span></div>`;
+            return `<div class="bar${d.chosen === o ? ' sel' : ''}"><span class="lab">${r(optionLabel(d, o))}</span><span class="track"><span class="fill" style="width:${(p * 100).toFixed(1)}%"></span></span><span class="pct">${(p * 100).toFixed(1)}%</span></div>`;
           })
           .join('');
         const head = `${r(d.questionId)} &middot; ${r(d.model)} &middot; ${d.latencyMs} ms${d.escalatedTo ? ` &middot; escalated to ${r(d.escalatedTo)}` : ''}`;

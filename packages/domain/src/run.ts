@@ -23,6 +23,8 @@ export type EscalationTarget = z.infer<typeof EscalationTargetSchema>;
 export const DecisionRecordSchema = z.object({
   questionId: z.string().min(1),
   options: z.array(z.string()),
+  /** Human-readable (redacted) label per option id, e.g. `e29` → `[textbox] Search`; shown in reports. */
+  optionLabels: z.record(z.string(), z.string()).optional(),
   probabilities: ProbabilitiesSchema,
   chosen: z.string().optional(),
   confidence: ProbabilitySchema,

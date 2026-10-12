@@ -6,6 +6,7 @@ import { ProbabilityBar } from '@/components/app/live';
 import { ExpectedActual, ScreenshotTimeline, type TimelineStep } from '@/components/app/report';
 import { Button, Callout, Dialog, Field, LinkButton, Select, Skeleton, Tag, Textarea } from '@/components/ui';
 import { cn } from '@/lib/cn';
+import { optionText } from '@/lib/decisions';
 import { errorMessage } from '@/lib/errors';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
@@ -418,12 +419,12 @@ function Decisions({ steps }: { steps: DetailStep[] }) {
             return (
               <details key={i} className="ml-3">
                 <summary className="min-h-[24px] cursor-pointer break-words">
-                  {dec.questionId} → {dec.chosen ?? '–'} · conf {dec.confidence.toFixed(2)} · {dec.model} · {formatMs(dec.latencyMs)}
+                  {dec.questionId} → {dec.chosen !== undefined ? optionText(dec, dec.chosen) : '–'} · conf {dec.confidence.toFixed(2)} · {dec.model} · {formatMs(dec.latencyMs)}
                   {dec.escalatedTo ? ` · escalated to ${dec.escalatedTo}` : ''}
                 </summary>
                 <div className="mt-1.5 flex flex-col gap-2 pb-2">
                   {entries.map(([id, p], n) => (
-                    <ProbabilityBar key={id} label={id} value={p} top={n === 0} />
+                    <ProbabilityBar key={id} label={optionText(dec, id)} value={p} top={n === 0} />
                   ))}
                 </div>
               </details>

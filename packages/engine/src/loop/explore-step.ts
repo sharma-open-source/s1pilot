@@ -79,10 +79,11 @@ function noulRecord(id: string, answer: DecideAnswer | undefined, model: string,
   };
 }
 
-function choiceRecord(id: string, options: string[], answer: DecideAnswer | undefined, model: string, latencyMs: number): DecisionRecord {
+function choiceRecord(id: string, labels: Record<string, string>, answer: DecideAnswer | undefined, model: string, latencyMs: number): DecisionRecord {
   return {
     questionId: id,
-    options,
+    options: Object.keys(labels),
+    optionLabels: { ...labels },
     probabilities: answer?.probabilities ?? {},
     ...(answer?.choice === undefined ? {} : { chosen: answer.choice }),
     confidence: answer?.confidence ?? 0,
@@ -291,7 +292,10 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
       const pool = [...obs.elements, ...matchingTexts(obs.texts ?? [], safeText)];
       const narrowed = await narrow({ elements: pool }, ctx.caps, ctx.s1, safeText, { modelName });
       lap('narrow', t);
-      narrowed.trail.forEach(record);
+      // Region labels carry page text: redact them before they reach events, traces and reports.
+      narrowed.trail.forEach((d) =>
+        record(d.optionLabels ? { ...d, optionLabels: Object.fromEntries(Object.entries(d.optionLabels).map(([k, v]) => [k, r(v)])) } : d),
+      );
       candidates = narrowed.candidates;
       for (const e of candidates) optionDescriptions[e.id] = r(describeOption(e));
       Object.assign(optionDescriptions, META_DESCRIPTIONS);
@@ -367,7 +371,7 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
         : {};
 
     if (sensitivity?.blocked) {
-      record(choiceRecord('next_action', Object.keys(optionDescriptions), next, modelName, decideMs));
+      record(choiceRecord('next_action', optionDescriptions, next, modelName, decideMs));
       await iterationLine(sensitiveTrace(sensitivity), offered);
       return finish('blocked', 'guard', `Step guard "${sensitivity.blockedBy ?? ''}" blocked "${topElement?.name ?? ''}"`);
     }

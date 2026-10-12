@@ -110,6 +110,7 @@ export const decisionRecords = sqliteTable(
     position: integer('position').notNull(),
     questionId: text('question_id').notNull(),
     options: text('options', { mode: 'json' }).$type<string[]>().notNull(),
+    optionLabels: text('option_labels', { mode: 'json' }).$type<Record<string, string>>(),
     probabilities: text('probabilities', { mode: 'json' })
       .$type<Record<string, number>>()
       .notNull(),

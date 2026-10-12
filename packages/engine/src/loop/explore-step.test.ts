@@ -189,6 +189,8 @@ describe('exploreStep: guards and gating', () => {
     expect(asked[0]).toMatch(/What should be typed/);
     expect(events.find((e) => e.type === 'escalation.needed')).toMatchObject({ question: expect.stringMatching(/What should be typed/) });
     expect(await page.getByRole('searchbox', { name: 'Search products' }).inputValue()).toBe('mug');
+    const pick = result.decisions.find((d) => d.questionId === 'next_action' && d.chosen !== undefined && d.chosen !== 'step_done');
+    expect(pick?.optionLabels?.[pick.chosen as string]).toBe('[searchbox] Search products');
   });
 
     it('ends blocked when the model says progress is blocked', async () => {

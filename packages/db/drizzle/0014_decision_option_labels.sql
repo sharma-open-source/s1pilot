@@ -1,0 +1,1 @@
+ALTER TABLE `decision_records` ADD `option_labels` text;

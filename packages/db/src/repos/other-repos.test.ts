@@ -113,7 +113,7 @@ describe('runs and results repos', () => {
     await repos.results.addStep(db, {
       id: stepId, caseResultId: caseResult.id, stepIndex: 1, status: 'passed', latencyMs: 30,
       decisions: [
-        { questionId: 'next_action', options: ['e1', 'e2'], probabilities: { e1: 0.8, e2: 0.2 }, chosen: 'e1', confidence: 0.8, model: 'mock', latencyMs: 12 },
+        { questionId: 'next_action', options: ['e1', 'e2'], optionLabels: { e1: '[button] Pay', e2: '[link] Back' }, probabilities: { e1: 0.8, e2: 0.2 }, chosen: 'e1', confidence: 0.8, model: 'mock', latencyMs: 12 },
         { questionId: 'step_done', options: ['yes', 'no'], probabilities: { yes: 0.9, no: 0.1 }, confidence: 0.9, model: 'mock', latencyMs: 8, escalatedTo: 'system2' },
       ],
       assertions: [{ assertion: 'ai', verdict: 'pass', probability: 0.93 }],
@@ -125,6 +125,8 @@ describe('runs and results repos', () => {
     expect(steps.map((s) => s.stepIndex)).toEqual([0, 1]);
     const full = steps[1];
     expect(full?.decisions.map((d) => d.questionId)).toEqual(['next_action', 'step_done']);
+    expect(full?.decisions[0]?.optionLabels).toEqual({ e1: '[button] Pay', e2: '[link] Back' });
+    expect(full?.decisions[1]?.optionLabels).toBeUndefined();
     expect(full?.decisions[1]?.escalatedTo).toBe('system2');
     expect(full?.evidence.map((e) => e.kind)).toEqual(['screenshot', 'trace']);
     expect(full?.assertions[0]?.probability).toBe(0.93);

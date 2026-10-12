@@ -69,6 +69,7 @@ describe('narrow', () => {
     expect(candidates[0]?.name).toBe('Checkout');
     expect(trail).toHaveLength(model.calls.length);
     expect(trail[0]).toMatchObject({ questionId: 'narrow-region-1', model: 'system1' });
+    expect(trail[0]?.optionLabels?.r1).toMatch(/\(\d+ elements\): /);
     expect(trail[0]?.options.length).toBeGreaterThan(1);
   });
 

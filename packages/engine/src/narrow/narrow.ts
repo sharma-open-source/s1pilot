@@ -136,6 +136,7 @@ export async function narrow(
     trail.push({
       questionId,
       options: ids,
+      optionLabels: criteria,
       probabilities: probs,
       chosen: top,
       confidence,
