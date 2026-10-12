@@ -31,9 +31,17 @@ describe('lexicalScore', () => {
   const picker: ObservedElement = { id: 'e9', role: 'textbox', name: '', inputType: 'color', nearLabel: 'Favorite Color', state: {}, box: { x: 0, y: 0, w: 20, h: 20 }, locators: [] };
 
   it('matches unnamed controls by nearby label and input type', () => {
-    // "set", "favorite", "color", "red": the label and the type match two of the four words.
+    // "set", "favorite", "color", "red": the nearby label matches "favorite" and "color" (own words).
     expect(lexicalScore(tokenize('set favorite color to red'), picker)).toBe(0.5);
-    expect(lexicalScore(tokenize('set colour to red'), { ...picker, nearLabel: undefined })).toBeCloseTo(1 / 3);
+    // The input type is context: half weight.
+    expect(lexicalScore(tokenize('set colour to red'), { ...picker, nearLabel: undefined })).toBeCloseTo(0.5 / 3);
     expect(lexicalScore(tokenize('set colour to red'), { ...picker, nearLabel: undefined, inputType: undefined })).toBe(0);
+  });
+
+  it('weighs an element\'s own words above hints and section headings', () => {
+    const tokens = tokenize('Set the volume slider to "90"');
+    const named: ObservedElement = { id: 'e1', role: 'slider', name: 'Volume: 50%', state: {}, box: { x: 0, y: 0, w: 1, h: 1 }, locators: [] };
+    const hinted: ObservedElement = { ...named, id: 'e2', name: '', idHint: 'video volume' };
+    expect(lexicalScore(tokens, named)).toBeGreaterThan(lexicalScore(tokens, hinted));
   });
 });

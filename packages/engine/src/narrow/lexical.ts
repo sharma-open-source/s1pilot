@@ -16,24 +16,31 @@ export function tokenize(text: string): string[] {
   return (text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter((t) => !STOPWORDS.has(t));
 }
 
+/** Weight of a step word found only in an element's context (hint, section, role, type), not its own text. */
+const CONTEXT_WEIGHT = 0.5;
+
 /**
- * Lexical relevance of an element to a step: fraction of distinct step tokens found (exactly, or as a
- * prefix of length >= 3 in either direction) in the element's name, text, placeholder, nearby label,
- * id hint, section heading, role and input type (`color` also matches "colour"). 0..1.
+ * Lexical relevance of an element to a step: per distinct step token, 1 when found (exactly, or as a
+ * prefix of length >= 3 in either direction) in the element's own words (name, text, placeholder,
+ * nearby label), else {@link CONTEXT_WEIGHT} when found only in its context (id hint, section heading,
+ * role, input type; `color` also matches "colour"); averaged over the step tokens. 0..1. Own words
+ * weigh more so a labelled "Volume: 50%" slider outranks an unnamed one hinted "video volume".
  */
 export function lexicalScore(stepTokens: readonly string[], element: ObservedElement): number {
   const wanted = new Set(stepTokens);
   if (wanted.size === 0) return 0;
+  const own = tokenize([element.name, element.text ?? '', element.placeholder ?? '', element.nearLabel ?? ''].join(' '));
   const type = element.inputType === 'color' ? 'color colour' : (element.inputType ?? '');
-  const hay = tokenize(
-    [element.name, element.text ?? '', element.placeholder ?? '', element.nearLabel ?? '', element.idHint ?? '', element.section ?? '', element.role, type].join(' '),
-  );
-  if (hay.length === 0) return 0;
-  let hits = 0;
+  const context = tokenize([element.idHint ?? '', element.section ?? '', element.role, type].join(' '));
+  if (own.length === 0 && context.length === 0) return 0;
+  const hit = (hay: readonly string[], s: string): boolean =>
+    hay.some((h) => h === s || (s.length >= 3 && h.length >= 3 && (h.startsWith(s) || s.startsWith(h))));
+  let score = 0;
   for (const s of wanted) {
-    if (hay.some((h) => h === s || (s.length >= 3 && h.length >= 3 && (h.startsWith(s) || s.startsWith(h))))) hits++;
+    if (hit(own, s)) score += 1;
+    else if (hit(context, s)) score += CONTEXT_WEIGHT;
   }
-  return hits / wanted.size;
+  return score / wanted.size;
 }
 
 /** Elements sorted most relevant first; ties keep document order. Returns a new array plus the scores. */

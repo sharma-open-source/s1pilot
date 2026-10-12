@@ -183,7 +183,8 @@ export async function probe(target: ProbeTarget, options: ProbeOptions = {}): Pr
     }
     if (!detected) {
       warnings.push(...notes);
-      return fail(`No supported model API found at ${target.baseUrl} (tried ${candidates.join(', ')}).`);
+      const why = candidates.length === 1 && notes[0] ? ` ${notes[0]}` : '';
+      return fail(`No supported model API found at ${target.baseUrl} (tried ${candidates.join(', ')}).${why}`);
     }
 
     async function attempt(adapter: AdapterKind): Promise<void> {

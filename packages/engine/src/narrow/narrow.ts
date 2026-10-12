@@ -9,6 +9,8 @@ export const NARROW_META_ACTIONS: readonly string[] = ['scroll_down', 'scroll_up
 
 /** Confidence below which the runner-up region is kept as well. */
 export const NARROW_LOW_CONFIDENCE = 0.6;
+/** Best lexical matches kept in the final candidates whatever region the model picked. */
+export const NARROW_PINNED = 5;
 
 /** Result of {@link narrow}. */
 export interface NarrowResult {
@@ -87,6 +89,8 @@ function group(elements: ObservedElement[], budget: number, viewportHeight: numb
  * and sample labels, and the search recurses into the chosen region. If the top region's confidence is
  * below 0.6 the runner-up is merged in when the union still fits. Regions and elements are ordered by
  * lexical overlap with the step text, most relevant first. Every region question is returned in `trail`.
+ * After narrowing, the {@link NARROW_PINNED} best lexical matches are always among the candidates, so a
+ * wrong region pick cannot hide the element the step names.
  *
  * @param obs Observation (only `elements` is used).
  * @param caps Model capabilities (`maxOptions`).
@@ -179,6 +183,16 @@ export async function narrow(
     const next = byRank(await pick(group(current, budget, options.viewportHeight)));
     // Guarantee progress: a pick that did not shrink the set is redone over equal chunks.
     current = next.length < current.length ? next : byRank(await pick(chunk(current, budget, 'page')));
+  }
+  if (trail.length > 0) {
+    // Safety net against a wrong region pick: the elements that best match the step's words stay
+    // candidates (replacing the least relevant of the picked region when the budget is full).
+    const pinned = ordered.filter((e) => (scores.get(e.id) ?? 0) > 0).slice(0, Math.min(NARROW_PINNED, budget));
+    const missing = pinned.filter((e) => !current.includes(e));
+    if (missing.length > 0) {
+      const keep = current.filter((e) => !pinned.includes(e)).slice(0, budget - pinned.length);
+      current = byRank([...pinned, ...keep]);
+    }
   }
   return { candidates: current, trail };
 }

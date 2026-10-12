@@ -2,9 +2,16 @@ import { createRedactor, S1PilotError } from '@s1pilot/domain';
 
 const SNIPPET_LENGTH = 500;
 
-/** `{baseUrl}{path}` without doubled slashes. */
+/**
+ * `{baseUrl}{path}` without doubled slashes. A base that already ends in the path's version segment
+ * (`https://openrouter.ai/api/v1` + `/v1/chat/completions`) does not get it twice, so both the
+ * OpenAI-style base (with `/v1`) and the bare host work.
+ */
 export function joinUrl(baseUrl: string, path: string): string {
-  return `${baseUrl.replace(/\/+$/, '')}${path}`;
+  const base = baseUrl.replace(/\/+$/, '');
+  const version = /^\/v\d+(?=\/)/.exec(path)?.[0];
+  if (version && base.toLowerCase().endsWith(version)) return `${base}${path.slice(version.length)}`;
+  return `${base}${path}`;
 }
 
 /** First 500 characters of `text` with secrets and sensitive-looking values redacted. */

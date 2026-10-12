@@ -146,3 +146,27 @@ describe('narrow', () => {
     }
   });
 });
+
+describe('narrow: wrong region picks', () => {
+  it('keeps the best lexical matches even when the model picks the wrong region', async () => {
+    // The labelled slider sits near the top; unnamed media sliders hinted "video volume" sit at the bottom.
+    const elements: ObservedElement[] = [];
+    elements.push({ ...el(1, 'Volume: 50%', undefined, 10, 'slider') });
+    for (let i = 0; i < 120; i++) elements.push(el(elements.length + 1, `Item ${i} zzz${i}`, undefined, 30 + i * 8));
+    elements.push({ ...el(elements.length + 1, '', undefined, 2000, 'slider'), idHint: 'video volume' });
+    elements.push({ ...el(elements.length + 1, '', undefined, 2010, 'slider'), idHint: 'audio volume' });
+    // A model that always picks the region whose samples mention "video".
+    const model = new MockDecisionModel({
+      fallback: (q: Question) =>
+        q.type === 'choice'
+          ? { choice: (Object.entries(q.criteria).find(([, d]) => d.includes('video')) ?? Object.entries(q.criteria)[0])?.[0] as string, confidence: 0.9 }
+          : { noul: 0.5 },
+    });
+    const { candidates, trail } = await narrow({ elements }, { maxOptions: 20 }, model, 'Set the volume slider to "90"');
+    expect(trail.length).toBeGreaterThan(0);
+    expect(candidates.map((c) => c.name)).toContain('Volume: 50%');
+    expect(candidates.length).toBeLessThanOrEqual(20 - NARROW_META_ACTIONS.length);
+    // Own words rank above hints: the labelled slider comes first.
+    expect(candidates[0]?.name).toBe('Volume: 50%');
+  });
+});
