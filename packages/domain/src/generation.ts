@@ -13,7 +13,7 @@ export const GeneratedCaseSchema = z.object({
   type: TestCaseTypeSchema.default('e2e'),
   tags: z.array(z.string().trim().min(1)).default([]),
   steps: z
-    .array(StepSchema.pick({ action: true, expected: true }))
+    .array(StepSchema.pick({ action: true, expected: true, inputs: true }))
     .min(1, 'a test case needs at least one step'),
 });
 export type GeneratedCase = z.infer<typeof GeneratedCaseSchema>;

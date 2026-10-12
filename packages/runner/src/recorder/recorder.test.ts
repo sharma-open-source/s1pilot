@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { EnvironmentSchema, TestCaseSchema, createRedactor, newId, type Environment, type LearnedScript, type ResolvedAction } from '@s1pilot/domain';
+import { EnvironmentSchema, TestCaseSchema, createRedactor, newId, stepGuideExamples, type Environment, type LearnedScript, type ResolvedAction } from '@s1pilot/domain';
 import { startFixtureServer, type FixtureServer } from '@s1pilot/fixture-sites';
 import { MockDecisionModel } from '@s1pilot/providers';
 import type { ChatModel } from '@s1pilot/providers';
@@ -120,6 +120,12 @@ describe('System 2 step text', () => {
     expect(out).toEqual([{ action: 'Enter the ZIP code and continue', expected: 'Payment step is shown' }]);
     const sent = JSON.stringify(chatJson.mock.calls[0]);
     expect(sent).toContain('shipping_zip');
+    // The shared step wording, but values stay test data keys: no "quote every value" rule.
+    const system = (chatJson.mock.calls[0] as unknown as [{ system: string }])[0].system;
+    expect(system).toContain(stepGuideExamples());
+    expect(system).toContain('A wait step starts with "Wait"');
+    expect(system).not.toContain('Put every exact value');
+    expect(system).toContain('never invent, quote or guess a value');
   });
 
   it('falls back (null) when the model fails or miscounts', async () => {

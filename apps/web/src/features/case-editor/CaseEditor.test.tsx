@@ -222,6 +222,39 @@ describe('CaseEditorPage', () => {
     expect(await screen.findByText('Shared step')).toBeInTheDocument();
   });
 
+  it('saves a range of steps as a shared step and puts a reference in their place', async () => {
+    const user = userEvent.setup();
+    const { fake } = setup({
+      'sharedSteps.create': (i) => ({ id: 'f9', projectId: 'p1', ...(i as { name: string; params: string[]; steps: unknown[] }) }),
+    });
+    await screen.findByLabelText('Action of step 1');
+    await user.click(screen.getByRole('button', { name: 'Save steps as shared step' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Save steps as shared step' });
+    await user.selectOptions(within(dialog).getByLabelText('To step'), '1');
+    expect(within(dialog).getByText('{colour} {size}')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Save 2 steps' }));
+    expect(within(dialog).getByText('Give the shared step a name.')).toBeInTheDocument();
+    await user.type(within(dialog).getByLabelText('Name'), 'Pick a tee');
+    await user.click(within(dialog).getByRole('button', { name: 'Save 2 steps' }));
+    await waitFor(() =>
+      expect(callsTo(fake, 'sharedSteps.create')[0]?.input).toMatchObject({
+        projectKey: 'SHOP',
+        name: 'Pick a tee',
+        params: ['colour', 'size'],
+        steps: [{ action: 'Search for "t-shirt" and open the "Classic Tee" product' }, { action: 'Choose colour {colour} and size {size}, then add to cart' }],
+      }),
+    );
+    expect(await screen.findByText(/Created shared step “Pick a tee”/)).toBeInTheDocument();
+    expect(screen.getByTestId('step-row-1')).toHaveTextContent('Shared step');
+    expect(screen.getByLabelText('Argument colour of step 1')).toHaveValue('{colour}');
+    expect(screen.getByLabelText('Action of step 2')).toHaveValue('Go to checkout as guest and fill the shipping form');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(callsTo(fake, 'cases.update')).toHaveLength(1));
+    const patch = (callsTo(fake, 'cases.update')[0]?.input as { patch: { steps: Array<Record<string, unknown>> } }).patch;
+    expect(patch.steps[0]).toMatchObject({ action: 'Run flow Pick a tee', sharedStepId: 'f9', args: { colour: '{colour}', size: '{size}' } });
+    expect(patch.steps).toHaveLength(2);
+  });
+
   it('builds an assertion whose tag equals summarizeAssertion', async () => {
     const user = userEvent.setup();
     const { fake } = setup();
@@ -417,6 +450,19 @@ describe('CaseEditorPage', () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/p/SHOP/cases'));
     expect(callsTo(fake, 'cases.bulk')[0]?.input).toEqual({ ids: ['c1'], action: 'delete' });
     expect(callsTo(fake, 'cases.update')).toHaveLength(0);
+  });
+
+  it('creates a requirement from the Details card and links it to the case on save', async () => {
+    const user = userEvent.setup();
+    const { fake } = setup({ 'requirements.create': () => ({ id: 'r9', projectId: 'p1', key: 'SHOP-REQ-9', title: 'Gift wrap', caseIds: [] }) });
+    await user.click(await screen.findByRole('button', { name: 'New requirement' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New requirement' });
+    await user.type(within(dialog).getByLabelText('Title'), 'Gift wrap');
+    await user.click(within(dialog).getByRole('button', { name: 'Create requirement' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New requirement' })).toBeNull());
+    expect(screen.getByRole('link', { name: 'SHOP-REQ-9' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect((callsTo(fake, 'cases.update')[0]?.input as { patch: { requirements: string[] } }).patch.requirements).toContain('SHOP-REQ-9'));
   });
 
   it('Run now saves first, then starts an attended run and opens the live view', async () => {

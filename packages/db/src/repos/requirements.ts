@@ -55,6 +55,27 @@ export const requirements = {
     return load(db, db.orm.select().from(t).where(eq(t.projectId, projectId)).orderBy(asc(t.key)).all());
   },
 
+  /** Changes title and/or description (`null` clears it). The key never changes: cases refer to it. */
+  async update(db: Db, id: string, patch: { title?: string; description?: string | null }): Promise<Requirement> {
+    if (!db.orm.select().from(t).where(eq(t.id, id)).get()) return notFound('Requirement', id);
+    db.orm
+      .update(t)
+      .set({
+        ...(patch.title !== undefined ? { title: patch.title } : {}),
+        ...(patch.description !== undefined ? { description: patch.description } : {}),
+        updatedAt: nowIso(),
+      })
+      .where(eq(t.id, id))
+      .run();
+    return (await this.get(db, id)) as Requirement;
+  },
+
+  /** Deletes a requirement and its case links (the cases themselves stay). */
+  async delete(db: Db, id: string): Promise<void> {
+    db.orm.delete(link).where(eq(link.requirementId, id)).run();
+    db.orm.delete(t).where(eq(t.id, id)).run();
+  },
+
   /** Idempotent. */
   async link(db: Db, caseId: string, requirementId: string): Promise<void> {
     if (!db.orm.select().from(t).where(eq(t.id, requirementId)).get()) return notFound('Requirement', requirementId);

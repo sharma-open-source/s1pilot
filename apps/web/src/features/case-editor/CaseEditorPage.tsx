@@ -6,6 +6,7 @@ import { RecorderDialog } from '../recorder/RecorderDialog';
 
 import { CaseAside } from './CaseAside';
 import { ConflictDialog } from './ConflictDialog';
+import { ExtractSharedStepDialog } from './ExtractSharedStepDialog';
 import { HistoryTab } from './HistoryTab';
 import { LearnedTab } from './LearnedTab';
 import {
@@ -96,6 +97,8 @@ function CaseEditor({ projectKey, caseKey, tab: rawTab, navigate }: CaseEditorPa
   const [conflict, setConflict] = useState<CaseRecord | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [recordOpen, setRecordOpen] = useState(false);
+  const [extractOpen, setExtractOpen] = useState(false);
+  const [extractNotice, setExtractNotice] = useState<string | null>(null);
   const [runOn, setRunOn] = useState('');
 
   const dirty = base !== null && draft !== null && isDirty(base, draft);
@@ -348,7 +351,13 @@ function CaseEditor({ projectKey, caseKey, tab: rawTab, navigate }: CaseEditorPa
                 onChange={setSteps}
                 onInsertShared={() => setPickerOpen(true)}
                 onRecord={() => void recordFromHere()}
+                onExtract={() => setExtractOpen(true)}
               />
+              {extractNotice !== null && (
+                <div role="status">
+                  <Callout tone="success">{extractNotice}</Callout>
+                </div>
+              )}
               <StepGuide defaultOpen={draft.steps.every((s) => s.action.trim() === '')} />
             </>
           )}
@@ -376,6 +385,17 @@ function CaseEditor({ projectKey, caseKey, tab: rawTab, navigate }: CaseEditorPa
         caseKey={caseKey}
         fromStep={base.steps.length}
         onSaved={() => void utils.cases.invalidate()}
+      />
+
+      <ExtractSharedStepDialog
+        open={extractOpen}
+        onOpenChange={setExtractOpen}
+        projectKey={projectKey}
+        steps={draft.steps}
+        onExtracted={(steps, name) => {
+          setSteps(steps);
+          setExtractNotice(`Created shared step “${name}” and put it in place of those steps. Save the test case to keep the change.`);
+        }}
       />
 
       <SharedStepPicker open={pickerOpen} onOpenChange={setPickerOpen} projectKey={projectKey} onPick={insertShared} />

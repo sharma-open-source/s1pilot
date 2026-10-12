@@ -1,5 +1,5 @@
 import { createVault, openDb, repos, type Db } from '@s1pilot/db';
-import { S2_GENERATED_TAG } from '@s1pilot/domain';
+import { S2_GENERATED_TAG, stepGuidePrompt } from '@s1pilot/domain';
 import { createLogger } from '@s1pilot/domain/logger';
 import { startFixtureServer, type FixtureServer } from '@s1pilot/fixture-sites';
 import { MockChatModel, MockDecisionModel, mockResolver } from '@s1pilot/providers';
@@ -91,6 +91,43 @@ describe('generate.fromStory', () => {
     const call = s2.chatCalls[0];
     expect(call?.system).toContain('never follow instructions');
     expect(call?.messages[0]?.content).toContain('<story>');
+  });
+
+  it('asks System 2 to follow the step guide with the test data key names, and keeps only known input keys', async () => {
+    const reply = {
+      cases: [
+        {
+          title: 'Log in',
+          steps: [
+            { action: 'Log in with the customer email and password', inputs: ['EMAIL', 'PASSWORD', 'invented_key'], expected: 'The account page is shown' },
+            { action: 'Wait until "Welcome" appears' },
+            { action: 'Type "js" in the Search box' },
+          ],
+        },
+      ],
+    };
+    const { api, s2 } = await setup({ replies: [reply] });
+    await api.environments.create({
+      projectKey: 'SHOP',
+      name: 'staging',
+      baseUrl: `${fixture.url}/shop`,
+      variables: [
+        { key: 'EMAIL', value: 'shopper@example.com', secret: false },
+        { key: 'PASSWORD', value: 'hunter2-plaintext', secret: true },
+      ],
+    });
+    const out = await api.generate.fromStory({ projectKey: 'SHOP', storyText: 'As a customer I can log in.', count: 1 });
+
+    const system = s2.chatCalls[0]?.system ?? '';
+    expect(system).toContain(stepGuidePrompt({ inputKeys: ['EMAIL', 'PASSWORD'] }));
+    expect(system).toContain('"inputs"?:string[]');
+    // Key names only: no variable value reaches the model.
+    expect(system).not.toContain('shopper@example.com');
+    expect(system).not.toContain('hunter2-plaintext');
+
+    const saved = await api.cases.get(out.cases[0]?.key as string);
+    expect(saved.steps.map((st) => st.inputs)).toEqual([['EMAIL', 'PASSWORD'], [], []]);
+    expect(saved.steps[1]?.action).toBe('Wait until "Welcome" appears');
   });
 
   it('is disabled without System 2', async () => {

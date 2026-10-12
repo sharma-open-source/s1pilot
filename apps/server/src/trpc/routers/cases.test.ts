@@ -253,6 +253,47 @@ describe('sharedSteps', () => {
     expect(u).toMatchObject({ name: 'sign-in', params: ['user'], steps: [{ action: 'Sign in' }] });
     await expect(api.sharedSteps.get({ id: 'missing' })).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
+
+  it('tracks usage in steps, preconditions and other flows, and deletes only unused flows', async () => {
+    const { api } = await setup();
+    const cart = await api.sharedSteps.create({ projectKey: 'SHOP', name: 'clear-cart', steps: [{ action: 'Empty the cart' }] });
+    const c = await mk(api, { preconditions: [{ flow: 'clear-cart' }] });
+    const outer = await api.sharedSteps.create({ projectKey: 'SHOP', name: 'fresh-start', steps: [{ action: 'Run flow clear-cart', sharedStepId: cart.id }] });
+    const row = (await api.sharedSteps.list({ projectKey: 'SHOP' })).find((s) => s.id === cart.id);
+    expect(row).toMatchObject({ usageCount: 1, usage: { steps: [], preconditions: [c.key], flows: ['fresh-start'], logins: [] } });
+    await expect(api.sharedSteps.delete({ id: cart.id })).rejects.toMatchObject({ code: 'CONFLICT', message: expect.stringContaining('fresh-start') });
+    expect(await api.sharedSteps.delete({ id: outer.id })).toEqual({ id: outer.id, name: 'fresh-start' });
+    await api.cases.update({ key: c.key, expectedVersion: c.version, patch: { preconditions: [] } });
+    await api.sharedSteps.delete({ id: cart.id });
+    expect(await api.sharedSteps.list({ projectKey: 'SHOP' })).toEqual([]);
+  });
+
+  it('rewrites name references on rename', async () => {
+    const { api } = await setup();
+    const f = await api.sharedSteps.create({ projectKey: 'SHOP', name: 'login', params: ['user'], steps: [{ action: 'Sign in as {user}' }] });
+    const c = await mk(api, { preconditions: [{ flow: 'login' }], steps: [{ action: 'Run flow login', sharedStepId: 'login', args: { user: 'ann' } }, { action: 'Open orders' }] });
+    await api.sharedSteps.update({ id: f.id, name: 'sign-in' });
+    const after = await api.cases.get({ key: c.key });
+    expect(after.version).toBe(c.version + 1);
+    expect(after.preconditions).toEqual([{ flow: 'sign-in' }]);
+    expect(after.steps[0]).toMatchObject({ action: 'Run flow sign-in', sharedStepId: 'sign-in', args: { user: 'ann' } });
+  });
+
+  it('rejects cycles, unknown references, bad parameters and viewers', async () => {
+    const { api, viewer } = await setup();
+    const a = await api.sharedSteps.create({ projectKey: 'SHOP', name: 'a', steps: [{ action: 'One' }] });
+    const b = await api.sharedSteps.create({ projectKey: 'SHOP', name: 'b', steps: [{ action: 'Run flow a', sharedStepId: a.id }] });
+    await expect(api.sharedSteps.update({ id: a.id, steps: [{ action: 'Run flow b', sharedStepId: b.id }] })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: expect.stringContaining('include itself'),
+    });
+    await expect(api.sharedSteps.update({ id: a.id, steps: [{ action: 'Run flow a', sharedStepId: 'a' }] })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(api.sharedSteps.create({ projectKey: 'SHOP', name: 'c', steps: [{ action: 'Run flow x', sharedStepId: 'nope' }] })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(api.sharedSteps.create({ projectKey: 'SHOP', name: 'd', params: ['two words'], steps: [{ action: 'x' }] })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(api.sharedSteps.create({ projectKey: 'SHOP', name: 'e', params: ['p', 'p'], steps: [{ action: 'x' }] })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(viewer.sharedSteps.create({ projectKey: 'SHOP', name: 'v', steps: [{ action: 'x' }] })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(viewer.sharedSteps.delete({ id: b.id })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
 });
 
 describe('requirements', () => {
@@ -271,6 +312,51 @@ describe('requirements', () => {
     await api.requirements.unlink({ caseKey: c.key, reqKey: r.key });
     expect((await api.requirements.list({ projectKey: 'SHOP' }))[0]).toMatchObject({ caseKeys: [], coverage: 0 });
     await expect(api.requirements.link({ caseKey: c.key, reqKey: 'NOPE' })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('validates keys, edits title and description, but never the key', async () => {
+    const { api } = await setup();
+    await expect(api.requirements.create({ projectKey: 'SHOP', key: 'has space', title: 'x' })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(api.requirements.create({ projectKey: 'SHOP', title: '  ' })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    const r = await api.requirements.create({ projectKey: 'SHOP', key: 'AUTH-1', title: 'Login', description: 'Users log in' });
+    expect(await api.requirements.update({ projectKey: 'SHOP', key: 'AUTH-1', patch: { title: 'Log in with email' } })).toMatchObject({
+      key: r.key,
+      title: 'Log in with email',
+      description: 'Users log in',
+    });
+    const cleared = await api.requirements.update({ projectKey: 'SHOP', key: 'AUTH-1', patch: { description: '' } });
+    expect(cleared.description).toBeUndefined();
+  });
+
+  it('sets the covering cases in one call and deletes a requirement without deleting its cases', async () => {
+    const { api } = await setup();
+    const r = await api.requirements.create({ projectKey: 'SHOP', title: 'Checkout' });
+    const [a, b, c] = [await mk(api), await mk(api), await mk(api)];
+    await api.requirements.link({ caseKey: a.key, reqKey: r.key });
+    // A case that lists the key only in YAML (no link row) counts as covering too.
+    await api.cases.update({ key: c.key, expectedVersion: c.version, patch: { requirements: [r.key] } });
+
+    expect(await api.requirements.setCases({ projectKey: 'SHOP', key: r.key, caseIds: [b.id, c.id] })).toEqual({ key: r.key, added: 1, removed: 1 });
+    expect((await api.requirements.list({ projectKey: 'SHOP' }))[0]?.caseKeys.sort()).toEqual([b.key, c.key].sort());
+    expect((await api.cases.get(a.key)).requirements).toEqual([]);
+    await expect(api.requirements.setCases({ projectKey: 'SHOP', key: r.key, caseIds: ['nope'] })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+    expect(await api.requirements.delete({ projectKey: 'SHOP', key: r.key })).toEqual({ key: r.key, unlinked: 2 });
+    expect(await api.requirements.list({ projectKey: 'SHOP' })).toEqual([]);
+    expect((await api.cases.get(b.key)).requirements).toEqual([]);
+    expect((await api.cases.list({ projectKey: 'SHOP' })).total).toBe(3);
+  });
+
+  it('refuses changes by viewers', async () => {
+    const { api, viewer } = await setup();
+    const r = await api.requirements.create({ projectKey: 'SHOP', title: 'Checkout' });
+    const c = await mk(api);
+    await expect(viewer.requirements.create({ projectKey: 'SHOP', title: 'x' })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(viewer.requirements.update({ projectKey: 'SHOP', key: r.key, patch: { title: 'y' } })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(viewer.requirements.delete({ projectKey: 'SHOP', key: r.key })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(viewer.requirements.link({ caseKey: c.key, reqKey: r.key })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(viewer.requirements.setCases({ projectKey: 'SHOP', key: r.key, caseIds: [] })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(await viewer.requirements.list({ projectKey: 'SHOP' })).toHaveLength(1);
   });
 });
 

@@ -19,12 +19,30 @@ interface StepGridProps {
   onInsertShared: () => void;
   /** Opens the recorder to add steps after the last one (S-060). Absent: the button is disabled. */
   onRecord?: () => void;
+  /** `false` hides "Record steps from here" (shared-step editor). Default `true`. */
+  recordable?: boolean;
+  /** Opens "Save steps as shared step"; absent hides the button. */
+  onExtract?: () => void;
+  /** Table caption and empty-table text. */
+  caption?: string;
+  emptyText?: string;
 }
 
 const HEADERS = ['#', 'Action (plain language)', 'Expected result', 'Checks'];
 
 /** Editable step table: action, expected result and checks per row, with reorder, duplicate and delete. */
-export function StepGrid({ steps, params, shared, onChange, onInsertShared, onRecord }: StepGridProps) {
+export function StepGrid({
+  steps,
+  params,
+  shared,
+  onChange,
+  onInsertShared,
+  onRecord,
+  recordable = true,
+  onExtract,
+  caption = 'Test steps',
+  emptyText = 'No steps yet. A test case needs at least one step.',
+}: StepGridProps) {
   const [checkFor, setCheckFor] = useState<number | null>(null);
   const [announce, setAnnounce] = useState('');
   const dragFrom = useRef<number | null>(null);
@@ -73,7 +91,7 @@ export function StepGrid({ steps, params, shared, onChange, onInsertShared, onRe
     <div className="flex flex-col gap-3">
       <div className="relative overflow-x-auto rounded-card border border-line bg-surface">
         <table className="w-full min-w-[780px] border-collapse text-sm">
-          <caption className="sr-only">Test steps</caption>
+          <caption className="sr-only">{caption}</caption>
           <thead>
             <tr className="bg-surface-subtle text-left text-xs font-medium uppercase tracking-[0.05em] text-secondary">
               {HEADERS.map((h, i) => (
@@ -247,7 +265,7 @@ export function StepGrid({ steps, params, shared, onChange, onInsertShared, onRe
             {steps.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-6 text-center text-sm text-secondary">
-                  No steps yet. A test case needs at least one step.
+                  {emptyText}
                 </td>
               </tr>
             )}
@@ -264,9 +282,16 @@ export function StepGrid({ steps, params, shared, onChange, onInsertShared, onRe
         <Button variant="dashed" className="min-h-[44px]" onClick={onInsertShared}>
           + Insert shared step
         </Button>
-        <Button variant="dashed" className="min-h-[44px]" disabled={onRecord === undefined} onClick={onRecord}>
-          Record steps from here
-        </Button>
+        {onExtract !== undefined && (
+          <Button variant="dashed" className="min-h-[44px]" disabled={steps.length === 0} onClick={onExtract}>
+            Save steps as shared step
+          </Button>
+        )}
+        {recordable && (
+          <Button variant="dashed" className="min-h-[44px]" disabled={onRecord === undefined} onClick={onRecord}>
+            Record steps from here
+          </Button>
+        )}
       </div>
       <AssertionDialog
         open={checkFor !== null}

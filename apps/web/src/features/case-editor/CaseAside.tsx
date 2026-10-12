@@ -3,6 +3,8 @@ import { Link } from '@tanstack/react-router';
 import { X } from 'lucide-react';
 import { useState } from 'react';
 
+import { RequirementDialog } from '../requirements/RequirementDialog';
+
 import { learnedSummary, type LearnedInfo } from './LearnedTab';
 import { paramNames, type Draft } from './model';
 
@@ -83,6 +85,7 @@ export function CaseAside({ projectKey, draft, learned, onChange, parametersHref
   const names = paramNames(draft.parameters);
   const unlinked = (reqs.data ?? []).filter((r) => !draft.requirements.includes(r.key));
   const selectClass = 'h-[36px] w-auto min-w-[8rem] text-[14px]';
+  const [newReqOpen, setNewReqOpen] = useState(false);
 
   return (
     <aside aria-label="Case details" className="flex min-w-0 flex-[1_1_280px] flex-col gap-4">
@@ -120,7 +123,10 @@ export function CaseAside({ projectKey, draft, learned, onChange, parametersHref
         <TagEditor label="tag" values={draft.tags} onChange={(tags) => onChange({ tags })} />
         <div className="flex flex-col gap-2">
           <div>
-            Requirements ·{' '}
+            <Link to={'/p/$key/library/requirements' as never} params={{ key: projectKey } as never} className="text-fg">
+              Requirements
+            </Link>{' '}
+            ·{' '}
             {draft.requirements.length === 0 ? (
               <span className="text-secondary">none</span>
             ) : (
@@ -142,24 +148,36 @@ export function CaseAside({ projectKey, draft, learned, onChange, parametersHref
               ))
             )}
           </div>
-          {unlinked.length > 0 && (
-            <Select
-              aria-label="Link requirement"
-              className="h-[36px] text-[13px]"
-              value=""
-              onChange={(e) => {
-                if (e.target.value !== '') onChange({ requirements: [...draft.requirements, e.target.value] });
-              }}
-            >
-              <option value="">Link a requirement…</option>
-              {unlinked.map((r) => (
-                <option key={r.key} value={r.key}>
-                  {r.key}
-                  {r.title ? ` · ${r.title}` : ''}
-                </option>
-              ))}
-            </Select>
-          )}
+          <div className="flex gap-2">
+            {unlinked.length > 0 && (
+              <Select
+                aria-label="Link requirement"
+                className="h-[36px] min-w-0 flex-1 text-[13px]"
+                value=""
+                onChange={(e) => {
+                  if (e.target.value !== '') onChange({ requirements: [...draft.requirements, e.target.value] });
+                }}
+              >
+                <option value="">Link a requirement…</option>
+                {unlinked.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    {r.key}
+                    {r.title ? ` · ${r.title}` : ''}
+                  </option>
+                ))}
+              </Select>
+            )}
+            <Button size="sm" variant="secondary" onClick={() => setNewReqOpen(true)}>
+              New requirement
+            </Button>
+          </div>
+          <RequirementDialog
+            projectKey={projectKey}
+            open={newReqOpen}
+            onOpenChange={setNewReqOpen}
+            // The new requirement is linked to this case (saved with the case).
+            onSaved={(key) => onChange({ requirements: [...draft.requirements, key] })}
+          />
         </div>
       </Card>
 

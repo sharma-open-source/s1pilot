@@ -15,10 +15,14 @@ interface Props {
   /** Ids already in the plan. */
   initial: string[];
   onConfirm: (caseIds: string[]) => void;
+  /** Dialog subtitle. Default: for plans. */
+  description?: string;
+  /** Confirm button text for `n` picked cases. Default `Use n cases`. */
+  confirmLabel?: (n: number) => string;
 }
 
 /** Dialog with the test-case table (same columns as the library) and checkboxes, for hand-picked plans. */
-export function CasePickerDialog({ projectKey, open, onOpenChange, initial, onConfirm }: Props) {
+export function CasePickerDialog({ projectKey, open, onOpenChange, initial, onConfirm, description, confirmLabel }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set(initial));
   const [filter, setFilter] = useState('');
   const [q, setQ] = useState('');
@@ -70,7 +74,7 @@ export function CasePickerDialog({ projectKey, open, onOpenChange, initial, onCo
       open={open}
       onOpenChange={onOpenChange}
       title="Pick test cases"
-      description="Tick the cases this plan should run."
+      description={description ?? 'Tick the cases this plan should run.'}
       footer={
         <>
           <Button onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -81,7 +85,7 @@ export function CasePickerDialog({ projectKey, open, onOpenChange, initial, onCo
               onOpenChange(false);
             }}
           >
-            Use {selected.size} {selected.size === 1 ? 'case' : 'cases'}
+            {confirmLabel ? confirmLabel(selected.size) : `Use ${selected.size} ${selected.size === 1 ? 'case' : 'cases'}`}
           </Button>
         </>
       }
