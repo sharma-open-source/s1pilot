@@ -113,6 +113,7 @@ export function serializeObservation(obs: Observation, opts: SerializeOptions): 
   for (const e of obs.elements.slice(0, max)) {
     let line = `${e.id} [${e.role}] ${JSON.stringify(r(e.name, MAX_NAME))}`;
     if (e.inputType) line += ` type=${e.inputType}`;
+    if (e.range) line += ` range=${e.range.min}..${e.range.max}`;
     if (e.value !== undefined && e.value !== '') line += ` value=${JSON.stringify(r(e.value, 60))}`;
     else if (e.placeholder) line += ` placeholder=${JSON.stringify(r(e.placeholder, 60))}`;
     const states = Object.entries(e.state)

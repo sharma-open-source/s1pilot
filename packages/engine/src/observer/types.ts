@@ -22,8 +22,10 @@ export interface ObservedElement {
   /** Visible text, trimmed to 120 chars. Omitted for form controls. */
   text?: string;
   placeholder?: string;
-  /** `date`, `time`, `datetime-local`, `month` or `week` for temporal inputs, which accept one fixed value format. */
+  /** `date`, `time`, `datetime-local`, `month`, `week`, `range` or `color`: inputs that accept one fixed value format. */
   inputType?: string;
+  /** Sliders (native or ARIA): the value range. */
+  range?: { min: number; max: number };
   /** Current value; omitted for password fields and masked for secret-like fields. */
   value?: string;
   state: { checked?: boolean; selected?: boolean; expanded?: boolean; disabled?: false };

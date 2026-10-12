@@ -9,8 +9,10 @@ export interface RawElement {
   name: string;
   text?: string;
   placeholder?: string;
-  /** `date`, `time`, `datetime-local`, `month` or `week` for temporal inputs (they need a fixed format). */
+  /** `date`, `time`, `datetime-local`, `month`, `week`, `range` or `color`: inputs that need a fixed value format. */
   inputType?: string;
+  /** Sliders: `min`/`max` (`<input type="range">` attributes or `aria-valuemin`/`aria-valuemax`). */
+  range?: { min: number; max: number };
   value?: string;
   state: { checked?: boolean; selected?: boolean; expanded?: boolean };
   landmark?: string;
@@ -394,7 +396,16 @@ export function collectInPage(arg: number | CollectOptions, markAttr?: string): 
     if (text) d.text = text;
     const ph = el.getAttribute('placeholder');
     if (ph && isControl) d.placeholder = norm(ph);
-    if (type === 'date' || type === 'time' || type === 'datetime-local' || type === 'month' || type === 'week') d.inputType = type;
+    if (['date', 'time', 'datetime-local', 'month', 'week', 'range', 'color'].includes(type)) d.inputType = type;
+    if (role === 'slider') {
+      const num = (v: string | null | undefined, dflt: number): number => (v != null && v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : dflt);
+      d.range =
+        type === 'range'
+          ? { min: num((el as HTMLInputElement).min, 0), max: num((el as HTMLInputElement).max, 100) }
+          : { min: num(el.getAttribute('aria-valuemin'), 0), max: num(el.getAttribute('aria-valuemax'), 100) };
+      const now = el.getAttribute('aria-valuenow');
+      if (type !== 'range' && now) d.value = now;
+    }
 
     if (isControl && type !== 'checkbox' && type !== 'radio' && type !== 'button' && type !== 'submit' && type !== 'reset' && type !== 'image') {
       let value = '';

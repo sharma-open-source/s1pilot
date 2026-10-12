@@ -26,7 +26,7 @@ export interface InputStep {
 }
 
 export interface ResolveInputOptions {
-  element: Pick<ObservedElement, 'role' | 'name' | 'placeholder' | 'landmark' | 'inputType'>;
+  element: Pick<ObservedElement, 'role' | 'name' | 'placeholder' | 'landmark' | 'inputType' | 'range'>;
   step: InputStep;
   vars: InputVars;
   /** Test-case parameters (name -> value). Only names are shown to models. */
@@ -98,7 +98,15 @@ function candidates(opts: ResolveInputOptions): Candidate[] {
 }
 
 function describe(el: ResolveInputOptions['element']): string {
-  const format = isTemporalInputType(el.inputType) ? `, a ${el.inputType} field that takes ${TEMPORAL_FORMATS[el.inputType]}` : '';
+  const format = isTemporalInputType(el.inputType)
+    ? `, a ${el.inputType} field that takes ${TEMPORAL_FORMATS[el.inputType]}`
+    : el.role === 'slider'
+      ? `, a slider that takes a number${el.range ? ` from ${el.range.min} to ${el.range.max}` : ''}`
+      : el.inputType === 'color'
+        ? ', a colour field that takes #rrggbb or a colour name'
+        : el.role === 'spinbutton'
+          ? ', a number field'
+          : '';
   return `the field labelled ${el.name || '(unlabelled)'}${el.placeholder ? ` (${el.placeholder})` : ''}${format}`;
 }
 
@@ -149,6 +157,7 @@ export async function resolveInput(opts: ResolveInputOptions): Promise<ResolvedI
         placeholder: opts.element.placeholder,
         landmark: opts.element.landmark,
         ...(opts.element.inputType ? { type: opts.element.inputType } : {}),
+        ...(opts.element.range ? { range: opts.element.range } : {}),
       },
       step: opts.step.text,
     });

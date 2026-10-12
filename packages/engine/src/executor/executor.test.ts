@@ -69,6 +69,60 @@ describe('date inputs', () => {
   });
 });
 
+describe('sliders, colour and number inputs', () => {
+  const html = `
+    <label for="vol">Volume</label><input type="range" id="vol" min="0" max="100" value="50" data-testid="slider-volume">
+    <label for="col">Theme colour</label><input type="color" id="col" value="#6366f1" data-testid="color-picker">
+    <label for="qty">Quantity</label><input type="number" id="qty">
+    <span id="bl">Brightness</span>
+    <div id="bright" role="slider" tabindex="0" aria-labelledby="bl" aria-valuemin="0" aria-valuemax="10" aria-valuenow="2"
+      style="width:200px;height:20px;background:#ddd"></div>
+    <script>
+      const s = document.getElementById('bright');
+      s.addEventListener('keydown', (e) => {
+        const v = Number(s.getAttribute('aria-valuenow'));
+        if (e.key === 'ArrowRight') s.setAttribute('aria-valuenow', String(Math.min(10, v + 1)));
+        if (e.key === 'ArrowLeft') s.setAttribute('aria-valuenow', String(Math.max(0, v - 1)));
+      });
+    </script>`;
+  const fill = (page: Page, el: ObservedElement, v: string) =>
+    execute(page, { kind: 'fill', valueRef: 'var:x', locators: el.locators }, { ...ctx, resolveValue: () => v });
+
+  it('observes types and ranges, and sets each control from a human-written value', async () => {
+    const page = await fresh();
+    await page.setContent(html);
+    const vol = await find(page, 'slider', 'Volume');
+    const col = await find(page, 'textbox', 'Theme colour');
+    const qty = await find(page, 'spinbutton', 'Quantity');
+    const bright = await find(page, 'slider', 'Brightness');
+    expect(vol).toMatchObject({ inputType: 'range', range: { min: 0, max: 100 }, value: '50' });
+    expect(col).toMatchObject({ inputType: 'color' });
+    expect(bright).toMatchObject({ range: { min: 0, max: 10 }, value: '2' });
+    expect([vol, col, qty, bright].map((e) => inferAction(e, true))).toEqual(['fill', 'fill', 'fill', 'fill']);
+
+    expect((await fill(page, vol, '80')).ok).toBe(true);
+    expect(await page.locator('#vol').inputValue()).toBe('80');
+    const over = await fill(page, vol, '150');
+    expect(over.error).toMatchObject({ code: 'action_failed', message: 'The slider value is outside its range 0 to 100' });
+
+    expect((await fill(page, col, 'red')).ok).toBe(true);
+    expect(await page.locator('#col').inputValue()).toBe('#ff0000');
+    expect((await fill(page, col, '#0F0')).ok).toBe(true);
+    expect(await page.locator('#col').inputValue()).toBe('#00ff00');
+    expect((await fill(page, col, 'not-a-colour')).error?.message).toMatch(/not a CSS colour/);
+
+    expect((await fill(page, qty, '3')).ok).toBe(true);
+    expect(await page.locator('#qty').inputValue()).toBe('3');
+
+    expect((await fill(page, bright, '7')).ok).toBe(true);
+    expect(await page.locator('#bright').getAttribute('aria-valuenow')).toBe('7');
+    expect((await fill(page, bright, '1')).ok).toBe(true);
+    expect(await page.locator('#bright').getAttribute('aria-valuenow')).toBe('1');
+    expect((await fill(page, bright, '11')).error?.message).toMatch(/outside its range 0 to 10/);
+    await page.context().close();
+  });
+});
+
 describe('inferAction', () => {
   it('maps roles to actions', () => {
     expect(inferAction({ role: 'textbox' }, true)).toBe('fill');

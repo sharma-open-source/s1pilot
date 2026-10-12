@@ -7,7 +7,8 @@ import { errors, type Dialog, type Download, type Frame, type Locator, type Page
 
 import { toPlaywrightLocator } from '../observer/locators.js';
 
-import { isTemporalInputType, normalizeTemporal } from './temporal.js';
+import { normalizeColor, normalizeRange, rangeBounds, setAriaSlider, type ValueResult } from './input-values.js';
+import { isTemporalInputType, normalizeTemporal, type TemporalResult } from './temporal.js';
 import type {
   ActionError,
   ActionOutcome,
@@ -216,17 +217,28 @@ export async function execute(page: Page, action: EngineAction, ctx: ExecutorCon
         await withTarget(action.locators, action.frame, async (l) => {
           const value = await resolve(action.valueRef);
           const kind = await l.evaluate(
-            (el) => (el.tagName === 'SELECT' ? 'select' : el.tagName === 'INPUT' ? (el as HTMLInputElement).type : ''),
+            (el) =>
+              el.tagName === 'SELECT'
+                ? 'select'
+                : el.tagName === 'INPUT'
+                  ? (el as HTMLInputElement).type
+                  : el.getAttribute('role') === 'slider'
+                    ? 'aria-slider'
+                    : '',
             undefined,
             { timeout },
           );
+          const check = (r: ValueResult | TemporalResult): string => {
+            if (!r.ok) throw new ExecError({ code: 'action_failed', message: r.message });
+            return r.value;
+          };
           if (kind === 'select') await l.selectOption({ label: value }, { timeout });
-          else if (isTemporalInputType(kind)) {
-            // Date/time inputs only accept their machine format (1990-01-15), not what the UI shows.
-            const normalized = normalizeTemporal(kind, value);
-            if (!normalized.ok) throw new ExecError({ code: 'action_failed', message: normalized.message });
-            await l.fill(normalized.value, { timeout });
-          } else await l.fill(value, { timeout });
+          // Date/time, range and colour inputs only accept their machine format, not what the UI shows.
+          else if (isTemporalInputType(kind)) await l.fill(check(normalizeTemporal(kind, value)), { timeout });
+          else if (kind === 'range') await l.fill(check(normalizeRange(value, await rangeBounds(l, timeout))), { timeout });
+          else if (kind === 'color') await l.fill(check(await normalizeColor(l, value, timeout)), { timeout });
+          else if (kind === 'aria-slider') check(await setAriaSlider(l, value, timeout));
+          else await l.fill(value, { timeout });
         });
         break;
       case 'selectOption':

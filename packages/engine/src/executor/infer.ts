@@ -4,13 +4,16 @@ export type InferredAction = 'click' | 'fill' | 'selectOption' | 'check';
 
 /**
  * Role-based action inference. `hasValue` says whether a value to enter is available:
- * textbox/searchbox -> fill; combobox -> fill only when a value is available (else click to open);
+ * textbox/searchbox/spinbutton/slider -> fill (sliders are set to a value, not clicked);
+ * combobox -> fill only when a value is available (else click to open);
  * listbox/select -> selectOption; checkbox/radio/switch -> check; everything else -> click.
  */
 export function inferAction(element: Pick<ObservedElement, 'role'>, hasValue: boolean): InferredAction {
   switch (element.role) {
     case 'textbox':
     case 'searchbox':
+    case 'spinbutton':
+    case 'slider':
       return 'fill';
     case 'combobox':
       return hasValue ? 'fill' : 'click';

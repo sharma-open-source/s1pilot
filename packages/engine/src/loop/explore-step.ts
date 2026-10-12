@@ -51,6 +51,7 @@ function actionKindOf(element: ObservedElement): ReturnType<typeof inferAction> 
 /** Option label for the `next_action` question. */
 function describeOption(element: ObservedElement): string {
   const label = `[${element.role}] ${element.name || element.text || element.placeholder || ''}`.trim();
+  if (element.range) return `${label} (slider ${element.range.min}-${element.range.max})`;
   if (element.inputType) return `${label} (${element.inputType} field)`;
   if (!isTextBlock(element)) return label;
   return `${label} (${element.clickable ? 'click it' : 'scroll it into view'})`;
