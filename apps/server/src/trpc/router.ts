@@ -1,6 +1,7 @@
 import { getVersion } from '../version.js';
 
 import { analyticsRouter } from './routers/analytics.js';
+import { auditRouter } from './routers/audit.js';
 import { authRouter } from './routers/auth.js';
 import { calibrationRouter } from './routers/calibration.js';
 import { casesRouter } from './routers/cases.js';
@@ -19,12 +20,14 @@ import { requirementsRouter } from './routers/requirements.js';
 import { reviewsRouter } from './routers/reviews.js';
 import { resultsRouter } from './routers/run-report.js';
 import { runsRouter } from './routers/runs.js';
+import { sessionRouter } from './routers/session.js';
 import { sharedStepsRouter } from './routers/shared-steps.js';
 import { suitesRouter } from './routers/suites.js';
 import { syncStatusProcedure } from './routers/sync-status.js';
 import { tokensRouter } from './routers/tokens.js';
 import { trackersRouter } from './routers/trackers.js';
 import { triggersRouter } from './routers/triggers.js';
+import { usersRouter } from './routers/users.js';
 import { workspaceRouter } from './routers/workspace.js';
 import { createCallerFactory, publicProcedure, router, trpcCodeFor } from './trpc.js';
 
@@ -63,6 +66,9 @@ export const appRouter = router({
   notifications: notificationsRouter,
   imports: importsRouter,
   recorder: recorderRouter,
+  session: sessionRouter,
+  users: usersRouter,
+  audit: auditRouter,
 });
 
 export type AppRouter = typeof appRouter;

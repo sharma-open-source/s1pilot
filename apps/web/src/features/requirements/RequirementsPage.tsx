@@ -8,6 +8,7 @@ import { RequirementDialog, type RequirementRow } from './RequirementDialog';
 import { PageHeader } from '@/components/app/PageHeader';
 import { Breadcrumb, Button, Callout, Card, ConfirmDialog, EmptyState, Input, LinkButton, Pill, Skeleton } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
+import { Can } from '@/lib/session';
 import { trpc } from '@/lib/trpc';
 
 /** Covering case keys shown in a row before "+n more". */
@@ -67,9 +68,11 @@ export function RequirementsPage({ projectKey }: { projectKey: string }) {
             <LinkButton to={base} variant="secondary">
               Back to test cases
             </LinkButton>
-            <Button variant="primary" onClick={() => setDialog({ mode: 'create' })}>
-              New requirement
-            </Button>
+            <Can permission="content:write">
+              <Button variant="primary" onClick={() => setDialog({ mode: 'create' })}>
+                New requirement
+              </Button>
+            </Can>
           </>
         }
       />

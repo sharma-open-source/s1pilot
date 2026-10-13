@@ -69,7 +69,7 @@ async function setup(mode: 'local' | 'team' = 'local') {
     db.close();
     rmSync(dataDir, { recursive: true, force: true });
   });
-  const api = makeCaller(createContext({ db, config, log, runtime }));
+  const api = makeCaller(createContext({ db, config, log, runtime, ...(mode === 'team' ? { user: { id: 'admin-1', role: 'admin' as const } } : {}) }));
   const project = await api.projects.create({ name: 'Shop', key: 'SHOP', baseUrl: `${fixture.url}/shop` });
   const [env] = await repos.environments.listByProject(db, project.id);
   const environment = env as NonNullable<typeof env>;

@@ -44,6 +44,7 @@ import {
 } from '@/components/ui';
 import { Segmented } from '@/components/ui/segmented';
 import { errorMessage } from '@/lib/errors';
+import { Can } from '@/lib/session';
 import { trpc } from '@/lib/trpc';
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -258,17 +259,21 @@ function PlanBuilder({ projectKey, projectLabel, envs, plan }: BuilderProps) {
                 {notice}
               </span>
             )}
-            {planId !== undefined && (
-              <Button variant="danger-outline" disabled={busy} onClick={() => setDeleteOpen(true)}>
-                Delete
+            <Can permission="plans:write">
+              {planId !== undefined && (
+                <Button variant="danger-outline" disabled={busy} onClick={() => setDeleteOpen(true)}>
+                  Delete
+                </Button>
+              )}
+              <Button disabled={busy} onClick={() => void onSave()}>
+                {create.isPending || update.isPending ? 'Saving…' : 'Save plan'}
               </Button>
-            )}
-            <Button disabled={busy} onClick={() => void onSave()}>
-              {create.isPending || update.isPending ? 'Saving…' : 'Save plan'}
-            </Button>
-            <Button variant="primary" disabled={busy} onClick={() => void onRun()}>
-              {createRun.isPending ? 'Starting…' : 'Run plan now'}
-            </Button>
+            </Can>
+            <Can permission="runs:execute">
+              <Button variant="primary" disabled={busy} onClick={() => void onRun()}>
+                {createRun.isPending ? 'Starting…' : 'Run plan now'}
+              </Button>
+            </Can>
           </>
         }
       />

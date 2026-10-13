@@ -9,6 +9,7 @@ import { DiffLine } from '@/components/app/review';
 import { Button, buttonStyles, Callout, EmptyState, Field, Skeleton, Tag, Textarea } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { errorMessage } from '@/lib/errors';
+import { useCan } from '@/lib/session';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 type Detail = RouterOutputs['reviews']['get'];
@@ -90,7 +91,12 @@ function DecisionForm({
       onDecided(out.nextId);
     },
   });
+  const canDecide = useCan('reviews:decide');
+  const canApprove = useCan('approvals:decide');
   const item = data.item;
+  if (item.status === 'pending' && !canDecide) {
+    return <Callout tone="info-ai">Your role can view this item but not decide it.</Callout>;
+  }
   if (item.status !== 'pending') {
     return (
       <div className="flex flex-col gap-2 border-t border-divider-row pt-3">
@@ -109,7 +115,7 @@ function DecisionForm({
       </Field>
       {mutation.isError && <Callout tone="danger">{errorMessage(mutation.error)}</Callout>}
       <div className="flex flex-wrap gap-2.5 border-t border-divider-row pt-3">
-        {buttons.map((b) => (
+        {buttons.filter((b) => canApprove || item.kind !== 'heal' || b.decision === 'reject').map((b) => (
           <Button
             key={b.label}
             variant={b.variant === 'success' ? 'primary' : b.variant}

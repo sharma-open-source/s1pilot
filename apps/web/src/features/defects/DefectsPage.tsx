@@ -21,6 +21,7 @@ import { Button, Callout, Card, Checkbox, EmptyState, Field, Input, Pill, Select
 import { cn } from '@/lib/cn';
 import { errorMessage } from '@/lib/errors';
 import { useProjects } from '@/lib/nav-data';
+import { Can } from '@/lib/session';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 type Row = RouterOutputs['defects']['list']['items'][number];
@@ -72,9 +73,11 @@ export function DefectsPage({ projectKey, search, onSearch }: DefectsPageProps) 
               placeholder="status:open"
               className="flex-none"
             />
-            <Button variant="primary" className="bg-danger" onClick={() => open({ new: true })}>
-              New defect
-            </Button>
+            <Can permission="content:write">
+              <Button variant="primary" className="bg-danger" onClick={() => open({ new: true })}>
+                New defect
+              </Button>
+            </Can>
           </>
         }
       />

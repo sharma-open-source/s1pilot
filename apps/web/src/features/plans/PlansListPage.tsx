@@ -10,6 +10,7 @@ import { relativeTime } from '@/features/dashboard/model';
 import { shortRunId } from '@/features/run-report/model';
 import { errorMessage } from '@/lib/errors';
 import { useProjects } from '@/lib/nav-data';
+import { Can } from '@/lib/session';
 import { trpc } from '@/lib/trpc';
 
 /** Test plans list (`/p/:key/plans`): name, release, cases, matrix, schedule and last run status. */
@@ -29,9 +30,11 @@ export function PlansListPage({ projectKey }: { projectKey: string }) {
         eyebrow={projectName !== undefined ? `${projectKey} · ${projectName}` : projectKey}
         title="Test plans"
         actions={
-          <LinkButton variant="primary" to={`${base}/new`}>
-            New plan
-          </LinkButton>
+          <Can permission="plans:write">
+            <LinkButton variant="primary" to={`${base}/new`}>
+              New plan
+            </LinkButton>
+          </Can>
         }
       />
       {notice !== null && (

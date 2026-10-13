@@ -30,6 +30,7 @@ import { YamlTab } from './YamlTab';
 import { PageHeader } from '@/components/app/PageHeader';
 import { Breadcrumb, Button, Callout, ConfirmDialog, Dialog, Select, Skeleton, Tabs } from '@/components/ui';
 import { errorMessage, trpcCode } from '@/lib/errors';
+import { Can } from '@/lib/session';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 export const CASE_TABS = ['steps', 'parameters', 'learned', 'yaml', 'history', 'results'] as const;
@@ -285,15 +286,19 @@ function CaseEditor({ projectKey, caseKey, tab: rawTab, navigate }: CaseEditorPa
               ))}
             </Select>
           </label>
-          <Button variant="secondary" disabled={runTargets.length === 0 || saving || createRun.isPending} onClick={() => void runNow()}>
-            Run now
-          </Button>
-          <Button variant="danger-outline" disabled={saving || bulk.isPending} onClick={() => setDeleteOpen(true)}>
-            Delete
-          </Button>
-          <Button variant="primary" disabled={saving || !dirty} onClick={() => void save()} title="Ctrl/Cmd+S">
-            {saving ? 'Saving…' : 'Save'}
-          </Button>
+          <Can permission="runs:execute">
+            <Button variant="secondary" disabled={runTargets.length === 0 || saving || createRun.isPending} onClick={() => void runNow()}>
+              Run now
+            </Button>
+          </Can>
+          <Can permission="content:write">
+            <Button variant="danger-outline" disabled={saving || bulk.isPending} onClick={() => setDeleteOpen(true)}>
+              Delete
+            </Button>
+            <Button variant="primary" disabled={saving || !dirty} onClick={() => void save()} title="Ctrl/Cmd+S">
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </Can>
         </div>
       </header>
       <ConfirmDialog

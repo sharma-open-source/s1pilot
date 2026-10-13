@@ -87,7 +87,7 @@ describe('trpc context and error mapping', () => {
       config: loadConfig({ dataDir: '/tmp/x' }, {}),
       log: createLogger({ level: 'silent' }),
     });
-    expect(ctx.user).toEqual({ id: 'local', role: 'admin' });
+    expect(ctx.user).toMatchObject({ id: 'local', role: 'admin' });
     const caller = createCallerFactory(testRouter)(ctx);
     await expect(caller.missing()).rejects.toMatchObject({ code: 'NOT_FOUND', message: 'no such project' });
     await expect(caller.bad()).rejects.toMatchObject({ code: 'BAD_REQUEST' });

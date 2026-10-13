@@ -9,11 +9,13 @@ import { createVault, isPostgresUrl, openDb, type Db } from '@s1pilot/db';
 import { S1PilotError } from '@s1pilot/domain/errors';
 import { createLogger } from '@s1pilot/domain/logger';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
-import Fastify, { type FastifyBaseLogger, type FastifyInstance, type FastifyRequest } from 'fastify';
+import Fastify, { type FastifyBaseLogger, type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 
 import { startRetentionJob } from './artifacts/retention.js';
 import { registerArtifactRoutes } from './artifacts/routes.js';
 import { FsArtifactStore } from './artifacts/store.js';
+import { authDeps, registerSessionAuth } from './auth/http.js';
+import { registerOidcRoutes } from './auth/oidc-routes.js';
 import { registerTokenAuth } from './auth/tokens.js';
 import type { ServerConfig } from './config.js';
 import { registerExportRoutes } from './exports/routes.js';
@@ -23,7 +25,7 @@ import { registerTrackerWebhookRoutes } from './trackers/routes.js';
 import { startTrackerSync } from './trackers/service.js';
 import { firePlan } from './triggers/fire.js';
 import { registerWebhookRoutes } from './triggers/routes.js';
-import { createContext } from './trpc/context.js';
+import { SYSTEM_USER, createContext } from './trpc/context.js';
 import { appRouter } from './trpc/router.js';
 import { getVersion } from './version.js';
 import { createRuntime, type RuntimeOptions } from './worker/runtime.js';
@@ -74,6 +76,7 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
   await app.register(websocket);
 
   registerTokenAuth(app, db);
+  registerSessionAuth(app, db, config);
 
   app.get('/api/health', async () => ({ ok: true, version: getVersion(), mode: config.mode }));
 
@@ -83,12 +86,15 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
   registerArtifactRoutes(app, artifacts);
   registerExportRoutes(app, { db, runtime, config });
   const deps = { db, config, log, runtime };
-  registerWebhookRoutes(app, deps);
+  // Server-internal work (scheduler, inbound webhooks, tracker sync) runs as the system user in team mode.
+  const sysDeps = config.mode === 'team' ? { ...deps, user: SYSTEM_USER } : deps;
+  registerOidcRoutes(app, deps);
+  registerWebhookRoutes(app, sysDeps);
   registerManualRoutes(app, deps);
-  registerTrackerWebhookRoutes(app, deps);
-  if (opts.scheduler ?? true) await runtime.scheduler.start((planId) => firePlan(createContext(deps), planId, 'schedule'));
+  registerTrackerWebhookRoutes(app, sysDeps);
+  if (opts.scheduler ?? true) await runtime.scheduler.start((planId) => firePlan(createContext(sysDeps), planId, 'schedule'));
   const stopRetention = startRetentionJob({ db, store: artifacts, log });
-  const stopTrackerSync = opts.trackerSync === false ? () => undefined : startTrackerSync(() => createContext(deps));
+  const stopTrackerSync = opts.trackerSync === false ? () => undefined : startTrackerSync(() => createContext(sysDeps));
   app.addHook('onClose', async () => {
     stopRetention();
     stopTrackerSync();
@@ -100,13 +106,14 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
     if (ownsDb) db.close();
   });
 
-  registerLiveRoutes(app, runtime.live, runtime.human);
+  registerLiveRoutes(app, runtime.live, runtime.human, config);
 
   await app.register(fastifyTRPCPlugin, {
     prefix: '/trpc',
     trpcOptions: {
       router: appRouter,
-      createContext: ({ req }: { req: FastifyRequest }) => createContext({ db, config, log, runtime, ...(req.apiToken ? { token: req.apiToken } : {}) }),
+      createContext: ({ req, res }: { req: FastifyRequest; res: FastifyReply }) =>
+        createContext({ db, config, log, runtime, ...(req.apiToken ? { token: req.apiToken } : {}), ...authDeps(req, res, config) }),
     },
   });
 

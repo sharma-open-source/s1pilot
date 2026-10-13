@@ -35,6 +35,7 @@ import {
 import { cn } from '@/lib/cn';
 import { errorMessage } from '@/lib/errors';
 import { useProjects } from '@/lib/nav-data';
+import { Can } from '@/lib/session';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 /** URL search state of `/p/:key/cases`. */
@@ -312,7 +313,7 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
       eyebrow={projectName !== undefined ? `${projectKey} · ${projectName}` : projectKey}
       title="Test cases"
       actions={
-        <>
+        <Can permission="content:write">
           <Button onClick={() => setImporting(true)}>Import</Button>
           <GenerateFromStory projectKey={projectKey} navigate={navigate} {...(suiteId !== undefined ? { suiteId } : {})} />
           <Button onClick={() => setRecordOpen(true)}>Record in browser</Button>
@@ -331,7 +332,7 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
           >
             New test case
           </Button>
-        </>
+        </Can>
       }
     />
   );
@@ -412,15 +413,19 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
                   ))}
                 </DropdownContent>
               </DropdownMenu>
-              <Button size="sm" disabled={n === 0 || bulk.isPending} onClick={() => setTagOpen(true)}>
-                Tag
-              </Button>
-              <Button size="sm" variant="danger-outline" disabled={n === 0 || bulk.isPending} onClick={() => setDeleteOpen(true)}>
-                Delete
-              </Button>
-              <Button size="sm" variant="primary" disabled={n === 0} onClick={() => setRunOpen(true)}>
-                Run now
-              </Button>
+              <Can permission="content:write">
+                <Button size="sm" disabled={n === 0 || bulk.isPending} onClick={() => setTagOpen(true)}>
+                  Tag
+                </Button>
+                <Button size="sm" variant="danger-outline" disabled={n === 0 || bulk.isPending} onClick={() => setDeleteOpen(true)}>
+                  Delete
+                </Button>
+              </Can>
+              <Can permission="runs:execute">
+                <Button size="sm" variant="primary" disabled={n === 0} onClick={() => setRunOpen(true)}>
+                  Run now
+                </Button>
+              </Can>
             </div>
             <span className="text-secondary">
               {clean === undefined ? (

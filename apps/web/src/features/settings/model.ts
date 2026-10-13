@@ -1,15 +1,17 @@
+import type { Permission } from '@s1pilot/domain';
+
 /** Settings sections in nav order (wireframe 13). The slug is the `/settings/:section` param. */
 export const SETTINGS_SECTIONS = [
-  { slug: 'general', label: 'General' },
-  { slug: 'models', label: 'Models & endpoints' },
-  { slug: 'integrations', label: 'Integrations' },
-  { slug: 'notifications', label: 'Notifications' },
-  { slug: 'users', label: 'Users & roles', badge: 'team mode' },
-  { slug: 'data', label: 'Data & retention' },
-  { slug: 'workers', label: 'Workers' },
-  { slug: 'tokens', label: 'API tokens & CLI' },
-  { slug: 'audit', label: 'Audit log' },
-] as const;
+  { slug: 'general', label: 'General', permission: 'read' },
+  { slug: 'models', label: 'Models & endpoints', permission: 'settings:manage' },
+  { slug: 'integrations', label: 'Integrations', permission: 'settings:manage' },
+  { slug: 'notifications', label: 'Notifications', permission: 'settings:manage' },
+  { slug: 'users', label: 'Users & roles', badge: 'team mode', permission: 'users:manage' },
+  { slug: 'data', label: 'Data & retention', permission: 'settings:manage' },
+  { slug: 'workers', label: 'Workers', permission: 'settings:manage' },
+  { slug: 'tokens', label: 'API tokens & CLI', permission: 'settings:manage' },
+  { slug: 'audit', label: 'Audit log', permission: 'audit:read' },
+] as const satisfies ReadonlyArray<{ slug: string; label: string; badge?: string; permission: Permission }>;
 
 export type SettingsSlug = (typeof SETTINGS_SECTIONS)[number]['slug'];
 

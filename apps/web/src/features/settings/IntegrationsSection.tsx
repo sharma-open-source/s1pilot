@@ -5,7 +5,7 @@ import { ImportWizard } from '../import/ImportWizard';
 
 import { CiSetup } from './CiSetup';
 import { CI_CARDS, INTEGRATIONS, TRACKER_PLACEHOLDERS, ago, githubWorkflowSnippet, gitlabSnippet } from './model';
-import { UsersSection } from './PlaceholderSections';
+import { RolesOverview } from './RolesOverview';
 import { TrackerCards } from './TrackersSection';
 
 import { CodeBlock } from '@/components/app/CodeBlock';
@@ -82,7 +82,7 @@ export function IntegrationsSection() {
           </Link>
         }
       />
-      <UsersSection />
+      <RolesOverview />
     </>
   );
 }

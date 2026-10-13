@@ -19,7 +19,7 @@ import { isValidCron } from '../../triggers/scheduler.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
 
-import { requireProject } from './helpers.js';
+import { requireKnownUser, requireProject } from './helpers.js';
 
 /** Plan content as sent by clients: everything but the server-managed fields. */
 export const PlanDraftSchema = TestPlanSchema.omit({ id: true, projectId: true, createdAt: true, updatedAt: true });
@@ -117,6 +117,7 @@ export async function validatePlanDraft(ctx: Context, project: Project, plan: Pl
       );
     }
   }
+  for (const a of Object.values(plan.assignments ?? {})) await requireKnownUser(ctx, a.assignee, 'assignee');
   return envs;
 }
 

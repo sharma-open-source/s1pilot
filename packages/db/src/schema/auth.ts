@@ -1,5 +1,5 @@
 import type { AuthValidation } from '@s1pilot/domain';
-import { sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
+import { index, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
 
 import { environments } from './core.js';
 
@@ -37,3 +37,74 @@ export const apiTokens = sqliteTable('api_tokens', {
   lastUsedAt: text('last_used_at'),
   revokedAt: text('revoked_at'),
 });
+
+
+/** Team-mode users (S-067). `passwordHash` is an argon2id hash; SSO-only users have none. */
+export const users = sqliteTable(
+  'users',
+  {
+    id: text('id').primaryKey(),
+    /** Lower-cased. */
+    email: text('email').notNull().unique(),
+    name: text('name').notNull(),
+    passwordHash: text('password_hash'),
+    role: text('role', { enum: ['admin', 'lead', 'tester', 'viewer'] }).notNull(),
+    status: text('status', { enum: ['active', 'deactivated'] }).notNull(),
+    oidcIssuer: text('oidc_issuer'),
+    oidcSubject: text('oidc_subject'),
+    createdAt: text('created_at').notNull(),
+    lastLoginAt: text('last_login_at'),
+  },
+  (t) => [index('users_oidc_idx').on(t.oidcIssuer, t.oidcSubject)],
+);
+
+/** Login sessions. Only a SHA-256 of the cookie token is stored; the previous token stays valid for a short grace period after a rotation. */
+export const sessions = sqliteTable(
+  'sessions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    prevTokenHash: text('prev_token_hash'),
+    createdAt: text('created_at').notNull(),
+    rotatedAt: text('rotated_at').notNull(),
+    expiresAt: text('expires_at').notNull(),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+  },
+  (t) => [index('sessions_user_idx').on(t.userId)],
+);
+
+/** Invite links created by an admin. Only a SHA-256 of the link token is stored. */
+export const invites = sqliteTable('invites', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  role: text('role', { enum: ['admin', 'lead', 'tester', 'viewer'] }).notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  createdBy: text('created_by').notNull(),
+  createdAt: text('created_at').notNull(),
+  expiresAt: text('expires_at').notNull(),
+  acceptedAt: text('accepted_at'),
+  revokedAt: text('revoked_at'),
+});
+
+/** Audit log of edits, approvals, overrides and settings changes. `before` / `after` hold changed fields only, secrets redacted. */
+export const auditLog = sqliteTable(
+  'audit_log',
+  {
+    id: text('id').primaryKey(),
+    at: text('at').notNull(),
+    actorId: text('actor_id').notNull(),
+    actorName: text('actor_name').notNull(),
+    action: text('action').notNull(),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id').notNull(),
+    projectKey: text('project_key'),
+    before: text('before', { mode: 'json' }).$type<unknown>(),
+    after: text('after', { mode: 'json' }).$type<unknown>(),
+    ip: text('ip'),
+  },
+  (t) => [index('audit_log_at_idx').on(t.at), index('audit_log_action_idx').on(t.action, t.at), index('audit_log_actor_idx').on(t.actorId, t.at)],
+);

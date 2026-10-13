@@ -36,8 +36,10 @@
     "@s1pilot/runner": "workspace:^",
     "@s1pilot/sync": "workspace:^",
     "@trpc/server": "^11",
+    "argon2": "^0.45.1",
     "croner": "^10.0.1",
     "fastify": "^5",
+    "openid-client": "^6.8.8",
     "playwright": "^1.63.0",
     "zod": "^3.23.8"
   },

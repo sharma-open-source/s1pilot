@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 
 import { Nav } from './Nav';
 
+import { UserMenu } from '@/features/auth/UserMenu';
 import { EMPTY_MODELS, useModelsStatus, useProjects, useWorkspaceBadges } from '@/lib/nav-data';
 
 
@@ -59,6 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           badges={badges}
           models={models.data ?? EMPTY_MODELS}
         />
+        <UserMenu />
       </div>
       <main className="flex min-w-0 flex-[999_1_560px] flex-col gap-6 px-4 py-6 min-[640px]:px-9 min-[640px]:py-7">{children}</main>
     </div>
