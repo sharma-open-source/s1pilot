@@ -1,7 +1,8 @@
-import { RunControlMessageSchema, S1PilotError } from '@s1pilot/domain';
+import { RunControlMessageSchema, S1PilotError, can } from '@s1pilot/domain';
 import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
 
+import type { ServerConfig } from '../config.js';
 
 import type { HumanControl } from './control.js';
 import type { LiveClient, LiveHub } from './hub.js';
@@ -27,7 +28,7 @@ function clientFor(socket: WebSocket): LiveClient {
  * `control`); each is answered with `{type:'control.ack'}` or `{type:'control.error', code, message}`.
  * Workspace socket messages are ignored.
  */
-export function registerLiveRoutes(app: FastifyInstance, hub: LiveHub, control?: HumanControl): void {
+export function registerLiveRoutes(app: FastifyInstance, hub: LiveHub, control?: HumanControl, config?: ServerConfig): void {
   app.get<{ Params: { runId: string } }>('/ws/runs/:runId', { websocket: true }, (socket, req) => {
     let unsubscribe: (() => void) | undefined;
     let closed = false;
@@ -52,8 +53,12 @@ export function registerLiveRoutes(app: FastifyInstance, hub: LiveHub, control?:
         reply({ type: 'control.error', code: 'INVALID_MESSAGE', message: parsed.success ? 'Control is not available' : parsed.error.message });
         return;
       }
-      // TODO(S-067): the user comes from the session in team mode.
-      control.handle(req.params.runId, 'local', parsed.data).then(
+      // Team mode: the session user (the cookie is sent with the upgrade request); viewers cannot control runs.
+      if (config?.mode === 'team' && !(req.sessionUser && can(req.sessionUser.role, 'runs:execute'))) {
+        reply({ type: 'control.error', control: parsed.data.type, code: 'FORBIDDEN', message: 'Your role cannot control runs' });
+        return;
+      }
+      control.handle(req.params.runId, req.sessionUser?.id ?? 'local', parsed.data).then(
         () => reply({ type: 'control.ack', control: parsed.data.type }),
         (error: unknown) => {
           if (!(error instanceof S1PilotError)) req.log.error({ err: error }, 'live: control failed');

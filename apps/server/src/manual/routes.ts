@@ -1,6 +1,7 @@
 import { S1PilotError } from '@s1pilot/domain';
 import type { FastifyInstance } from 'fastify';
 
+import { authDeps } from '../auth/http.js';
 import { createContext, type ServerDeps } from '../trpc/context.js';
 import { MAX_ATTACHMENT_BYTES, attachToStep } from '../trpc/routers/manual.js';
 
@@ -19,7 +20,7 @@ export function registerManualRoutes(app: FastifyInstance, deps: ServerDeps): vo
       if (!Buffer.isBuffer(req.body)) return reply.code(415).send({ error: 'Send the file as an image/* or video/* body' });
       const contentType = (req.headers['content-type'] ?? '').split(';')[0] ?? '';
       try {
-        const saved = await attachToStep(createContext(deps), req.params.itemId, step, {
+        const saved = await attachToStep(createContext({ ...deps, ...(req.apiToken ? { token: req.apiToken } : {}), ...authDeps(req, undefined, deps.config) }), req.params.itemId, step, {
           name: req.query.name?.slice(0, 120) || `attachment-${Date.now()}`,
           contentType,
           data: req.body,

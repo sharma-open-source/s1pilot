@@ -1,6 +1,7 @@
 import { analytics } from './analytics.js';
 import { apiTokens } from './api-tokens.js';
 import { artifacts } from './artifacts.js';
+import { audit } from './audit.js';
 import { authSetups } from './auth-setups.js';
 import { cases } from './cases.js';
 import { defects } from './defects.js';
@@ -17,6 +18,7 @@ import { runs } from './runs.js';
 import { settings } from './settings.js';
 import { sharedSteps } from './shared-steps.js';
 import { suites } from './suites.js';
+import { users } from './users.js';
 
 /** All repositories. Every function takes the `Db` as its first argument and returns domain types. */
 export const repos = {
@@ -39,6 +41,8 @@ export const repos = {
   authSetups,
   analytics,
   apiTokens,
+  users,
+  audit,
 };
 
 export type { ApiTokenRecord, ApiTokensRepo } from './api-tokens.js';
@@ -64,3 +68,5 @@ export type { SettingsRepo } from './settings.js';
 export type { SharedStepsRepo } from './shared-steps.js';
 export type { SuitesRepo } from './suites.js';
 export type { AnalyticsRepo } from './analytics.js';
+export type { AuditFilter, AuditRepo } from './audit.js';
+export type { InviteRecord, SessionRecord, UserRecord, UsersRepo } from './users.js';

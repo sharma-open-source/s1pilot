@@ -1,6 +1,11 @@
+import { can } from '@s1pilot/domain';
 import { S1PilotError } from '@s1pilot/domain/errors';
 import { initTRPC, TRPCError } from '@trpc/server';
 
+import { recordAudit } from '../audit/audit.js';
+import { AUDIT_RULES } from '../audit/rules.js';
+
+import { PUBLIC_PROCEDURES, permissionFor } from './authz.js';
 import type { Context } from './context.js';
 
 type TrpcCode = ConstructorParameters<typeof TRPCError>[0]['code'];
@@ -45,6 +50,40 @@ const mapErrors = t.middleware(async ({ next }) => {
   return result;
 });
 
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/**
+ * Authentication, role permissions and audit logging for every procedure (S-067).
+ * - team mode without a session: `UNAUTHORIZED` (except the public `session.*` procedures);
+ * - role lacks the permission of the procedure ({@link permissionFor}): `FORBIDDEN`;
+ * - successful audited mutations ({@link AUDIT_RULES}) append an audit entry with the before/after diff.
+ */
+const authz = t.middleware(async ({ ctx, path, type, getRawInput, next }) => {
+  if (PUBLIC_PROCEDURES.has(path)) return next();
+  if (ctx.anonymous) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Sign in required' });
+  const permission = permissionFor(path, type);
+  if (!can(ctx.user.role, permission)) {
+    throw new TRPCError({ code: 'FORBIDDEN', message: `Your role (${ctx.user.role}) cannot do this (needs ${permission})` });
+  }
+  const rule = type === 'mutation' ? AUDIT_RULES[path] : undefined;
+  if (!rule) return next();
+  const raw = await getRawInput();
+  const input = isObject(raw) ? raw : { id: raw };
+  const before = rule.before ? await rule.before(ctx, input).catch(() => undefined) : undefined;
+  const result = await next();
+  if (result.ok) {
+    const out = isObject(result.data) ? result.data : {};
+    const described = rule.describe({ input, result: out, before });
+    const { after, ...rest } = described;
+    await recordAudit(ctx, {
+      ...rest,
+      ...(before !== undefined || rule.before ? { before: before ?? null } : {}),
+      after: after !== undefined ? after : rule.afterFromInput ? input : result.data,
+    });
+  }
+  return result;
+});
+
 export const router = t.router;
-export const publicProcedure = t.procedure.use(mapErrors);
+export const publicProcedure = t.procedure.use(mapErrors).use(authz);
 export const createCallerFactory = t.createCallerFactory;

@@ -5,6 +5,19 @@ import { join, resolve } from 'node:path';
 import { S1PilotError } from '@s1pilot/domain/errors';
 import { z } from 'zod';
 
+/** OpenID Connect provider for team-mode SSO (S-067). The client secret comes from the environment only. */
+export const OidcConfigSchema = z.object({
+  issuer: z.string().url(),
+  clientId: z.string().min(1),
+  clientSecret: z.string().min(1),
+  /** Button label on the login page. */
+  label: z.string().min(1).optional(),
+  scopes: z.string().min(1).optional(),
+  /** Allow a plain-http issuer that is not on localhost (never in production). */
+  allowInsecure: z.boolean().optional(),
+});
+export type OidcConfig = z.infer<typeof OidcConfigSchema>;
+
 /** Validated server configuration. */
 export const ConfigSchema = z.object({
   port: z.number().int().min(0).max(65535),
@@ -30,6 +43,10 @@ export const ConfigSchema = z.object({
   /** Seconds a remote worker may go silent before its leased jobs are re-queued (S-068). Default 30. */
   workerLeaseSec: z.number().positive().optional(),
   mode: z.enum(['local', 'team']),
+  /** Externally visible origin (OIDC redirect URI, `Secure` cookies), e.g. `https://s1pilot.example.com`. Default: from the request. */
+  publicUrl: z.string().url().optional(),
+  /** Team-mode single sign-on. Env: `S1PILOT_OIDC_ISSUER`, `_CLIENT_ID`, `_CLIENT_SECRET`, `_LABEL`, `_SCOPES`. */
+  oidc: OidcConfigSchema.optional(),
   /** In-process workers executing queued runs (0 disables execution). */
   workers: z.number().int().min(0).max(32),
   /** Minutes an attended run waits for a human to answer an escalation before the step is `blocked` (S-037). */
@@ -71,6 +88,7 @@ const ENV_KEYS: Record<string, keyof ServerConfig> = {
   S1PILOT_WORKER_LEASE_SEC: 'workerLeaseSec',
   S1PILOT_WORKER_TOKEN: 'workerToken',
   S1PILOT_MODE: 'mode',
+  S1PILOT_PUBLIC_URL: 'publicUrl',
   S1PILOT_LOG_LEVEL: 'logLevel',
   S1PILOT_WORKERS: 'workers',
   S1PILOT_ESCALATION_TIMEOUT_MIN: 'escalationTimeoutMin',
@@ -89,6 +107,16 @@ export function loadConfig(
   for (const [name, key] of Object.entries(ENV_KEYS)) {
     const v = env[name];
     if (v !== undefined) merged[key] = coerce(key, v);
+  }
+  const issuer = env['S1PILOT_OIDC_ISSUER'];
+  if (issuer !== undefined) {
+    merged.oidc = {
+      issuer,
+      clientId: env['S1PILOT_OIDC_CLIENT_ID'],
+      clientSecret: env['S1PILOT_OIDC_CLIENT_SECRET'],
+      ...(env['S1PILOT_OIDC_LABEL'] ? { label: env['S1PILOT_OIDC_LABEL'] } : {}),
+      ...(env['S1PILOT_OIDC_SCOPES'] ? { scopes: env['S1PILOT_OIDC_SCOPES'] } : {}),
+    };
   }
   for (const [k, v] of Object.entries(overrides)) {
     if (v !== undefined) merged[k as keyof ServerConfig] = v;

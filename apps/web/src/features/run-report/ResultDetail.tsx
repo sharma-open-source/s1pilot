@@ -8,6 +8,7 @@ import { Button, Callout, Dialog, Field, LinkButton, Select, Skeleton, Tag, Text
 import { cn } from '@/lib/cn';
 import { optionText } from '@/lib/decisions';
 import { errorMessage } from '@/lib/errors';
+import { Can, useCan } from '@/lib/session';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 type ResultDetailData = RouterOutputs['results']['get'];
@@ -32,6 +33,7 @@ function stepSuffix(s: DetailStep): string {
 
 /** Detail card of one case result: header actions, expected/actual, assertions, screenshots and evidence tabs. */
 export function ResultDetail({ resultId, projectKey, onChanged }: { resultId: string; projectKey: string; onChanged: () => void }) {
+  const canEdit = useCan('content:write');
   const query = trpc.results.get.useQuery(resultId);
   const [overrideOpen, setOverrideOpen] = useState(false);
 
@@ -77,16 +79,20 @@ export function ResultDetail({ resultId, projectKey, onChanged }: { resultId: st
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <h2 className="m-0 min-w-0 break-words text-lg font-semibold">{detailTitle(d.case.key, browser, verdict, d.failedStep)}</h2>
         <div className="flex flex-wrap gap-2">
-          <LinkButton
-            variant="primary"
-            className="bg-danger"
-            to={`/p/${encodeURIComponent(projectKey)}/defects`}
-            search={{ fromResult: resultId, ...(failStep ? { step: failStep.stepIndex } : {}) }}
-          >
-            Create defect
-          </LinkButton>
-          <Button onClick={() => setOverrideOpen(true)}>Override verdict</Button>
-          <LinkButton to={`/p/${encodeURIComponent(projectKey)}/cases/${encodeURIComponent(d.case.key)}`}>Edit case</LinkButton>
+          <Can permission="content:write">
+            <LinkButton
+              variant="primary"
+              className="bg-danger"
+              to={`/p/${encodeURIComponent(projectKey)}/defects`}
+              search={{ fromResult: resultId, ...(failStep ? { step: failStep.stepIndex } : {}) }}
+            >
+              Create defect
+            </LinkButton>
+          </Can>
+          <Can permission="reviews:decide">
+            <Button onClick={() => setOverrideOpen(true)}>Override verdict</Button>
+          </Can>
+          <LinkButton to={`/p/${encodeURIComponent(projectKey)}/cases/${encodeURIComponent(d.case.key)}`}>{canEdit ? 'Edit case' : 'View case'}</LinkButton>
         </div>
       </div>
 

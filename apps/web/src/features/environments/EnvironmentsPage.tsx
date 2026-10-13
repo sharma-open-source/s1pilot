@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/app/PageHeader';
 import { Button, Callout, Card, Dialog, EmptyState, Field, Input, Skeleton, Tabs } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
 import { useProjects } from '@/lib/nav-data';
+import { Can } from '@/lib/session';
 import { trpc } from '@/lib/trpc';
 
 const NO_ERRORS: FormErrors = { variables: {} };
@@ -175,9 +176,11 @@ function EnvironmentEditor({
           {notice}
         </span>
       )}
-      <Button variant="primary" disabled={!dirty || update.isPending} onClick={() => void save()}>
-        {update.isPending ? 'Saving…' : 'Save changes'}
-      </Button>
+      <Can permission="projects:manage">
+        <Button variant="primary" disabled={!dirty || update.isPending} onClick={() => void save()}>
+          {update.isPending ? 'Saving…' : 'Save changes'}
+        </Button>
+      </Can>
     </>
   );
   return (
@@ -229,7 +232,9 @@ export function EnvironmentsPage({ projectKey, envName }: { projectKey: string; 
         title="Environments"
         actions={
           <>
-            <Button onClick={() => setAdding(true)}>+ Add environment</Button>
+            <Can permission="projects:manage">
+              <Button onClick={() => setAdding(true)}>+ Add environment</Button>
+            </Can>
             {save}
           </>
         }

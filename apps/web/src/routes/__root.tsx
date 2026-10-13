@@ -3,12 +3,15 @@ import { createRootRoute, Outlet } from '@tanstack/react-router';
 import { AppShell } from '@/components/app/AppShell';
 import { PageHeader } from '@/components/app/PageHeader';
 import { EmptyState } from '@/components/ui/misc';
+import { AuthGate } from '@/features/auth/AuthGate';
 
 export const Route = createRootRoute({
   component: () => (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <AuthGate>
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </AuthGate>
   ),
   notFoundComponent: () => (
     <>

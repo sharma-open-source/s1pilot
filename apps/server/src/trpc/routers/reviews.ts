@@ -1,4 +1,4 @@
-import { IdSchema, S1PilotError, type HealProposal, type LocatorCandidate, type ResolvedAction, type ReviewItem, type Verdict } from '@s1pilot/domain';
+import { IdSchema, S1PilotError, can, type HealProposal, type LocatorCandidate, type ResolvedAction, type ReviewItem, type Verdict } from '@s1pilot/domain';
 import { z } from 'zod';
 
 import { pendingDraftCount, syncRecords } from '../../generation/service.js';
@@ -267,6 +267,10 @@ export const reviewsRouter = router({
       const item = await requireItem(ctx, input.id);
       if (item.status !== 'pending') {
         throw new S1PilotError('INVALID_STATE', `Review item is already ${item.status}`, { id: item.id });
+      }
+      // Approving a heal rewrites the learned script for every case that shares it: leads and admins only.
+      if (item.kind === 'heal' && input.decision !== 'reject' && !can(ctx.user.role, 'approvals:decide')) {
+        throw new S1PilotError('FORBIDDEN', 'Only leads and admins can approve heal proposals');
       }
       const note = input.note.trim();
       const queue = await pendingIds(ctx, item.projectId, item.kind);

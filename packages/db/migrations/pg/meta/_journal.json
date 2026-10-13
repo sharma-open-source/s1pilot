@@ -15,6 +15,13 @@
       "when": 1791871252462,
       "tag": "0001_worker_labels",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791874223701,
+      "tag": "0002_auth_audit",
+      "breakpoints": true
     }
   ]
 }

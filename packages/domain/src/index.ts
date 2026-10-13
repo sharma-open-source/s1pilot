@@ -29,3 +29,4 @@ export * from './exit-criteria.js';
 export * from './calibration.js';
 export * from './generation.js';
 export * from './step-guide.js';
+export * from './permissions.js';

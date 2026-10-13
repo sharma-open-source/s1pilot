@@ -24,6 +24,7 @@ import {
   Textarea,
 } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
+import { Can } from '@/lib/session';
 import { trpc } from '@/lib/trpc';
 
 export interface RunReportSearch {
@@ -117,12 +118,16 @@ export function RunReportPage({ projectKey, runId, search, onSearch, navigate }:
               </DropdownItem>
             </DropdownContent>
           </DropdownMenu>
-          <Button disabled={live || report === undefined} onClick={() => setSigning(true)}>
-            {report?.signOff ? 'Update sign-off' : 'Sign off'}
-          </Button>
-          <Button variant="primary" disabled={failedCount === 0 || rerun.isPending} onClick={() => rerun.mutate(runId)}>
-            Rerun failed
-          </Button>
+          <Can permission="signoff">
+            <Button disabled={live || report === undefined} onClick={() => setSigning(true)}>
+              {report?.signOff ? 'Update sign-off' : 'Sign off'}
+            </Button>
+          </Can>
+          <Can permission="runs:execute">
+            <Button variant="primary" disabled={failedCount === 0 || rerun.isPending} onClick={() => rerun.mutate(runId)}>
+              Rerun failed
+            </Button>
+          </Can>
         </>
       }
     />

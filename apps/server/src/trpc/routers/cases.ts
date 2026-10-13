@@ -19,7 +19,7 @@ import { z } from 'zod';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
 
-import { requireCase, requireProject, requireSuiteIn } from './helpers.js';
+import { requireCase, requireKnownUser, requireProject, requireSuiteIn } from './helpers.js';
 
 /** Content fields of a case (everything except the key, which the server allocates). */
 const CaseContentSchema = TestCaseFileSchema.omit({ key: true });
@@ -239,6 +239,7 @@ export const casesRouter = router({
   create: publicProcedure.input(CreateInput).mutation(async ({ ctx, input }) => {
     const { projectKey, ...content } = input;
     const project = await requireProject(ctx, projectKey);
+    await requireKnownUser(ctx, content.owner);
     if (content.suiteId !== undefined) await requireSuiteIn(ctx, content.suiteId, project.id);
     return ctx.repos.cases.create(ctx.db, project.id, content);
   }),
@@ -252,6 +253,7 @@ export const casesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const c = await requireCase(ctx, input.key);
       const { suiteId, ...rest } = input.patch;
+      await requireKnownUser(ctx, rest.owner);
       if (suiteId) await requireSuiteIn(ctx, suiteId, c.projectId);
       return ctx.repos.cases.update(
         ctx.db,
@@ -388,6 +390,7 @@ export const casesRouter = router({
         throw error;
       }
       const { file } = parsed;
+      await requireKnownUser(ctx, file.owner);
       if (file.key !== c.key) {
         throw new S1PilotError('INVALID_CASE_KEY', `YAML key ${file.key} does not match ${c.key}`, { key: c.key, yamlKey: file.key });
       }

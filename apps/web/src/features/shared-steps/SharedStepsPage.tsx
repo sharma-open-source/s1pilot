@@ -7,6 +7,7 @@ import type { SharedStepRow } from './model';
 import { PageHeader } from '@/components/app/PageHeader';
 import { Breadcrumb, Button, Callout, Card, EmptyState, Input, LinkButton, Skeleton } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
+import { Can } from '@/lib/session';
 import { trpc } from '@/lib/trpc';
 
 type Notice = { tone: 'success' | 'danger'; text: string };
@@ -52,9 +53,11 @@ export function SharedStepsPage({ projectKey }: { projectKey: string }) {
             <LinkButton to={`${base}/cases`} variant="secondary">
               Back to test cases
             </LinkButton>
-            <LinkButton to={editHref('new')} variant="primary">
-              New shared step
-            </LinkButton>
+            <Can permission="content:write">
+              <LinkButton to={editHref('new')} variant="primary">
+                New shared step
+              </LinkButton>
+            </Can>
           </>
         }
       />

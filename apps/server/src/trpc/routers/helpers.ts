@@ -72,3 +72,15 @@ export function maskEnvironment(env: Environment) {
   };
 }
 export type MaskedEnvironment = ReturnType<typeof maskEnvironment>;
+
+/**
+ * Team mode: owner and assignee fields must reference an active user (by id; see `users.options`).
+ * Local mode keeps free text. Empty values are fine.
+ */
+export async function requireKnownUser(ctx: Context, userId: string | undefined, field = 'owner'): Promise<void> {
+  if (ctx.config.mode !== 'team' || !userId) return;
+  const user = await ctx.repos.users.get(ctx.db, userId);
+  if (!user || user.status !== 'active') {
+    throw new S1PilotError('INVALID_INPUT', `The ${field} must be an active user; pick one from the list`, { field, userId });
+  }
+}

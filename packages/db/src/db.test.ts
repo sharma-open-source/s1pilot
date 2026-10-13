@@ -12,7 +12,7 @@ const EXPECTED_TABLES = [
   'workspaces', 'projects', 'environments', 'variables', 'suites', 'test_cases', 'test_case_versions',
   'shared_steps', 'requirements', 'case_requirements', 'test_data_sets', 'learned_scripts',
   'heal_proposals', 'test_plans', 'test_runs', 'case_results', 'step_results', 'decision_records',
-  'evidence', 'defects', 'defect_results', 'review_items', 'settings', 'jobs', 'artifacts', 'auth_setups', 'manual_items', 'analytics_daily', 'api_tokens',
+  'evidence', 'defects', 'defect_results', 'review_items', 'settings', 'jobs', 'artifacts', 'auth_setups', 'manual_items', 'analytics_daily', 'api_tokens', 'users', 'sessions', 'invites', 'audit_log',
 ];
 
 function tables(db: Db): string[] {

@@ -22,6 +22,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import WebSocket from 'ws';
 
 import { buildApp } from '../app.js';
+import { signInAs } from '../auth/testing.js';
 import { loadConfig } from '../config.js';
 import { createContext } from '../trpc/context.js';
 import { appRouter, createCallerFactory } from '../trpc/router.js';
@@ -54,8 +55,8 @@ class Probe {
   readonly ws: WebSocket;
   private readonly opened: Promise<void>;
 
-  constructor(url: string) {
-    this.ws = new WebSocket(url);
+  constructor(url: string, headers?: Record<string, string>) {
+    this.ws = new WebSocket(url, headers ? { headers } : undefined);
     this.ws.on('message', (data, isBinary) => {
       if (!isBinary) this.texts.push(JSON.parse(String(data)) as Record<string, unknown>);
     });
@@ -181,7 +182,9 @@ async function startServer(
     rmSync(dataDir, { recursive: true, force: true });
   });
   const runtime: ServerRuntime = runtimeFor({ db, config, log });
-  const api = makeCaller(createContext({ db, config, log, runtime }));
+  // Team mode has no implicit admin: sign in a real one.
+  const admin = config.mode === 'team' ? await signInAs(db, 'admin') : undefined;
+  const api = makeCaller(createContext({ db, config, log, runtime, ...(admin ? { user: { id: admin.userId, role: 'admin' as const } } : {}) }));
   const project = await api.projects.create({
     name: 'Shop',
     key: 'SHOP',
@@ -218,7 +221,7 @@ async function startServer(
       attended,
       mode: 'explore',
     });
-  const connect = (runId: string) => new Probe(`${url}/ws/runs/${runId}`);
+  const connect = (runId: string) => new Probe(`${url}/ws/runs/${runId}`, admin ? { cookie: admin.cookie } : undefined);
   const contexts = (): number => browsers.flatMap((b) => b.contexts()).length;
   return { db, runtime, api, tc, env: dev, startRun, connect, contexts };
 }
