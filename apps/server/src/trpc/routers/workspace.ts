@@ -1,7 +1,7 @@
 import { ProjectKeySchema } from '@s1pilot/domain';
 import { z } from 'zod';
 
-import { FsArtifactStore } from '../../artifacts/store.js';
+import { createArtifactStore } from '../../artifacts/factory.js';
 import { isValidTimezone, workspaceTimezone } from '../../triggers/config.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
@@ -69,7 +69,7 @@ export const workspaceRouter = router({
   purge: publicProcedure.input(z.object({ projectKey: ProjectKeySchema })).mutation(async ({ ctx, input }) => {
     requireSession(ctx);
     const project = await requireProject(ctx, input.projectKey);
-    const store = new FsArtifactStore(ctx.db, ctx.config.artifactsDir);
+    const store = createArtifactStore(ctx.db, ctx.config);
     const removed = await store.purge(new Date(Date.now() + 60_000), project.id);
     ctx.log.info({ project: project.key, removed, by: ctx.user.id }, 'manual artifact purge');
     return { removed };
@@ -79,5 +79,7 @@ export const workspaceRouter = router({
   workers: publicProcedure.query(({ ctx }) => ({
     configured: ctx.config.workers,
     workers: ctx.runtime.workers.snapshot(),
+    /** Workers on other machines that registered with this server (S-068). */
+    remote: ctx.runtime.remote.registry.list(),
   })),
 });

@@ -18,14 +18,14 @@ import {
   flakinessScore,
   type CaseRunResult,
   type Environment,
-  type RunEvent,
   type SharedStep,
 } from '@s1pilot/domain';
 import { deviceContextOptions, launchBrowser, runCases, type RunCasesInput, type RunnerEvent } from '@s1pilot/runner';
 import type { FastifyBaseLogger } from 'fastify';
 
+import { createArtifactStore } from '../artifacts/factory.js';
 import { ingestCaseArtifacts } from '../artifacts/ingest.js';
-import { FsArtifactStore, type ArtifactStore } from '../artifacts/store.js';
+import type { ArtifactStore } from '../artifacts/store.js';
 import type { AuthService } from '../auth/service.js';
 import { loadCalibrator } from '../calibration/service.js';
 import type { ServerConfig } from '../config.js';
@@ -33,6 +33,7 @@ import type { HumanControl } from '../live/control.js';
 import { WORKSPACE_MODEL_KEY } from '../trpc/routers/helpers.js';
 
 import type { RunEventBus } from './event-bus.js';
+import { toRunEvent } from './events.js';
 import { createModelFactory, type ModelFactory } from './models.js';
 import { RUN_CASE_JOB, RunCaseJobPayloadSchema, type RunLifecycle } from './run-lifecycle.js';
 
@@ -50,7 +51,7 @@ export interface WorkerPoolOptions {
   createModels?: ModelFactory;
   /** Browser launcher. Default: {@link launchBrowser}. */
   launch?: typeof launchBrowser;
-  /** Artifact store. Default: {@link FsArtifactStore} under `config.artifactsDir`. */
+  /** Artifact store. Default: from the config: S3 when `s3Bucket` is set, else the file system under `config.artifactsDir`. */
   artifacts?: ArtifactStore;
   /** Capture settings of the runner (video is off unless enabled here). */
   capture?: RunCasesInput['capture'];
@@ -362,44 +363,14 @@ export class WorkerPool {
     let attemptResults: CaseRunResult[] = [];
 
     const ts = (): string => new Date().toISOString();
-    const store = this.opts.artifacts ?? new FsArtifactStore(db, config.artifactsDir);
+    const store = this.opts.artifacts ?? createArtifactStore(db, config);
     const workDir = join(config.artifactsDir, '.work', runId, job.id);
     let chain: Promise<unknown> = Promise.resolve();
     const handle = (event: RunnerEvent): void => {
       if (signal.aborted) return;
+      const forwarded = toRunEvent(event, { runId, caseId: testCase.id, now: ts });
+      if (forwarded) bus.emit(forwarded);
       switch (event.type) {
-        case 'engine':
-          // The runner's own `step.finished` (below) is authoritative: it follows verification and covers replay.
-          if (event.event.type === 'step.finished') break;
-          bus.emit({ ...event.event, runId } as RunEvent);
-          break;
-        case 'case.started':
-          bus.emit({
-            type: 'case.started',
-            runId,
-            ts: ts(),
-            caseResultId: event.caseResultId,
-            caseId: testCase.id,
-            caseKey: event.key,
-            mode: event.mode,
-          });
-          break;
-        case 'note':
-          bus.emit({ type: 'log', runId, ts: ts(), level: 'info', message: event.text });
-          break;
-        case 'step.finished':
-          bus.emit({
-            type: 'step.finished',
-            runId,
-            ts: ts(),
-            caseResultId: event.caseResultId,
-            stepIndex: event.step.index,
-            status: ['passed', 'failed', 'blocked', 'skipped'].includes(event.step.verdict)
-              ? (event.step.verdict as 'passed')
-              : 'blocked',
-            durationMs: event.step.durationMs,
-          });
-          break;
         case 'case.finished': {
           attemptResults.push(event.result);
           const result: CaseRunResult =

@@ -150,6 +150,17 @@ maybe('postgres backend', () => {
       expect(await queue.cancel(b.id)).toBe(true);
     });
 
+    it('routes labelled jobs only to workers carrying the labels', async () => {
+      const queue = make();
+      const gpu = await queue.enqueue({ type: 'label-test', payload: 'gpu', labels: ['gpu'] });
+      const plain = await queue.enqueue({ type: 'label-test', payload: 'plain' });
+      expect(gpu.labels).toEqual(['gpu']);
+      expect((await queue.claim('none', { types: ['label-test'] }))?.id).toBe(plain.id);
+      expect(await queue.claim('none', { types: ['label-test'] })).toBeUndefined();
+      expect(await queue.claim('eu', { types: ['label-test'], labels: ['eu'] })).toBeUndefined();
+      expect(await queue.claim('gpu', { types: ['label-test'], labels: ['gpu', 'eu'] })).toMatchObject({ id: gpu.id, labels: ['gpu'] });
+    });
+
     it('two instances sharing the queue never process a job twice', async () => {
       const one = make();
       const two = make();

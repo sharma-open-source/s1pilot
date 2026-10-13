@@ -1,7 +1,8 @@
 import { CheckResultSchema, IdSchema, S1PilotError, VerdictSchema, type CheckResult, type StepResult } from '@s1pilot/domain';
 import { z } from 'zod';
 
-import { FsArtifactStore } from '../../artifacts/store.js';
+import { createArtifactStore } from '../../artifacts/factory.js';
+import type { ArtifactStore } from '../../artifacts/store.js';
 import { evaluateExitCriteria, getSignOff } from '../../exit-criteria/evaluate.js';
 import { publicProcedure, router } from '../trpc.js';
 
@@ -19,7 +20,7 @@ function failedStepNo(steps: StepResult[]): number | null {
 }
 
 /** Entries of a stored JSON log artifact (`console.json` is an array, `network.json` has `entries`); empty when unreadable. */
-async function loadEntries(store: FsArtifactStore, id: string | undefined, wrapped: boolean): Promise<Array<Record<string, unknown>>> {
+async function loadEntries(store: ArtifactStore, id: string | undefined, wrapped: boolean): Promise<Array<Record<string, unknown>>> {
   if (!id) return [];
   try {
     const chunks: Buffer[] = [];
@@ -33,7 +34,7 @@ async function loadEntries(store: FsArtifactStore, id: string | undefined, wrapp
 }
 
 /** Stored `checks.json` of a result (a11y / console / network check results); empty when absent or unreadable. */
-export async function loadChecks(store: FsArtifactStore, id: string | undefined): Promise<CheckResult[]> {
+export async function loadChecks(store: ArtifactStore, id: string | undefined): Promise<CheckResult[]> {
   if (!id) return [];
   try {
     const chunks: Buffer[] = [];
@@ -104,7 +105,7 @@ export const resultsRouter = router({
     const environment = result.environmentId ? await ctx.repos.environments.get(ctx.db, result.environmentId) : undefined;
     const steps = await ctx.repos.results.listSteps(ctx.db, result.id);
     const artifacts = await ctx.repos.artifacts.listByCaseResult(ctx.db, result.id);
-    const store = new FsArtifactStore(ctx.db, ctx.config.artifactsDir);
+    const store = createArtifactStore(ctx.db, ctx.config);
     const video = artifacts.find((a) => a.kind === 'video');
     const trace = artifacts.find((a) => a.kind === 'trace');
 

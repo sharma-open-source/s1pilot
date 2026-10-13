@@ -27,7 +27,7 @@ export interface ByteRange {
 }
 
 /**
- * Where run artifacts live. `FsArtifactStore` is the local implementation; S3 comes with S-068.
+ * Where run artifacts live. `FsArtifactStore` is the local implementation, `S3ArtifactStore` the S3/MinIO one (S-068).
  */
 export interface ArtifactStore {
   /** Stores the bytes and returns the artifact id. */
@@ -40,6 +40,11 @@ export interface ArtifactStore {
   delete(id: string): Promise<void>;
   /** Deletes artifacts of a project created before `olderThan`; returns how many were removed. */
   purge(olderThan: Date, projectId: string): Promise<number>;
+  /**
+   * Time-limited URL the client can GET directly from the storage backend (S3 presigned URL); stores without one
+   * (file system) omit it and the server streams the bytes (S-068).
+   */
+  presignedUrl?(id: string, ttlSeconds?: number): Promise<string | undefined>;
 }
 
 const safeName = (s: string): string => s.replace(/[^\w.-]+/g, '_').slice(0, 120) || 'file';

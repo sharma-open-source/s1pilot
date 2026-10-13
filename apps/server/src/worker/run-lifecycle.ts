@@ -4,6 +4,7 @@ import {
   ExecutionModeSchema,
   IdSchema,
   PlanChecksSchema,
+  WorkerLabelSchema,
   newId,
   summarizeChecks,
   type BrowserName,
@@ -40,6 +41,8 @@ export const RunCaseJobPayloadSchema = z.object({
   retries: z.number().int().min(0).optional(),
   /** Most jobs of this run executing at once, further capped by the number of server workers (S-051). */
   parallelism: z.number().int().min(1).optional(),
+  /** Worker labels the job requires (plan setting "run on workers with label", S-068). */
+  workerLabels: z.array(WorkerLabelSchema).optional(),
   /** Accessibility / console / network checks (S-053); visual comparison is a later spec. */
   checks: PlanChecksSchema.optional(),
 });

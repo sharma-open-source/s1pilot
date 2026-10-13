@@ -1,0 +1,33 @@
+name: Compose stack (nightly)
+
+# S-068: boots deploy/compose.team.yml (server + 2 remote workers + Postgres + MinIO) with the fixture sites, runs plans
+# on the remote workers and checks label routing and presigned artifact URLs (deploy/compose-e2e.mjs).
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      POSTGRES_PASSWORD: ci-postgres-password
+      MINIO_ROOT_PASSWORD: ci-minio-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate the worker token
+        run: echo "S1PILOT_WORKER_TOKEN=s1p_$(openssl rand -hex 4)_$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+      - name: Start the stack
+        run: docker compose -f deploy/compose.team.yml -f deploy/compose.e2e.yml up -d --build --wait --wait-timeout 900
+      - name: Run the integration test
+        run: node deploy/compose-e2e.mjs
+      - name: Logs
+        if: failure()
+        run: docker compose -f deploy/compose.team.yml -f deploy/compose.e2e.yml logs --no-color --tail 300
+      - name: Stop the stack
+        if: always()
+        run: docker compose -f deploy/compose.team.yml -f deploy/compose.e2e.yml down -v

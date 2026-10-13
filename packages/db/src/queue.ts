@@ -18,6 +18,8 @@ export interface Job {
   attempts: number;
   maxAttempts: number;
   workerId?: string;
+  /** Labels a worker must carry to claim the job (S-068). Absent = any worker. */
+  labels?: string[];
   leaseExpiresAt?: string;
   result?: unknown;
   error?: string;
@@ -32,6 +34,8 @@ export interface NewJob {
   payload: unknown;
   /** Total attempts (first try + retries). Default 2: a job whose worker died is retried once. */
   maxAttempts?: number;
+  /** Only workers carrying all of these labels may claim the job (S-068). */
+  labels?: string[];
 }
 
 /** Options of {@link JobQueue.claim}. */
@@ -42,6 +46,18 @@ export interface ClaimOptions {
   leaseMs?: number;
   /** Do not claim jobs of these runs (the pool uses it to honour per-run parallelism caps). */
   excludeRunIds?: string[];
+  /**
+   * Labels of the claiming worker (S-068). Jobs with labels are only handed to workers carrying all of them; jobs
+   * without labels go to anyone. Default: no labels, i.e. labelled jobs are skipped.
+   */
+  labels?: string[];
+}
+
+/** True when a worker with `workerLabels` may run a job that requires `required`. */
+export function labelsMatch(required: readonly string[] | undefined, workerLabels: readonly string[] | undefined): boolean {
+  if (!required || required.length === 0) return true;
+  const have = new Set(workerLabels ?? []);
+  return required.every((l) => have.has(l));
 }
 
 /**
@@ -83,6 +99,7 @@ function toJob(row: typeof t.$inferSelect): Job {
     attempts: row.attempts,
     maxAttempts: row.maxAttempts,
     ...(row.workerId ? { workerId: row.workerId } : {}),
+    ...(row.labels && row.labels.length > 0 ? { labels: row.labels } : {}),
     ...(row.leaseExpiresAt ? { leaseExpiresAt: row.leaseExpiresAt } : {}),
     ...(row.result !== null && row.result !== undefined ? { result: row.result } : {}),
     ...(row.error ? { error: row.error } : {}),
@@ -132,6 +149,7 @@ export function createSqliteJobQueue(db: Db, now: () => Date = () => new Date())
         status: 'queued' as const,
         attempts: 0,
         maxAttempts: input.maxAttempts ?? 2,
+        labels: input.labels && input.labels.length > 0 ? [...new Set(input.labels)].sort() : null,
         createdAt: ts,
         updatedAt: ts,
       };
@@ -147,13 +165,14 @@ export function createSqliteJobQueue(db: Db, now: () => Date = () => new Date())
         if (opts.excludeRunIds && opts.excludeRunIds.length > 0) {
           conditions.push(or(isNull(t.runId), notInArray(t.runId, opts.excludeRunIds)));
         }
+        // Label routing is filtered in memory: queued jobs are few and labels are a JSON column.
         const next = db.orm
           .select()
           .from(t)
           .where(and(...conditions))
           .orderBy(asc(t.createdAt), asc(t.id))
-          .limit(1)
-          .get();
+          .all()
+          .find((row) => labelsMatch(row.labels ?? undefined, opts.labels));
         if (!next) return undefined;
         db.orm
           .update(t)

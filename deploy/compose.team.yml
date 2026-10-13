@@ -1,47 +1,90 @@
-# Team mode stack (S-066): API server, queue worker(s), Postgres (pg-boss queue) and MinIO (S3, used from S-068).
+# Team mode stack (S-066, S-068): API server, two remote workers, Postgres (pg-boss queue) and MinIO (S3 artifacts).
 #
+#   export POSTGRES_PASSWORD=... MINIO_ROOT_PASSWORD=...
+#   export S1PILOT_WORKER_TOKEN="s1p_$(openssl rand -hex 4)_$(openssl rand -hex 24)"
 #   docker compose -f deploy/compose.team.yml up --build
 #
-# Set POSTGRES_PASSWORD and MINIO_ROOT_PASSWORD in the environment or an untracked .env file; there are no defaults
-# on purpose. Never commit that file.
+# Set the three secrets in the environment or an untracked .env file; there are no defaults on purpose. Never commit
+# that file. The server creates an API token (scope runs:write) from S1PILOT_WORKER_TOKEN at startup; the workers use
+# the same value to register. Models: put the API key the workers need (S1PILOT_API_KEY, or the variable your model
+# settings reference with env:NAME) in the workers' environment: keys never travel from the server to a worker.
 #
-# Current limitation: the repositories still run on SQLite (`S1PILOT_DB_URL`, a file on the shared `data` volume), and
-# only the job queue lives in Postgres. SQLite on a volume shared between containers is fine for a single host pilot,
-# not for scale-out. Copy existing data with `s1pilot admin migrate-sqlite-to-pg` once the repositories gain a
-# Postgres driver.
+# Artifacts go to MinIO; the UI gets presigned URLs for http://localhost:9000 (S1PILOT_S3_PUBLIC_ENDPOINT, change it to
+# the address browsers use). Console: http://localhost:9001.
+#
+# The `gpu` label of worker-gpu is an example: a plan with "Run on workers with label: gpu" only runs there.
+#
+# Current limitation: the repositories still run on SQLite (a file on the `data` volume of the server container), and
+# only the job queue lives in Postgres. Workers need no database access: they talk to the server over HTTP/WebSocket.
+# Run exactly one server container (the SQLite file and the queue's lease bookkeeping live in that process).
 
-x-s1pilot: &s1pilot
+x-worker: &worker
   build:
     context: ..
     dockerfile: deploy/Dockerfile
+    target: worker
+  image: s1pilot/worker:local
   depends_on:
-    postgres:
+    server:
       condition: service_healthy
-  environment: &s1pilot-env
-    S1PILOT_MODE: team
-    S1PILOT_HOST: 0.0.0.0
-    S1PILOT_PORT: "5317"
-    S1PILOT_DATA_DIR: /data
-    S1PILOT_QUEUE_URL: postgres://s1pilot:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/s1pilot
-  volumes:
-    - data:/data
+  restart: unless-stopped
+  environment: &worker-env
+    S1PILOT_SERVER_URL: http://server:5317
+    S1PILOT_WORKER_TOKEN: ${S1PILOT_WORKER_TOKEN:?set S1PILOT_WORKER_TOKEN}
+    S1PILOT_API_KEY: ${S1PILOT_API_KEY:-}
+  # Chromium needs more shared memory than Docker's default.
+  shm_size: 1gb
 
 services:
   server:
-    <<: *s1pilot
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: server
+    image: s1pilot/server:local
     command: ["--workers", "0"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      S1PILOT_MODE: team
+      S1PILOT_HOST: 0.0.0.0
+      S1PILOT_PORT: "5317"
+      S1PILOT_DATA_DIR: /data
+      S1PILOT_QUEUE_URL: postgres://s1pilot:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/s1pilot
+      S1PILOT_WORKER_TOKEN: ${S1PILOT_WORKER_TOKEN:?set S1PILOT_WORKER_TOKEN}
+      S1PILOT_S3_BUCKET: s1pilot-artifacts
+      S1PILOT_S3_ENDPOINT: http://minio:9000
+      S1PILOT_S3_PUBLIC_ENDPOINT: ${S1PILOT_S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+      S1PILOT_S3_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: s1pilot
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+    volumes:
+      - data:/data
     ports:
       - "5317:5317"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5317/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
 
-  worker:
-    <<: *s1pilot
-    command: ["--workers", "2"]
+  worker-1:
+    <<: *worker
     environment:
-      <<: *s1pilot-env
-      # The worker has no public port; it only serves its health endpoint inside the network.
-      S1PILOT_PORT: "5318"
-    deploy:
-      replicas: 1
+      <<: *worker-env
+      S1PILOT_WORKER_LABELS: eu
+    command: ["--concurrency", "2", "--name", "worker-1"]
+
+  worker-gpu:
+    <<: *worker
+    environment:
+      <<: *worker-env
+      S1PILOT_WORKER_LABELS: gpu,eu
+    command: ["--concurrency", "2", "--name", "worker-gpu"]
 
   postgres:
     image: postgres:16
@@ -68,6 +111,23 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Creates the artifact bucket once MinIO is up.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - mc alias set local http://minio:9000 s1pilot "$$MINIO_ROOT_PASSWORD" && mc mb --ignore-existing local/s1pilot-artifacts
 
 volumes:
   data:

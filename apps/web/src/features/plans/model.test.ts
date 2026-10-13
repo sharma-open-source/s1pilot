@@ -47,6 +47,7 @@ describe('form <-> plan', () => {
       query: 'suite:Checkout',
       retries: 2,
       parallelism: 3,
+      workerLabels: 'gpu, eu',
       mode: 'explore' as const,
       unattended: 'pause' as const,
       scheduleOn: true,
@@ -58,6 +59,9 @@ describe('form <-> plan', () => {
     const back = formFromPlan({ id: 'p1', ...draft });
     expect(toDraft(back)).toEqual(draft);
     expect(back.scheduleOn).toBe(true);
+    expect(draft.workerLabels).toEqual(['gpu', 'eu']);
+    expect(back.workerLabels).toBe('gpu, eu');
+    expect(toDraft({ ...f, workerLabels: ' ' }).workerLabels).toEqual([]);
   });
   it('omits schedule when off and validates', () => {
     const f = { ...blankForm(envs), name: 'x', query: 'a' };

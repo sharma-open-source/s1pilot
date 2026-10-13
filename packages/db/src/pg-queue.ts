@@ -1,6 +1,6 @@
 import type { JobWithMetadata, PgBoss } from 'pg-boss';
 
-import type { ClaimOptions, Job, JobQueue, JobStatus, NewJob } from './queue.js';
+import { labelsMatch, type ClaimOptions, type Job, type JobQueue, type JobStatus, type NewJob } from './queue.js';
 
 /** Options of {@link createPgBossQueue}. */
 export interface PgBossQueueOptions {
@@ -22,6 +22,7 @@ interface Stored {
   runId?: string;
   payload: unknown;
   maxAttempts: number;
+  labels?: string[];
 }
 
 type Meta = JobWithMetadata<Stored>;
@@ -37,8 +38,15 @@ const DEFAULT_LEASE_MS = 30_000;
 const EXPIRE_SECONDS = 4 * 60 * 60;
 const LOST_MESSAGES = ['job heartbeat timeout', 'job timed out'];
 
-function queueNameFor(type: string): string {
-  return QUEUE_PREFIX + type.replace(/[^A-Za-z0-9_.-]/g, '_');
+/** Queue of a job type; label-routed jobs (S-068) live in `s1p_<type>/<label>/<label>`, so a claim can pick queues by label. */
+function queueNameFor(type: string, labels?: readonly string[]): string {
+  const base = QUEUE_PREFIX + type.replace(/[^A-Za-z0-9_.-]/g, '_');
+  return labels && labels.length > 0 ? `${base}/${[...new Set(labels)].sort().join('/')}` : base;
+}
+
+/** Labels encoded in a queue name by {@link queueNameFor}. */
+function labelsOfQueue(name: string): string[] {
+  return name.split('/').slice(1);
 }
 
 function splitId(jobId: string): { queue: string; id: string } | undefined {
@@ -138,6 +146,7 @@ export function createPgBossQueue(opts: PgBossQueueOptions): JobQueue {
       attempts: j.state === 'created' ? 0 : j.retryCount + 1,
       maxAttempts: j.data.maxAttempts,
       ...(claim && status === 'running' ? { workerId: claim.workerId } : {}),
+      ...(j.data.labels && j.data.labels.length > 0 ? { labels: j.data.labels } : {}),
       ...(lease ? { leaseExpiresAt: lease } : {}),
       ...(status === 'completed' && 'result' in out ? { result: out['result'] } : {}),
       ...(status === 'failed' && message ? { error: message } : {}),
@@ -186,10 +195,11 @@ export function createPgBossQueue(opts: PgBossQueueOptions): JobQueue {
     async enqueue(job: NewJob) {
       const b = await boss();
       const type = job.type;
-      const queue = queueNameFor(type);
+      const labels = job.labels && job.labels.length > 0 ? [...new Set(job.labels)].sort() : undefined;
+      const queue = queueNameFor(type, labels);
       await ensureQueue(b, queue);
       const maxAttempts = job.maxAttempts ?? 2;
-      const data: Stored = { type, ...(job.runId ? { runId: job.runId } : {}), payload: job.payload, maxAttempts };
+      const data: Stored = { type, ...(job.runId ? { runId: job.runId } : {}), payload: job.payload, maxAttempts, ...(labels ? { labels } : {}) };
       const id = await b.send(queue, data, {
         retryLimit: 0,
         heartbeatSeconds,
@@ -205,9 +215,14 @@ export function createPgBossQueue(opts: PgBossQueueOptions): JobQueue {
     async claim(workerId: string, claimOpts: ClaimOptions = {}) {
       const b = await boss();
       await reap();
-      const queues = claimOpts.types ? claimOpts.types.map(queueNameFor) : await allQueues(b);
+      const known = await allQueues(b);
+      const wanted = claimOpts.types?.map((t) => queueNameFor(t));
+      // Unlabelled queues of the wanted types, plus label queues whose labels this worker carries.
+      const queues = (wanted ? [...new Set([...wanted, ...known.filter((n) => wanted.includes(n.split('/')[0] ?? ''))])] : known).filter((n) =>
+        labelsMatch(labelsOfQueue(n), claimOpts.labels),
+      );
       for (const queue of queues) {
-        if (claimOpts.types) await ensureQueue(b, queue);
+        await ensureQueue(b, queue);
         const [job] = await b.fetch<Stored>(queue, {
           batchSize: 1,
           includeMetadata: true,

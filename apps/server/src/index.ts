@@ -17,7 +17,17 @@ export { RUN_CASE_JOB, RunCaseJobPayloadSchema, createRunLifecycle } from './wor
 export type { RunCaseJobPayload, RunLifecycle } from './worker/run-lifecycle.js';
 export { WorkerPool } from './worker/worker.js';
 export type { WorkerPoolOptions } from './worker/worker.js';
+export { createApiToken } from './auth/tokens.js';
+export { ensureWorkerToken } from './remote/bootstrap.js';
+export { RemoteWorker } from './remote/client.js';
+export type { RemoteWorkerOptions, WorkerLogger } from './remote/client.js';
+export { RemoteWorkerService } from './remote/service.js';
+export { WorkerRegistry } from './remote/registry.js';
+export type { RemoteWorkerView } from './remote/registry.js';
 export { FsArtifactStore } from './artifacts/store.js';
+export { S3ArtifactStore } from './artifacts/s3-store.js';
+export type { S3StoreOptions } from './artifacts/s3-store.js';
+export { createArtifactStore } from './artifacts/factory.js';
 export type { ArtifactMeta, ArtifactStore, ByteRange } from './artifacts/store.js';
 export { runRetention, startRetentionJob } from './artifacts/retention.js';
 export { ingestCaseArtifacts } from './artifacts/ingest.js';

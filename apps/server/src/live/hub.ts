@@ -3,7 +3,7 @@ import type { DecisionRecord, RunEvent, RunStatus, TestRun } from '@s1pilot/doma
 
 import type { RunEventBus } from '../worker/event-bus.js';
 
-import { encodeFrame } from './frame.js';
+import { encodeFrame, type ScreencastFrame } from './frame.js';
 import { ScreencastManager, type ScreencastOptions } from './screencast.js';
 
 /** A connected socket as the hub sees it. */
@@ -74,19 +74,39 @@ export class LiveHub {
   private readonly states = new Map<string, RunState>();
   private lastWorkspace = '';
   private readonly unsubscribe: () => void;
+  private readonly demandListeners = new Set<(runId: string, subscribers: number) => void>();
 
   constructor(opts: LiveHubOptions) {
     this.db = opts.db;
     this.screencast = new ScreencastManager({
       ...opts.screencast,
-      onFrame: (runId, frame) => {
-        const clients = this.runClients.get(runId);
-        if (!clients || clients.size === 0) return;
-        const data = encodeFrame(frame);
-        for (const c of clients) c.sendBinary(data);
-      },
+      onFrame: (runId, frame) => this.publishFrame(runId, frame),
     });
     this.unsubscribe = opts.bus.subscribe((event) => this.onEvent(event));
+  }
+
+  /** Sends a screencast frame to the subscribers of a run. Remote workers (S-068) feed their frames in here. */
+  publishFrame(runId: string, frame: ScreencastFrame): void {
+    const clients = this.runClients.get(runId);
+    if (!clients || clients.size === 0) return;
+    const data = encodeFrame(frame);
+    for (const c of clients) c.sendBinary(data);
+  }
+
+  /** Runs with at least one subscriber and their subscriber counts. */
+  demand(): Map<string, number> {
+    return new Map([...this.runClients].map(([runId, set]) => [runId, set.size] as const));
+  }
+
+  /** Calls `listener` whenever the subscriber count of a run changes (remote workers start/stop their screencast). Returns the remover. */
+  onDemand(listener: (runId: string, subscribers: number) => void): () => void {
+    this.demandListeners.add(listener);
+    return () => void this.demandListeners.delete(listener);
+  }
+
+  private setDemand(runId: string, subscribers: number): void {
+    this.screencast.setDemand(runId, subscribers);
+    for (const l of this.demandListeners) l(runId, subscribers);
   }
 
   /** Stops listening to the bus. */
@@ -108,12 +128,12 @@ export class LiveHub {
     let set = this.runClients.get(runId);
     if (!set) this.runClients.set(runId, (set = new Set()));
     set.add(client);
-    this.screencast.setDemand(runId, set.size);
+    this.setDemand(runId, set.size);
     return () => {
       const current = this.runClients.get(runId);
       if (!current?.delete(client)) return;
       if (current.size === 0) this.runClients.delete(runId);
-      this.screencast.setDemand(runId, current.size);
+      this.setDemand(runId, current.size);
     };
   }
 

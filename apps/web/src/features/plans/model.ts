@@ -45,6 +45,8 @@ export interface PlanForm {
   mode: ExecutionMode;
   retries: number;
   parallelism: number;
+  /** Comma-separated worker labels the plan requires (empty = any worker). */
+  workerLabels: string;
   unattended: 'block' | 'pause';
   scheduleOn: boolean;
   cron: string;
@@ -61,6 +63,7 @@ export interface StoredPlan {
   matrix: MatrixEntry[];
   retries: number;
   parallelism: number;
+  workerLabels?: string[] | undefined;
   mode: ExecutionMode;
   unattended: 'block' | 'pause';
   schedule?: string | undefined;
@@ -84,6 +87,7 @@ export function blankForm(envs: PlanEnv[], caseIds: string[] = []): PlanForm {
     mode: 'replay-heal',
     retries: 1,
     parallelism: 4,
+    workerLabels: '',
     unattended: 'block',
     scheduleOn: false,
     cron: DEFAULT_CRON,
@@ -106,6 +110,7 @@ export function formFromPlan(plan: StoredPlan): PlanForm {
     mode: plan.mode,
     retries: plan.retries,
     parallelism: plan.parallelism,
+    workerLabels: (plan.workerLabels ?? []).join(', '),
     unattended: plan.unattended,
     scheduleOn: plan.schedule !== undefined && plan.schedule !== '',
     cron: plan.schedule !== undefined && plan.schedule !== '' ? plan.schedule : DEFAULT_CRON,
@@ -125,6 +130,7 @@ export function toDraft(f: PlanForm) {
     matrix: f.matrix,
     retries: f.retries,
     parallelism: f.parallelism,
+    workerLabels: f.workerLabels.split(',').map((l) => l.trim()).filter((l) => l !== ''),
     mode: f.mode,
     unattended: f.unattended,
     exitCriteria: f.exitCriteria,

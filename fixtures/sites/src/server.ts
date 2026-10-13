@@ -13,6 +13,8 @@ import { shop } from './sites/shop.js';
 export interface FixtureOptions {
   /** Port to listen on; default 0 (random free port). */
   port?: number;
+  /** Interface to listen on; default `127.0.0.1` (a container stack sets `0.0.0.0`). */
+  host?: string;
   /** Seeded bugs to enable for every request, e.g. `['shop.badge-wrong-count']`. */
   bugs?: string[];
   /** UI variants, as one id or a comma-separated list. */
@@ -122,7 +124,7 @@ export async function startFixtureServer(options: FixtureOptions = {}): Promise<
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
-    server.listen(options.port ?? 0, '127.0.0.1', resolve);
+    server.listen(options.port ?? 0, options.host ?? '127.0.0.1', resolve);
   });
   const { port } = server.address() as AddressInfo;
 

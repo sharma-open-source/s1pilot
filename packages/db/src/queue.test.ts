@@ -71,4 +71,25 @@ describe('sqlite job queue', () => {
     expect(await queue.cancel(b.id)).toBe(false);
     expect((await queue.claim('w'))?.id).toBe(other.id);
   });
+
+  it('routes labelled jobs only to workers carrying all the labels (S-068)', async () => {
+    const { queue, clock } = setup();
+    const gpu = await queue.enqueue({ type: 't', payload: 'gpu', labels: ['gpu'] });
+    clock.t += 1;
+    const both = await queue.enqueue({ type: 't', payload: 'both', labels: ['eu', 'gpu', 'gpu'] });
+    clock.t += 1;
+    const plain = await queue.enqueue({ type: 't', payload: 'plain' });
+    expect(gpu.labels).toEqual(['gpu']);
+    expect(both.labels).toEqual(['eu', 'gpu']);
+    expect(plain.labels).toBeUndefined();
+
+    // A worker without labels only gets the unlabelled job, even though the labelled ones are older.
+    expect((await queue.claim('none'))?.id).toBe(plain.id);
+    expect(await queue.claim('none')).toBeUndefined();
+    expect(await queue.claim('eu', { labels: ['eu'] })).toBeUndefined();
+    // Oldest matching job first; `both` needs eu + gpu.
+    expect((await queue.claim('gpu', { labels: ['gpu'] }))?.id).toBe(gpu.id);
+    expect(await queue.claim('gpu', { labels: ['gpu'] })).toBeUndefined();
+    expect((await queue.claim('big', { labels: ['gpu', 'eu', 'extra'] }))?.id).toBe(both.id);
+  });
 });

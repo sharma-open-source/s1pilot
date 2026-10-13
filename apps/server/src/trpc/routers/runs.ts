@@ -61,6 +61,7 @@ export async function startRun(
       type: RUN_CASE_JOB,
       runId: run.id,
       payload: { ...config, runId: run.id, projectId: project.id, caseId } satisfies RunCaseJobPayload,
+      ...(config.workerLabels && config.workerLabels.length > 0 ? { labels: config.workerLabels } : {}),
     });
   }
   ctx.runtime.workers.wake();
@@ -130,6 +131,7 @@ export async function startPlanRun(ctx: Context, project: Project, plan: TestPla
         planId: plan.id,
         retries: plan.retries,
         parallelism: plan.parallelism,
+        ...(plan.workerLabels.length > 0 ? { workerLabels: plan.workerLabels } : {}),
         checks: plan.checks,
       },
     })),
@@ -145,6 +147,12 @@ export async function startPlanRun(ctx: Context, project: Project, plan: TestPla
     })),
   );
   return startRun(ctx, project, jobs, input.buildRef, plan.id, opts.trigger, skipped, manual);
+}
+
+/** Worker that ran or runs the job: the lease holder, or (remote workers) the id recorded as the job result. */
+function workerOf(job: { workerId?: string; result?: unknown }): string | undefined {
+  const fromResult = (job.result as { workerId?: unknown } | null | undefined)?.workerId;
+  return job.workerId ?? (typeof fromResult === 'string' ? fromResult : undefined);
 }
 
 /** Run configuration and job states, derived from the run's jobs. */
@@ -168,6 +176,7 @@ async function describeRun(ctx: Context, runId: string) {
       status: job.status,
       attempts: job.attempts,
       ...(job.error ? { error: job.error } : {}),
+      ...(workerOf(job) ? { workerId: workerOf(job) } : {}),
       ...(payload.success ? { caseId: payload.data.caseId, caseKey: (await lookup(payload.data.caseId)).key } : {}),
     })),
   );
@@ -312,6 +321,7 @@ export const runsRouter = router({
     }
     await ctx.runtime.lifecycle.cancel(run.id);
     ctx.runtime.workers.abortRun(run.id);
+    ctx.runtime.remote.abortRun(run.id);
     return requireRun(ctx, run.id);
   }),
 

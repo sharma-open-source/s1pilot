@@ -11,14 +11,16 @@ import { createLogger } from '@s1pilot/domain/logger';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance, type FastifyRequest } from 'fastify';
 
+import { createArtifactStore } from './artifacts/factory.js';
 import { startRetentionJob } from './artifacts/retention.js';
 import { registerArtifactRoutes } from './artifacts/routes.js';
-import { FsArtifactStore } from './artifacts/store.js';
 import { registerTokenAuth } from './auth/tokens.js';
 import type { ServerConfig } from './config.js';
 import { registerExportRoutes } from './exports/routes.js';
 import { registerLiveRoutes } from './live/routes.js';
 import { registerManualRoutes } from './manual/routes.js';
+import { ensureWorkerToken } from './remote/bootstrap.js';
+import { registerRemoteWorkerRoutes } from './remote/routes.js';
 import { registerTrackerWebhookRoutes } from './trackers/routes.js';
 import { startTrackerSync } from './trackers/service.js';
 import { firePlan } from './triggers/fire.js';
@@ -39,6 +41,8 @@ export interface BuildAppOptions {
   workerOptions?: RuntimeOptions['workerOptions'];
   /** Takeover browser launcher (tests inject a headless one). */
   launchHeaded?: RuntimeOptions['launchHeaded'];
+  /** Remote worker tuning (tests shorten the lease). */
+  remote?: RuntimeOptions['remote'];
   /** Number of in-process workers. Default `config.workers`. */
   workers?: number;
   /** Start the cron scheduler of plan schedules. Default true. */
@@ -77,10 +81,13 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
 
   app.get('/api/health', async () => ({ ok: true, version: getVersion(), mode: config.mode }));
 
-  const runtime = createRuntime({ db, config, log, ...(opts.launchHeaded ? { launchHeaded: opts.launchHeaded } : {}), ...(opts.workerOptions ? { workerOptions: opts.workerOptions } : {}) });
+  const runtime = createRuntime({ db, config, log, ...(opts.launchHeaded ? { launchHeaded: opts.launchHeaded } : {}), ...(opts.workerOptions ? { workerOptions: opts.workerOptions } : {}), ...(opts.remote ? { remote: opts.remote } : {}) });
+  runtime.remote.start();
+  if (config.workerToken) await ensureWorkerToken(db, config.workerToken);
+  registerRemoteWorkerRoutes(app, { db, service: runtime.remote });
   runtime.workers.start(opts.workers ?? config.workers);
-  const artifacts = new FsArtifactStore(db, config.artifactsDir);
-  registerArtifactRoutes(app, artifacts);
+  const artifacts = createArtifactStore(db, config);
+  registerArtifactRoutes(app, artifacts, { presign: config.s3Presign !== false });
   registerExportRoutes(app, { db, runtime, config });
   const deps = { db, config, log, runtime };
   registerWebhookRoutes(app, deps);
@@ -93,6 +100,7 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
     stopRetention();
     stopTrackerSync();
     runtime.scheduler.stop();
+    runtime.remote.stop();
     await runtime.auth.close();
     await runtime.recorder.close();
     await runtime.workers.stop(); // before the db closes

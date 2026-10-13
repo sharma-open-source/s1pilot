@@ -12,6 +12,7 @@ import { registerEvalCommand } from './eval.js';
 import { executeRun, type RunOptions } from './run.js';
 import { registerSyncCommands } from './sync.js';
 import { openInBrowser, registerUiCommand } from './ui.js';
+import { registerWorkerCommand } from './worker.js';
 
 /**
  * Reads the version from the nearest package.json: the CLI's own (one level above `dist/` or `src/`, which is also
@@ -217,6 +218,7 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
   registerCalibrateCommand(program, deps);
   registerAdminCommands(program, deps);
   registerUiCommand(program, deps);
+  registerWorkerCommand(program, deps);
   registerCiCommentCommand(program, deps);
 
   return program;

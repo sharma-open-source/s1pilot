@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { DeleteProjectDialog } from './DeleteProjectDialog';
 
 import { Button, Callout, Card, CardHeader, ConfirmDialog, EmptyState, Field, Input, Pill, Skeleton } from '@/components/ui';
+import { timeAgo } from '@/features/environments/model';
 import { errorMessage } from '@/lib/errors';
 import { trpc } from '@/lib/trpc';
 
@@ -198,34 +199,86 @@ export function DataSection() {
   );
 }
 
-const WORKER_TONE = { idle: 'neutral', busy: 'running', stopped: 'danger' } as const;
+const WORKER_TONE = { idle: 'neutral', busy: 'running', stopped: 'danger', offline: 'danger' } as const;
 
-/** Workers: in-process workers, status and current job (refreshes every 3 s). */
+/** Workers: in-process workers and remote workers (labels, version, status, current job, last heartbeat); refreshes every 3 s. */
 export function WorkersSection() {
   const q = trpc.workspace.workers.useQuery(undefined, { refetchInterval: 3000 });
   if (q.isLoading) return <Loading />;
   if (q.error) return <LoadError error={q.error} retry={() => void q.refetch()} />;
   const workers = q.data?.workers ?? [];
+  const remote = q.data?.remote ?? [];
   return (
-    <Card aria-label="Workers">
-      <CardHeader title="Workers" action={<span className="text-[13px] text-secondary">In-process · {q.data?.configured ?? 0} configured</span>} />
-      {workers.length === 0 ? (
-        <div className="p-[18px]">
-          <EmptyState>No workers are running. Start the server with <span className="font-mono">--workers 1</span> or more to execute runs.</EmptyState>
-        </div>
-      ) : (
-        <ul className="m-0 flex list-none flex-col p-0">
-          {workers.map((w) => (
-            <li key={w.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-divider-row px-[18px] py-3 last:border-b-0">
-              <span className="font-mono text-sm text-fg">{w.id}</span>
-              <Pill tone={WORKER_TONE[w.status]}>{w.status === 'busy' ? 'Busy' : w.status === 'idle' ? 'Idle' : 'Stopped'}</Pill>
-              <span className="min-w-[160px] flex-1 text-right font-mono text-xs text-secondary">
-                {w.status === 'busy' ? `job ${w.jobId ?? ''}${w.runId ? ` · run ${w.runId}` : ''}` : 'No current job'}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
+    <div className="flex flex-col gap-5">
+      <Card aria-label="Workers">
+        <CardHeader title="Workers" action={<span className="text-[13px] text-secondary">In-process · {q.data?.configured ?? 0} configured</span>} />
+        {workers.length === 0 ? (
+          <div className="p-[18px]">
+            <EmptyState>No workers are running. Start the server with <span className="font-mono">--workers 1</span> or more to execute runs.</EmptyState>
+          </div>
+        ) : (
+          <ul className="m-0 flex list-none flex-col p-0">
+            {workers.map((w) => (
+              <li key={w.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-divider-row px-[18px] py-3 last:border-b-0">
+                <span className="font-mono text-sm text-fg">{w.id}</span>
+                <Pill tone={WORKER_TONE[w.status]}>{w.status === 'busy' ? 'Busy' : w.status === 'idle' ? 'Idle' : 'Stopped'}</Pill>
+                <span className="min-w-[160px] flex-1 text-right font-mono text-xs text-secondary">
+                  {w.status === 'busy' ? `job ${w.jobId ?? ''}${w.runId ? ` · run ${w.runId}` : ''}` : 'No current job'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      <Card aria-label="Remote workers">
+        <CardHeader title="Remote workers" action={<span className="text-[13px] text-secondary">{remote.filter((w) => w.status !== 'offline').length} online</span>} />
+        {remote.length === 0 ? (
+          <div className="p-[18px]">
+            <EmptyState>
+              No remote workers have registered. On another machine run <span className="font-mono">s1pilot worker --server URL --labels gpu</span> with an API token in{' '}
+              <span className="font-mono">S1PILOT_WORKER_TOKEN</span>.
+            </EmptyState>
+          </div>
+        ) : (
+          <ul className="m-0 flex list-none flex-col p-0">
+            {remote.map((w) => (
+              <li key={w.id} className="flex flex-col gap-2 border-b border-divider-row px-[18px] py-3 last:border-b-0">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium text-fg">{w.name}</span>
+                    {w.name !== w.id && <span className="font-mono text-xs text-secondary">{w.id}</span>}
+                  </span>
+                  <Pill tone={WORKER_TONE[w.status]}>{w.status === 'busy' ? 'Busy' : w.status === 'idle' ? 'Idle' : 'Offline'}</Pill>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-secondary">
+                  <span className="flex flex-wrap items-center gap-1">
+                    Labels:{' '}
+                    {w.labels.length === 0 ? (
+                      <span>none</span>
+                    ) : (
+                      w.labels.map((l) => (
+                        <Pill key={l} tone="neutral">
+                          {l}
+                        </Pill>
+                      ))
+                    )}
+                  </span>
+                  <span>
+                    Version <span className="font-mono">{w.version}</span>
+                  </span>
+                  <span>
+                    {w.concurrency} {w.concurrency === 1 ? 'slot' : 'slots'}
+                  </span>
+                  <span title={w.lastHeartbeatAt}>Last heartbeat {timeAgo(w.lastHeartbeatAt)}</span>
+                </div>
+                <div className="font-mono text-xs text-secondary">
+                  {w.jobs.length === 0 ? 'No current job' : w.jobs.map((j) => `job ${j.jobId}${j.runId ? ` · run ${j.runId}` : ''}`).join(' | ')}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </div>
   );
 }

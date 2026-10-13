@@ -18,7 +18,7 @@ import {
 } from '@s1pilot/domain';
 import { z } from 'zod';
 
-import { FsArtifactStore } from '../../artifacts/store.js';
+import { createArtifactStore } from '../../artifacts/factory.js';
 import { createModelFactory } from '../../worker/models.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
@@ -198,7 +198,7 @@ export async function attachToStep(
   if (!kind) throw new S1PilotError('INVALID_INPUT', 'Only images and videos can be attached', { contentType: file.contentType });
   if (file.data.length > MAX_ATTACHMENT_BYTES) throw new S1PilotError('INVALID_INPUT', 'Attachment is too large', { size: file.data.length });
   const started = await ensureStarted(ctx, item);
-  const store = new FsArtifactStore(ctx.db, ctx.config.artifactsDir);
+  const store = createArtifactStore(ctx.db, ctx.config);
   const id = await store.put(file.data, {
     projectId: item.projectId,
     runId: item.runId,

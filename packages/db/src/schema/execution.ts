@@ -33,6 +33,8 @@ export const testPlans = sqliteTable('test_plans', {
   exitCriteria: text('exit_criteria', { mode: 'json' }).$type<ExitCriterion[]>().notNull(),
   checks: text('checks', { mode: 'json' }).$type<PlanChecks>().notNull(),
   assignments: text('assignments', { mode: 'json' }).$type<Record<string, PlanAssignment>>().notNull().default({}),
+  /** Only workers carrying all of these labels run the plan's jobs (S-068). */
+  workerLabels: text('worker_labels', { mode: 'json' }).$type<string[]>().notNull().default([]),
   createdAt: text('created_at'),
   updatedAt: text('updated_at'),
 });
@@ -208,6 +210,8 @@ export const jobs = sqliteTable(
     attempts: integer('attempts').notNull(),
     maxAttempts: integer('max_attempts').notNull(),
     workerId: text('worker_id'),
+    /** Labels a worker must carry to claim the job (S-068); null = any worker. */
+    labels: text('labels', { mode: 'json' }).$type<string[]>(),
     leaseExpiresAt: text('lease_expires_at'),
     result: text('result', { mode: 'json' }).$type<unknown>(),
     error: text('error'),

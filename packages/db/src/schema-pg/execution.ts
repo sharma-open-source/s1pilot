@@ -33,6 +33,8 @@ export const testPlans = pgTable('test_plans', {
   exitCriteria: jsonb('exit_criteria').$type<ExitCriterion[]>().notNull(),
   checks: jsonb('checks').$type<PlanChecks>().notNull(),
   assignments: jsonb('assignments').$type<Record<string, PlanAssignment>>().notNull().default({}),
+  /** Only workers carrying all of these labels run the plan's jobs (S-068). */
+  workerLabels: jsonb('worker_labels').$type<string[]>().notNull().default([]),
   createdAt: text('created_at'),
   updatedAt: text('updated_at'),
 });
@@ -207,6 +209,8 @@ export const jobs = pgTable(
     attempts: integer('attempts').notNull(),
     maxAttempts: integer('max_attempts').notNull(),
     workerId: text('worker_id'),
+    /** Labels a worker must carry to claim the job (S-068); null = any worker. */
+    labels: jsonb('labels').$type<string[]>(),
     leaseExpiresAt: text('lease_expires_at'),
     result: jsonb('result').$type<unknown>(),
     error: text('error'),

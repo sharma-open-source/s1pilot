@@ -26,6 +26,14 @@ describe('plan', () => {
     ).toBe(true);
   });
 
+  it('carries worker labels (S-068), default none, and rejects odd label text', () => {
+    const base = { id: 'a', projectId: 'p', name: 'n', selection: { kind: 'list', caseIds: [] }, matrix };
+    expect(TestPlanSchema.parse(base).workerLabels).toEqual([]);
+    expect(TestPlanSchema.parse({ ...base, workerLabels: ['gpu', 'eu-west_1'] }).workerLabels).toEqual(['gpu', 'eu-west_1']);
+    expect(TestPlanSchema.safeParse({ ...base, workerLabels: ['has space'] }).success).toBe(false);
+    expect(TestPlanSchema.safeParse({ ...base, workerLabels: [''] }).success).toBe(false);
+  });
+
   it('rejects an empty matrix and an unknown selection kind', () => {
     const base = { id: 'a', projectId: 'p', name: 'n', selection: { kind: 'list', caseIds: [] } };
     expect(TestPlanSchema.safeParse({ ...base, matrix: [] }).success).toBe(false);

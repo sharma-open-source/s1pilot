@@ -421,6 +421,9 @@ function PlanBuilder({ projectKey, projectLabel, envs, plan }: BuilderProps) {
               <Field label="Parallel workers">
                 {(id) => <Input id={id} type="number" min={1} max={32} value={form.parallelism} onChange={(e) => set({ parallelism: clampInt(e.target.value, 1, 32, 1) })} />}
               </Field>
+              <Field label="Run on workers with label" hint="Comma-separated, e.g. gpu, eu. Empty = any worker.">
+                {(id) => <Input id={id} value={form.workerLabels} placeholder="any worker" onChange={(e) => set({ workerLabels: e.target.value })} />}
+              </Field>
               <Field label="Unattended escalations">
                 {(id) => (
                   <Select id={id} value={form.unattended} onChange={(e) => set({ unattended: e.target.value as PlanForm['unattended'] })}>

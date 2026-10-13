@@ -13,7 +13,7 @@ import {
 } from '@s1pilot/integrations';
 import { z } from 'zod';
 
-import { FsArtifactStore } from '../artifacts/store.js';
+import { createArtifactStore } from '../artifacts/factory.js';
 import type { Context } from '../trpc/context.js';
 import { applyUpdate } from '../trpc/routers/defects.js';
 
@@ -161,7 +161,7 @@ const MAX_ATTACHMENTS = 3;
 
 /** Screenshot evidence of a defect, read from the artifact store. Missing files are skipped. */
 async function loadAttachments(ctx: Context, d: Defect): Promise<TrackerAttachment[]> {
-  const store = new FsArtifactStore(ctx.db, ctx.config.artifactsDir);
+  const store = createArtifactStore(ctx.db, ctx.config);
   const out: TrackerAttachment[] = [];
   for (const ev of (d.details?.evidence ?? []).filter((e) => e.kind === 'screenshot').slice(0, MAX_ATTACHMENTS)) {
     try {

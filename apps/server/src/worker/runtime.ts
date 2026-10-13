@@ -8,6 +8,7 @@ import { HumanControl, type HumanControlOptions } from '../live/control.js';
 import { LiveHub } from '../live/hub.js';
 import { attachNotifications, notifyReviewQueue } from '../notifications/service.js';
 import { RecorderService } from '../recorder/service.js';
+import { RemoteWorkerService } from '../remote/service.js';
 import { PlanScheduler } from '../triggers/scheduler.js';
 
 import { RunEventBus } from './event-bus.js';
@@ -21,6 +22,8 @@ export interface ServerRuntime {
   bus: RunEventBus;
   lifecycle: RunLifecycle;
   workers: WorkerPool;
+  /** Workers on other machines: registration, leases, results and artifacts over the API (S-068). */
+  remote: RemoteWorkerService;
   /** WebSocket fan-out of run events and screencast frames (S-036). */
   live: LiveHub;
   /** Escalations, pause/resume, abort and takeover of attended runs (S-037). */
@@ -46,6 +49,8 @@ export interface RuntimeOptions {
   /** Screencast tuning (tests). */
   screencast?: ConstructorParameters<typeof LiveHub>[0]['screencast'];
   /** Overrides of the worker pool (model factory, browser launcher, timings). Tests use these. */
+  /** Remote worker tuning (lease and reaper interval; tests shorten them). */
+  remote?: Pick<ConstructorParameters<typeof RemoteWorkerService>[0], 'leaseMs' | 'reapIntervalMs'>;
   workerOptions?: Partial<Omit<WorkerPoolOptions, 'db' | 'config' | 'log' | 'queue' | 'bus' | 'lifecycle'>>;
 }
 
@@ -69,6 +74,7 @@ export function createRuntime(opts: RuntimeOptions): ServerRuntime {
     abortRun: async (runId) => {
       await lifecycle.cancel(runId);
       workers.abortRun(runId);
+      remote.abortRun(runId);
     },
     onStatus: (runId, status) => live.announceStatus(runId, status),
     ...(opts.launchHeaded ? { launchHeaded: opts.launchHeaded } : {}),
@@ -87,12 +93,14 @@ export function createRuntime(opts: RuntimeOptions): ServerRuntime {
     ...(opts.workerOptions?.createModels ? { createModels: opts.workerOptions.createModels } : {}),
   });
   const workers: WorkerPool = new WorkerPool({ human, auth, onPage: (runId, resultId, page) => live.screencast.attach(runId, resultId, page), ...opts.workerOptions, db: opts.db, config: opts.config, log: opts.log, queue, bus, lifecycle });
+  const remote = new RemoteWorkerService({ db: opts.db, config: opts.config, log: opts.log, queue, bus, lifecycle, live, ...(opts.remote ?? {}) });
   const scheduler = new PlanScheduler({ db: opts.db, log: opts.log });
   const runtime: ServerRuntime = {
     queue,
     bus,
     lifecycle,
     workers,
+    remote,
     live,
     human,
     auth,

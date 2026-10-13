@@ -29,12 +29,18 @@ export function parseRange(
 
 /**
  * Registers `GET /api/artifacts/:id` (content with content-type and byte-range support) and
- * `GET /api/artifacts/:id/trace-viewer` (how to open a Playwright trace).
+ * `GET /api/artifacts/:id/trace-viewer` (how to open a Playwright trace). With an S3 store the first redirects (302) to a
+ * presigned bucket URL unless `presign` is false.
  */
-export function registerArtifactRoutes(app: FastifyInstance, store: ArtifactStore): void {
+export function registerArtifactRoutes(app: FastifyInstance, store: ArtifactStore, opts: { presign?: boolean } = {}): void {
   app.get<{ Params: { id: string } }>('/api/artifacts/:id', async (req, reply) => {
     const record = await store.stat(req.params.id);
     if (!record) return reply.code(404).send({ error: 'Artifact not found' });
+    // Object storage serves the bytes itself (ranges included) through a short-lived presigned URL (S-068).
+    if (store.presignedUrl && opts.presign !== false) {
+      const url = await store.presignedUrl(record.id);
+      if (url) return reply.header('cache-control', 'private, no-store').redirect(url, 302);
+    }
     const range = parseRange(req.headers.range, record.size);
     reply
       .header('content-type', record.contentType)

@@ -46,6 +46,12 @@ export const PlanChecksSchema = z.object({
 });
 export type PlanChecks = z.infer<typeof PlanChecksSchema>;
 
+/** Label of a worker (`gpu`, `eu`); plans can require labels so their jobs only run on matching workers (S-068). */
+export const WorkerLabelSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/, 'labels are letters, digits, dot, dash or underscore');
+export type WorkerLabel = z.infer<typeof WorkerLabelSchema>;
+
 export const TestPlanSchema = z.object({
   id: IdSchema,
   projectId: IdSchema,
@@ -55,6 +61,8 @@ export const TestPlanSchema = z.object({
   matrix: z.array(MatrixEntrySchema).min(1, 'a plan needs at least one matrix entry'),
   retries: z.number().int().min(0).max(5).default(0),
   parallelism: z.number().int().min(1).default(1),
+  /** Run only on workers carrying all of these labels; empty = any worker (S-068). */
+  workerLabels: z.array(WorkerLabelSchema).default([]),
   mode: ExecutionModeSchema.default('replay-heal'),
   /** What to do when a run needs a human but nobody is watching. */
   unattended: z.enum(['block', 'pause']).default('block'),

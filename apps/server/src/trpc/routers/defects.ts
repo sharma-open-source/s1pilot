@@ -17,7 +17,7 @@ import {
 } from '@s1pilot/domain';
 import { z } from 'zod';
 
-import { FsArtifactStore } from '../../artifacts/store.js';
+import { createArtifactStore } from '../../artifacts/factory.js';
 import { notify, publicBaseUrl } from '../../notifications/service.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
@@ -95,7 +95,7 @@ export async function draftFromResult(ctx: Context, resultId: string, stepIndex?
   // A result that only failed because of its accessibility scan (no failing step) is drafted "from accessibility scan".
   const a11yFindings = picked && (picked.status === 'failed' || picked.status === 'blocked')
     ? []
-    : (await loadChecks(new FsArtifactStore(ctx.db, ctx.config.artifactsDir), artifacts.find((a) => a.kind === 'a11y')?.id))
+    : (await loadChecks(createArtifactStore(ctx.db, ctx.config), artifacts.find((a) => a.kind === 'a11y')?.id))
         .filter((c) => c.kind === 'a11y')
         .flatMap((c) => c.items.filter((i) => i.severity === 'fail'));
   const fromA11y = a11yFindings.length > 0;

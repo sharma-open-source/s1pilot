@@ -14,6 +14,21 @@ export const ConfigSchema = z.object({
   /** `postgres://` URL of the pg-boss job queue (team mode, S-066). Unset = the SQLite queue in the data dir. */
   queueUrl: z.string().min(1).optional(),
   artifactsDir: z.string().min(1),
+  /** S3-compatible bucket for artifacts (S-068). Unset = the file system under `artifactsDir`. Credentials: AWS env vars / role. */
+  s3Bucket: z.string().min(1).optional(),
+  /** Endpoint of an S3-compatible service such as MinIO (`http://minio:9000`). */
+  s3Endpoint: z.string().url().optional(),
+  /** Endpoint browsers reach the bucket at, when it differs from `s3Endpoint` (presigned URLs use it). */
+  s3PublicEndpoint: z.string().url().optional(),
+  s3Region: z.string().min(1).optional(),
+  /** Key prefix inside the bucket. */
+  s3Prefix: z.string().optional(),
+  /** Redirect artifact downloads to presigned bucket URLs (default) instead of proxying the bytes through the server. */
+  s3Presign: z.boolean().optional(),
+  /** Bootstrap API token (`s1p_<8 hex>_<48 hex>`, `runs:write`) remote workers authenticate with; created at startup when missing. Env only. */
+  workerToken: z.string().min(1).optional(),
+  /** Seconds a remote worker may go silent before its leased jobs are re-queued (S-068). Default 30. */
+  workerLeaseSec: z.number().positive().optional(),
   mode: z.enum(['local', 'team']),
   /** In-process workers executing queued runs (0 disables execution). */
   workers: z.number().int().min(0).max(32),
@@ -31,6 +46,15 @@ function defaultDataDir(cwd: string): string {
   return existsSync(local) ? local : join(homedir(), '.s1pilot');
 }
 
+const NUMERIC_KEYS: ReadonlySet<keyof ServerConfig> = new Set(['port', 'workers', 'escalationTimeoutMin', 'workerLeaseSec']);
+
+/** Env / flag strings to the typed config value. */
+function coerce(key: keyof ServerConfig, value: string): unknown {
+  if (NUMERIC_KEYS.has(key)) return Number(value);
+  if (key === 's3Presign') return !['0', 'false', 'no', 'off'].includes(value.toLowerCase());
+  return value;
+}
+
 const ENV_KEYS: Record<string, keyof ServerConfig> = {
   S1PILOT_PORT: 'port',
   S1PILOT_HOST: 'host',
@@ -38,6 +62,14 @@ const ENV_KEYS: Record<string, keyof ServerConfig> = {
   S1PILOT_DB_URL: 'dbUrl',
   S1PILOT_QUEUE_URL: 'queueUrl',
   S1PILOT_ARTIFACTS_DIR: 'artifactsDir',
+  S1PILOT_S3_BUCKET: 's3Bucket',
+  S1PILOT_S3_ENDPOINT: 's3Endpoint',
+  S1PILOT_S3_PUBLIC_ENDPOINT: 's3PublicEndpoint',
+  S1PILOT_S3_REGION: 's3Region',
+  S1PILOT_S3_PREFIX: 's3Prefix',
+  S1PILOT_S3_PRESIGN: 's3Presign',
+  S1PILOT_WORKER_LEASE_SEC: 'workerLeaseSec',
+  S1PILOT_WORKER_TOKEN: 'workerToken',
   S1PILOT_MODE: 'mode',
   S1PILOT_LOG_LEVEL: 'logLevel',
   S1PILOT_WORKERS: 'workers',
@@ -56,7 +88,7 @@ export function loadConfig(
   const merged: Raw = {};
   for (const [name, key] of Object.entries(ENV_KEYS)) {
     const v = env[name];
-    if (v !== undefined) merged[key] = key === 'port' || key === 'workers' || key === 'escalationTimeoutMin' ? Number(v) : v;
+    if (v !== undefined) merged[key] = coerce(key, v);
   }
   for (const [k, v] of Object.entries(overrides)) {
     if (v !== undefined) merged[k as keyof ServerConfig] = v;
@@ -90,6 +122,12 @@ const FLAGS: Record<string, keyof ServerConfig> = {
   '--db-url': 'dbUrl',
   '--queue-url': 'queueUrl',
   '--artifacts-dir': 'artifactsDir',
+  '--s3-bucket': 's3Bucket',
+  '--s3-endpoint': 's3Endpoint',
+  '--s3-public-endpoint': 's3PublicEndpoint',
+  '--s3-region': 's3Region',
+  '--s3-prefix': 's3Prefix',
+  '--worker-lease-sec': 'workerLeaseSec',
   '--mode': 'mode',
   '--log-level': 'logLevel',
   '--workers': 'workers',
@@ -105,7 +143,7 @@ export function parseServerArgs(argv: readonly string[]): Raw {
     if (key === undefined) continue;
     const value = argv[++i];
     if (value === undefined) throw new S1PilotError('CONFIG_ERROR', `Missing value for ${flag}`);
-    out[key] = key === 'port' || key === 'workers' || key === 'escalationTimeoutMin' ? Number(value) : value;
+    out[key] = coerce(key, value);
   }
   return out;
 }

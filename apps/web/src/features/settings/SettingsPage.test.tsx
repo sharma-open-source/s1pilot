@@ -241,6 +241,34 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Idle')).toBeInTheDocument();
   });
 
+  it('lists remote workers with labels, version, status, current job and last heartbeat', async () => {
+    const beat = new Date(Date.now() - 5 * 60_000).toISOString();
+    renderPage('workers', {
+      'workspace.workers': () => ({
+        configured: 0,
+        workers: [],
+        remote: [
+          { id: 'rw-gpu1', name: 'gpu-box', labels: ['gpu', 'eu'], version: '1.2.3', concurrency: 2, status: 'busy', jobs: [{ jobId: 'j9', runId: 'r9' }], registeredAt: beat, lastHeartbeatAt: beat },
+          { id: 'rw-old', name: 'rw-old', labels: [], version: '1.0.0', concurrency: 1, status: 'offline', jobs: [], registeredAt: beat, lastHeartbeatAt: beat },
+        ],
+      }),
+    });
+    expect(await screen.findByText('gpu-box')).toBeInTheDocument();
+    expect(screen.getByText('gpu')).toBeInTheDocument();
+    expect(screen.getByText('eu')).toBeInTheDocument();
+    expect(screen.getByText('1.2.3')).toBeInTheDocument();
+    expect(screen.getByText('job j9 · run r9')).toBeInTheDocument();
+    expect(screen.getByText('Busy')).toBeInTheDocument();
+    expect(screen.getByText('Offline')).toBeInTheDocument();
+    expect(screen.getAllByText('Last heartbeat 5 min ago')).toHaveLength(2);
+    expect(screen.getByText('1 online')).toBeInTheDocument();
+  });
+
+  it('explains how to start a remote worker when none registered', async () => {
+    renderPage('workers', { 'workspace.workers': () => ({ configured: 1, workers: [], remote: [] }) });
+    expect(await screen.findByText(/No remote workers have registered/)).toBeInTheDocument();
+  });
+
   it('connects GitHub Issues with a write-only token and lists the connected tracker', async () => {
     const user = userEvent.setup();
     const list = [

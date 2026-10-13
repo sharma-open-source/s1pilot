@@ -20,10 +20,10 @@ export interface TokenPrincipal {
   scopes: TokenScope[];
 }
 
-const TOKEN_RE = /^s1p_([0-9a-f]{8})_([0-9a-f]{48})$/;
+export const TOKEN_RE = /^s1p_([0-9a-f]{8})_([0-9a-f]{48})$/;
 
 /** Constant-work scrypt hash `scrypt$<saltHex>$<hashHex>`. */
-async function hashToken(token: string): Promise<string> {
+export async function hashToken(token: string): Promise<string> {
   const salt = randomBytes(16);
   const hash = await scryptAsync(token, salt, 32);
   return `scrypt$${salt.toString('hex')}$${hash.toString('hex')}`;
