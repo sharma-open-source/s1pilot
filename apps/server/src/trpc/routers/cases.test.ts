@@ -386,6 +386,25 @@ describe('list row extras', () => {
   });
 });
 
+describe('forgetLearned', () => {
+  it('deletes the script of one environment, is a no-op without one, and is refused for viewers', async () => {
+    const { api, db, viewer } = await setup();
+    const c = await mk(api);
+    const env = (await api.environments.list({ projectKey: 'SHOP' }))[0];
+    if (!env) throw new Error('no env');
+    await repos.learnedScripts.upsert(db, {
+      id: 'ls1', caseId: c.id, caseVersion: 1, environmentId: env.id, actions: [], createdFromRunId: 'run1',
+    });
+    await expect(viewer.cases.forgetLearned({ key: c.key, environmentId: env.id })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect((await api.cases.get(c.key)).learned[0]?.status).toBe('current');
+
+    expect(await api.cases.forgetLearned({ key: c.key, environmentId: env.id })).toEqual({ key: c.key, environmentId: env.id, forgotten: true });
+    expect((await api.cases.get(c.key)).learned[0]?.status).toBe('none');
+    expect(await repos.learnedScripts.getFor(db, c.id, env.id)).toBeUndefined();
+    expect((await api.cases.forgetLearned({ key: c.key, environmentId: env.id })).forgotten).toBe(false);
+  });
+});
+
 describe('syncStatus', () => {
   it('reports a project with no exported files as not clean', async () => {
     const { api } = await setup();

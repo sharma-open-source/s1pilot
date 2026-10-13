@@ -235,6 +235,20 @@ export const casesRouter = router({
     };
   }),
 
+  /**
+   * Deletes the learned script of a case in one environment, so its next run explores again with
+   * the model and learns a new one. Pending heal proposals stay; approving one then changes nothing.
+   * `forgotten` is false when there was no script.
+   */
+  forgetLearned: publicProcedure
+    .input(z.object({ key: z.string().min(1), environmentId: IdSchema }))
+    .mutation(async ({ ctx, input }) => {
+      const c = await requireCase(ctx, input.key);
+      const script = await ctx.repos.learnedScripts.getFor(ctx.db, c.id, input.environmentId);
+      if (script) await ctx.repos.learnedScripts.delete(ctx.db, script.id);
+      return { key: c.key, environmentId: input.environmentId, forgotten: script !== undefined };
+    }),
+
   /** Creates a case (version 1) and allocates its `KEY-TC-n`. */
   create: publicProcedure.input(CreateInput).mutation(async ({ ctx, input }) => {
     const { projectKey, ...content } = input;

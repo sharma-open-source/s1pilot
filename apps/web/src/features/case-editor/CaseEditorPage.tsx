@@ -367,7 +367,7 @@ function CaseEditor({ projectKey, caseKey, tab: rawTab, navigate }: CaseEditorPa
             </>
           )}
           {tab === 'parameters' && <ParametersTab parameters={draft.parameters} onChange={(parameters) => patchDraft({ parameters })} />}
-          {tab === 'learned' && <LearnedTab learned={data.learned} stepCount={base.steps.length} />}
+          {tab === 'learned' && <LearnedTab caseKey={caseKey} learned={data.learned} stepCount={base.steps.length} />}
           {tab === 'yaml' && (
             <YamlTab
               caseKey={caseKey}

@@ -309,7 +309,29 @@ describe('CaseEditorPage', () => {
     setup({}, 'learned');
     expect(await screen.findByRole('region', { name: 'Learned script for staging' })).toHaveTextContent('Ready · 3/3 steps');
     expect(screen.getByRole('region', { name: 'Learned script for dev' })).toHaveTextContent('Not learned');
-    expect(screen.getAllByRole('button', { name: 'Forget script' })[0]).toBeDisabled();
+    expect(within(screen.getByRole('region', { name: 'Learned script for dev' })).getByRole('button', { name: 'Forget script' })).toBeDisabled();
+  });
+
+  it('forgets a learned script after confirming', async () => {
+    const user = userEvent.setup();
+    const { fake } = setup({ 'cases.forgetLearned': (i) => ({ ...(i as object), forgotten: true }) }, 'learned');
+    const card = await screen.findByRole('region', { name: 'Learned script for staging' });
+    await user.click(within(card).getByRole('button', { name: 'Forget script' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Forget the learned script for staging?' });
+    expect(dialog).toHaveTextContent('explores with the model again');
+    await user.click(within(dialog).getByRole('button', { name: 'Forget script' }));
+    await waitFor(() => expect(callsTo(fake, 'cases.forgetLearned')).toHaveLength(1));
+    expect(callsTo(fake, 'cases.forgetLearned')[0]?.input).toEqual({ key: 'SHOP-TC-42', environmentId: 'e1' });
+    expect(await screen.findByText(/Learned script for staging forgotten/)).toBeInTheDocument();
+  });
+
+  it('keeps the script when the confirm is cancelled', async () => {
+    const user = userEvent.setup();
+    const { fake } = setup({ 'cases.forgetLearned': () => ({ forgotten: true }) }, 'learned');
+    const card = await screen.findByRole('region', { name: 'Learned script for staging' });
+    await user.click(within(card).getByRole('button', { name: 'Forget script' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+    expect(callsTo(fake, 'cases.forgetLearned')).toHaveLength(0);
   });
 
   it('opens a conflict dialog on a stale save; Overwrite re-saves against the newer version', async () => {

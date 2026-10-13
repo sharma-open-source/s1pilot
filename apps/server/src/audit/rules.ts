@@ -51,6 +51,10 @@ export const AUDIT_RULES: Readonly<Record<string, AuditRule>> = {
     }),
   },
   'cases.quarantine': { afterFromInput: true, describe: ({ input }) => ({ action: 'case.quarantine', entityType: 'case', entityId: str(input['key']) }) },
+  'cases.forgetLearned': {
+    afterFromInput: true,
+    describe: ({ input }) => ({ action: 'case.learned.forget', entityType: 'case', entityId: str(input['key']), after: { environmentId: input['environmentId'] } }),
+  },
   'cases.unquarantine': { afterFromInput: true, describe: ({ input }) => ({ action: 'case.unquarantine', entityType: 'case', entityId: str(input['key']) }) },
   // Plan edits
   'plans.create': { describe: ({ result, input }) => ({ action: 'plan.create', entityType: 'plan', entityId: str(result['id']), projectKey: projectKeyOf(input) }) },
