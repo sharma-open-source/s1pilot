@@ -212,6 +212,26 @@ describe('SettingsPage', () => {
     expect(fake.calls.find((c) => c.path === 'workspace.purge')?.input).toEqual({ projectKey: 'SHOP' });
   });
 
+  it('deletes a project only after typing "delete"', async () => {
+    const user = userEvent.setup();
+    const { fake } = renderPage('data', {
+      'workspace.get': () => ({ name: 'W', timezone: 'UTC', retentionDays: 30, mode: 'local' }),
+      'workspace.data': () => [{ key: 'SHOP', name: 'Storefront', retentionDays: 30, artifacts: 12 }],
+      'projects.delete': () => ({ deleted: true, key: 'SHOP' }),
+    });
+    await user.click(await screen.findByRole('button', { name: 'Delete project SHOP' }));
+    const confirm = await screen.findByRole('button', { name: 'Delete project' });
+    expect(confirm).toBeDisabled();
+    const field = screen.getByLabelText('Type "delete" to confirm');
+    await user.type(field, 'del');
+    expect(confirm).toBeDisabled();
+    await user.type(field, 'ete');
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+    expect(await screen.findByText('Deleted project SHOP.')).toBeInTheDocument();
+    expect(fake.calls.find((c) => c.path === 'projects.delete')?.input).toEqual({ key: 'SHOP' });
+  });
+
   it('lists workers with their current job', async () => {
     renderPage('workers', {
       'workspace.workers': () => ({ configured: 2, workers: [{ id: 'worker-1', status: 'busy', jobId: 'j1', runId: 'r1' }, { id: 'worker-2', status: 'idle' }] }),

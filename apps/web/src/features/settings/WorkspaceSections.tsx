@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 
+import { DeleteProjectDialog } from './DeleteProjectDialog';
+
 import { Button, Callout, Card, CardHeader, ConfirmDialog, EmptyState, Field, Input, Pill, Skeleton } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
 import { trpc } from '@/lib/trpc';
+
 
 function Loading() {
   return (
@@ -83,6 +86,7 @@ export function DataSection() {
   const update = trpc.workspace.update.useMutation();
   const [days, setDays] = useState('30');
   const [confirm, setConfirm] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<{ key: string; name: string } | null>(null);
   const [result, setResult] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
   useEffect(() => {
     if (general.data) setDays(String(general.data.retentionDays));
@@ -112,6 +116,18 @@ export function DataSection() {
       const r = await utils.client.workspace.purge.mutate({ projectKey: key });
       await utils.workspace.data.invalidate();
       setResult({ tone: 'success', text: `Purged ${r.removed} artifact${r.removed === 1 ? '' : 's'} of ${key}.` });
+    } catch (err) {
+      setResult({ tone: 'danger', text: errorMessage(err) });
+    }
+  };
+
+  const deleteProject = async (key: string) => {
+    setResult(null);
+    try {
+      await utils.client.projects.delete.mutate({ key });
+      // Every project-scoped query (nav, dashboard, lists) may hold the deleted project.
+      await utils.invalidate();
+      setResult({ tone: 'success', text: `Deleted project ${key}.` });
     } catch (err) {
       setResult({ tone: 'danger', text: errorMessage(err) });
     }
@@ -155,9 +171,14 @@ export function DataSection() {
                     <span className="font-mono">{p.artifacts}</span> artifacts · keeps <span className="font-mono">{p.retentionDays}</span> days
                   </span>
                 </div>
-                <Button variant="danger-outline" disabled={p.artifacts === 0} onClick={() => setConfirm(p.key)} aria-label={`Purge now ${p.key}`}>
-                  Purge now
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="danger-outline" disabled={p.artifacts === 0} onClick={() => setConfirm(p.key)} aria-label={`Purge now ${p.key}`}>
+                    Purge now
+                  </Button>
+                  <Button variant="danger-outline" onClick={() => setToDelete({ key: p.key, name: p.name })} aria-label={`Delete project ${p.key}`}>
+                    Delete project
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -172,6 +193,7 @@ export function DataSection() {
         tone="danger"
         onConfirm={() => confirm !== null && void purge(confirm)}
       />
+      <DeleteProjectDialog project={toDelete} onOpenChange={(o) => !o && setToDelete(null)} onConfirm={(key) => void deleteProject(key)} />
     </>
   );
 }
