@@ -40,6 +40,7 @@ npx s1pilot ui
 | `--port <n>` | Port to listen on (default `5317`). |
 | `--data-dir <dir>` | Where the database, artifacts and the encryption key live (default `./.s1pilot` if it exists, else `~/.s1pilot`). |
 | `--no-open` | Do not open a browser window (use this on servers and in CI). |
+| `--workers <n>` | How many test cases can run at once, each in its own browser (1–32). A plan's "Parallel workers" can only lower this. Default: `S1PILOT_WORKERS`, else 1. |
 
 Press `Ctrl+C` to stop it.
 

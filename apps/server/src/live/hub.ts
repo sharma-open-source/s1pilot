@@ -28,6 +28,8 @@ export interface RunSnapshot {
   run: TestRun;
   currentCase: { caseResultId: string; caseId: string; caseKey?: string } | null;
   steps: SnapshotStep[];
+  /** Every case still running with its steps; several at once when the plan runs in parallel. */
+  lanes: Array<NonNullable<RunSnapshot['currentCase']> & { steps: SnapshotStep[] }>;
   lastDecision: DecisionRecord | null;
   /** Escalations still waiting for a human, so a reconnecting client can show the prompt again. */
   pendingEscalations: Extract<RunEvent, { type: 'escalation.needed' }>[];
@@ -45,6 +47,8 @@ export type WorkspaceMessage =
 
 interface RunState {
   currentCase: RunSnapshot['currentCase'];
+  /** Cases started and not finished yet, in start order. */
+  running: Map<string, NonNullable<RunSnapshot['currentCase']>>;
   /** Steps per case result; the snapshot shows those of `currentCase`. */
   steps: Map<string, Map<number, SnapshotStep>>;
   lastDecision: DecisionRecord | null;
@@ -181,12 +185,14 @@ export class LiveHub {
   private snapshot(run: TestRun): RunSnapshot {
     const state = this.states.get(run.id);
     const current = state?.currentCase ?? null;
-    const steps = current ? [...(state?.steps.get(current.caseResultId)?.values() ?? [])] : [];
+    const stepsOf = (caseResultId: string): SnapshotStep[] =>
+      [...(state?.steps.get(caseResultId)?.values() ?? [])].sort((a, b) => a.stepIndex - b.stepIndex);
     return {
       type: 'snapshot',
       run,
       currentCase: current,
-      steps: steps.sort((a, b) => a.stepIndex - b.stepIndex),
+      steps: current ? stepsOf(current.caseResultId) : [],
+      lanes: [...(state?.running.values() ?? [])].map((c) => ({ ...c, steps: stepsOf(c.caseResultId) })),
       lastDecision: state?.lastDecision ?? null,
       pendingEscalations: [...(state?.escalations.values() ?? [])],
     };
@@ -195,13 +201,17 @@ export class LiveHub {
   private track(event: RunEvent): void {
     let state = this.states.get(event.runId);
     if (!state) {
-      state = { currentCase: null, steps: new Map(), lastDecision: null, escalations: new Map() };
+      state = { currentCase: null, running: new Map(), steps: new Map(), lastDecision: null, escalations: new Map() };
       this.states.set(event.runId, state);
     }
     switch (event.type) {
       case 'case.started':
         state.currentCase = { caseResultId: event.caseResultId, caseId: event.caseId, ...(event.caseKey ? { caseKey: event.caseKey } : {}) };
+        state.running.set(event.caseResultId, state.currentCase);
         state.steps.set(event.caseResultId, new Map());
+        break;
+      case 'case.finished':
+        state.running.delete(event.caseResultId);
         break;
       case 'step.started': {
         const steps = state.steps.get(event.caseResultId) ?? new Map<number, SnapshotStep>();

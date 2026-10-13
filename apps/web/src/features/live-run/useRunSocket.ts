@@ -15,11 +15,17 @@ export type Connection = 'connecting' | 'open' | 'reconnecting';
 
 export interface RunSocket {
   state: LiveRunState;
+  /** Latest frame of any case. */
   frame: FrameView | null;
+  /** Latest frame per case result id (one per parallel browser), at most {@link MAX_FRAMES}. */
+  frames: Readonly<Record<string, FrameView>>;
   connection: Connection;
   /** Sends a control message; `false` when the socket is not open (use `runs.control` instead). */
   send: (message: RunControlMessage) => boolean;
 }
+
+/** Most cases whose last frame is kept; the least recently updated one is dropped first. */
+export const MAX_FRAMES = 16;
 
 /** Reconnect delay: 500 ms doubling up to 10 s. */
 export function backoffDelay(attempt: number): number {
@@ -33,6 +39,7 @@ export function backoffDelay(attempt: number): number {
 export function useRunSocket(runId: string): RunSocket {
   const [state, setState] = useState<LiveRunState>(INITIAL_LIVE_STATE);
   const [frame, setFrame] = useState<FrameView | null>(null);
+  const [frames, setFrames] = useState<Readonly<Record<string, FrameView>>>({});
   const [connection, setConnection] = useState<Connection>('connecting');
   const socketRef = useRef<WebSocket | null>(null);
   const finishedRef = useRef(false);
@@ -43,14 +50,27 @@ export function useRunSocket(runId: string): RunSocket {
     let closed = false;
     let attempt = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let lastUrl: string | null = null;
+    // Insertion order = least recently updated first; each object URL is revoked once its frame is replaced.
+    const latest = new Map<string, FrameView>();
+    const revoke = (url: string): void => {
+      if (typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(url);
+    };
     setState(INITIAL_LIVE_STATE);
     setFrame(null);
+    setFrames({});
 
-    const setFrameUrl = (next: FrameView | null): void => {
-      if (lastUrl !== null && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(lastUrl);
-      lastUrl = next?.url ?? null;
+    const putFrame = (resultId: string, next: FrameView): void => {
+      const old = latest.get(resultId);
+      if (old !== undefined) revoke(old.url);
+      latest.delete(resultId);
+      latest.set(resultId, next);
+      while (latest.size > MAX_FRAMES) {
+        const [oldestId, oldest] = latest.entries().next().value as [string, FrameView];
+        revoke(oldest.url);
+        latest.delete(oldestId);
+      }
       setFrame(next);
+      setFrames(Object.fromEntries(latest));
     };
 
     const connect = (): void => {
@@ -84,7 +104,7 @@ export function useRunSocket(runId: string): RunSocket {
           const decoded = decodeFrameBytes(ev.data);
           if (decoded === null) return;
           const url = URL.createObjectURL(new Blob([ev.data.slice(ev.data.byteLength - decoded.jpeg.byteLength)], { type: 'image/jpeg' }));
-          setFrameUrl({ url, width: decoded.width, height: decoded.height, seq: decoded.seq });
+          putFrame(decoded.resultId, { url, width: decoded.width, height: decoded.height, seq: decoded.seq });
         }
       };
       ws.onclose = () => {
@@ -103,7 +123,10 @@ export function useRunSocket(runId: string): RunSocket {
       if (timer !== undefined) clearTimeout(timer);
       socketRef.current?.close();
       socketRef.current = null;
-      setFrameUrl(null);
+      for (const f of latest.values()) revoke(f.url);
+      latest.clear();
+      setFrame(null);
+      setFrames({});
     };
   }, [runId]);
 
@@ -114,5 +137,5 @@ export function useRunSocket(runId: string): RunSocket {
     return true;
   }, []);
 
-  return { state, frame, connection, send };
+  return { state, frame, frames, connection, send };
 }

@@ -4,7 +4,18 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LiveRunPage } from './LiveRunPage';
-import { applyMessage, buildDecisionView, decodeFrameBytes, describeEvent, INITIAL_LIVE_STATE, progressCounts, stepMode } from './model';
+import {
+  applyMessage,
+  buildDecisionView,
+  decodeFrameBytes,
+  describeEvent,
+  focusLane,
+  followedLane,
+  INITIAL_LIVE_STATE,
+  progressCounts,
+  runningLanes,
+  stepMode,
+} from './model';
 import { backoffDelay } from './useRunSocket';
 
 import { createFakeTrpc, FakeTrpcProvider, type Handler } from '@/test/fake-trpc';
@@ -35,6 +46,23 @@ class FakeSocket {
   push(message: unknown): void {
     this.onmessage?.({ data: JSON.stringify(message) } as MessageEvent);
   }
+  pushBinary(data: ArrayBuffer): void {
+    this.onmessage?.({ data } as MessageEvent);
+  }
+}
+
+/** Encodes a screencast frame like the server: `[idLen][seq u32][w u16][h u16][resultId][jpeg]`. */
+function frameBytes(resultId: string, seq: number): ArrayBuffer {
+  const id = new TextEncoder().encode(resultId);
+  const buf = new ArrayBuffer(9 + id.length + 3);
+  const view = new DataView(buf);
+  view.setUint8(0, id.length);
+  view.setUint32(1, seq);
+  view.setUint16(5, 1280);
+  view.setUint16(7, 720);
+  new Uint8Array(buf, 9, id.length).set(id);
+  new Uint8Array(buf, 9 + id.length).set([255, 216, 255]); // JPEG start-of-image marker
+  return buf;
 }
 
 const TS = '2026-10-08T10:00:01.000Z';
@@ -308,5 +336,93 @@ describe('live-run model', () => {
     expect(view?.rows.map((r) => r.id)).toEqual(['e1', 'e2']);
     expect(progressCounts([{ verdict: 'passed' }, { verdict: 'failed' }, { verdict: 'needs-review' }], 5)).toEqual({ passed: 1, failed: 1, review: 1, queued: 2, total: 5 });
     expect(describeEvent({ type: 'run.started', runId: 'r', ts: TS, totalCases: 1 }, undefined).text).toBe('run started · 1 case');
+  });
+});
+
+describe('parallel browsers', () => {
+  const started = (id: string, key: string) => ({ type: 'event', event: { type: 'case.started', runId: RUN.id, ts: TS, caseResultId: id, caseId: `c-${id}`, caseKey: key } });
+  const step = (id: string, stepIndex: number, action: string) => ({ type: 'event', event: { type: 'step.started', runId: RUN.id, ts: TS, caseResultId: id, stepIndex, action } });
+  const parallelSnapshot = { ...SNAPSHOT, currentCase: null, steps: [], pendingEscalations: [], lanes: [] };
+  let urls = 0;
+
+  beforeEach(() => {
+    urls = 0;
+    Object.assign(URL, { createObjectURL: vi.fn(() => `blob:frame-${++urls}`), revokeObjectURL: vi.fn() });
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(URL, 'createObjectURL');
+    Reflect.deleteProperty(URL, 'revokeObjectURL');
+  });
+
+  it('keeps each case in its own lane and focuses one without mixing steps', () => {
+    let s = applyMessage(INITIAL_LIVE_STATE, parallelSnapshot);
+    for (const m of [started('a', 'SHOP-TC-1'), started('b', 'SHOP-TC-2'), step('a', 0, 'Open shop'), step('b', 0, 'Search'), step('b', 1, 'Add to cart')]) s = applyMessage(s, m);
+    expect(runningLanes(s).map((l) => l.caseKey)).toEqual(['SHOP-TC-1', 'SHOP-TC-2']);
+    expect(followedLane(s)?.caseKey).toBe('SHOP-TC-2');
+    expect(focusLane(s, 'a').steps.map((x) => x.action)).toEqual(['Open shop']);
+    expect(focusLane(s, 'b').currentCase?.caseKey).toBe('SHOP-TC-2');
+    s = applyMessage(s, { type: 'event', event: { type: 'case.finished', runId: RUN.id, ts: TS, caseResultId: 'b', verdict: 'passed', durationMs: 5 } });
+    expect(runningLanes(s).map((l) => l.caseKey)).toEqual(['SHOP-TC-1']);
+    expect(followedLane(s)?.caseKey).toBe('SHOP-TC-1');
+    // A reload mid-run restores every running case from the snapshot.
+    const restored = applyMessage(INITIAL_LIVE_STATE, { ...parallelSnapshot, lanes: [{ caseResultId: 'a', caseId: 'c-a', caseKey: 'SHOP-TC-1', steps: [{ stepIndex: 0, action: 'Open shop', status: 'running' }] }, { caseResultId: 'b', caseId: 'c-b', caseKey: 'SHOP-TC-2', steps: [] }] });
+    expect(runningLanes(restored)).toHaveLength(2);
+    expect(focusLane(restored, 'a').steps).toHaveLength(1);
+  });
+
+  it('shows one live tile per running case and opens a tile full size', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const ws = await connected();
+    act(() => {
+      ws.push(parallelSnapshot);
+      for (const [id, key] of [['a', 'SHOP-TC-1'], ['b', 'SHOP-TC-2'], ['c', 'SHOP-TC-3'], ['d', 'SHOP-TC-4']] as const) ws.push(started(id, key));
+      ws.push(step('b', 0, 'Search for a tee'));
+      ws.pushBinary(frameBytes('a', 1));
+      ws.pushBinary(frameBytes('b', 1));
+    });
+
+    const grid = await screen.findByRole('region', { name: 'Parallel browsers' });
+    const tiles = within(grid).getAllByRole('button');
+    expect(tiles.map((t) => t.getAttribute('aria-label'))).toEqual(['Open SHOP-TC-1 full size', 'Open SHOP-TC-2 full size', 'Open SHOP-TC-3 full size', 'Open SHOP-TC-4 full size']);
+    // Each tile shows its own browser's frame.
+    expect(tiles[0]?.querySelector('img')).toHaveAttribute('src', 'blob:frame-1');
+    expect(tiles[1]?.querySelector('img')).toHaveAttribute('src', 'blob:frame-2');
+    expect(within(tiles[2] as HTMLElement).getByText('Waiting for the first frame…')).toBeInTheDocument();
+    expect(within(tiles[1] as HTMLElement).getByText('Step 1 · Search for a tee')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'All browsers (4)' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('region', { name: 'Browser view' })).not.toBeInTheDocument();
+
+    await user.click(tiles[1] as HTMLElement);
+    expect(screen.queryByRole('region', { name: 'Parallel browsers' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^SHOP-TC-2 · run /);
+    expect(within(screen.getByRole('region', { name: 'Browser view' })).getByAltText('Live browser screencast')).toHaveAttribute('src', 'blob:frame-2');
+    expect(within(screen.getByRole('region', { name: 'Steps of current case' })).getByText(/Search for a tee/)).toBeInTheDocument();
+    // The focused view stays on the opened case while the others keep streaming.
+    act(() => ws.pushBinary(frameBytes('c', 1)));
+    expect(within(screen.getByRole('region', { name: 'Browser view' })).getByAltText('Live browser screencast')).toHaveAttribute('src', 'blob:frame-2');
+
+    await user.click(screen.getByRole('button', { name: 'All browsers (4)' }));
+    expect(await screen.findByRole('region', { name: 'Parallel browsers' })).toBeInTheDocument();
+  });
+
+  it('points to a case that waits for approval and opens it with its decision panel', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const ws = await connected();
+    act(() => {
+      ws.push(parallelSnapshot);
+      ws.push(started('cr1', 'SHOP-TC-42'));
+      ws.push(started('b', 'SHOP-TC-43'));
+      ws.push({ type: 'event', event: ESC });
+    });
+    const grid = await screen.findByRole('region', { name: 'Parallel browsers' });
+    expect(within(grid).getByRole('button', { name: 'Open SHOP-TC-42 full size' })).toHaveTextContent('Waiting for you');
+    expect(screen.getByText('SHOP-TC-42 is waiting for your approval.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Open SHOP-TC-42' }));
+    const panel = await screen.findByRole('region', { name: 'System 1 decision' });
+    expect(within(panel).getByRole('button', { name: 'Approve e3' })).toBeInTheDocument();
+    expect(screen.queryByText('SHOP-TC-42 is waiting for your approval.')).not.toBeInTheDocument();
   });
 });

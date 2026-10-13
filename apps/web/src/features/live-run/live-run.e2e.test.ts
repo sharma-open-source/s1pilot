@@ -64,8 +64,8 @@ const ELEMENTS = {
 /** 1x1 PNG; the browser stretches it over the viewport box. */
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==', 'base64');
 
-function frame(seq: number): Buffer {
-  const id = Buffer.from('cr1');
+function frame(seq: number, resultId = 'cr1'): Buffer {
+  const id = Buffer.from(resultId);
   const header = Buffer.alloc(9);
   header.writeUInt8(id.length, 0);
   header.writeUInt32BE(seq, 1);
@@ -220,4 +220,34 @@ describe('live run screen (headless Chromium, scripted socket)', () => {
     if (SHOTS) await narrow.page.screenshot({ path: `${SHOTS}/live-400.png`, fullPage: true });
     await narrow.page.close();
   });
+
+  it('shows parallel cases as a grid of live tiles (2 columns at 1440, 1 at 400) and opens one full size', async () => {
+    const lanes = ['SHOP-TC-1', 'SHOP-TC-2', 'SHOP-TC-3', 'SHOP-TC-4'].map((caseKey, i) => ({
+      caseResultId: `cr${i + 1}`,
+      caseId: `c${i + 1}`,
+      caseKey,
+      steps: [{ stepIndex: 0, action: 'Open Classic Tee', status: 'running' }],
+    }));
+    for (const width of [1440, 400]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 } });
+      await page.routeWebSocket(/\/ws\/runs\//, (ws) => {
+        ws.send(JSON.stringify({ ...SNAPSHOT, currentCase: lanes[3], steps: [], pendingEscalations: [], lanes }));
+        for (const l of lanes) ws.send(frame(1, l.caseResultId));
+      });
+      await page.goto(`${base}/p/SHOP/runs/${RUN_ID}/live`);
+      const grid = page.getByRole('region', { name: 'Parallel browsers' });
+      await grid.waitFor();
+      await expect.poll(() => grid.locator('img').count()).toBe(4);
+      const xs = await grid.getByRole('button').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().x)));
+      expect(new Set(xs).size).toBe(width === 1440 ? 2 : 1);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-grid-${width}.png`, fullPage: true });
+
+      await grid.getByRole('button', { name: 'Open SHOP-TC-3 full size' }).click();
+      await page.locator('[data-testid="viewport"] img').waitFor();
+      await page.getByRole('heading', { level: 1, name: /^SHOP-TC-3 · run / }).waitFor();
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-focused-${width}.png`, fullPage: true });
+      await page.close();
+    }
+  }, 90_000);
 });

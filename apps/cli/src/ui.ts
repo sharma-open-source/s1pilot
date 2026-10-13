@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { S1PilotError } from '@s1pilot/domain';
 import { buildApp, loadConfig, type ServerConfig } from '@s1pilot/server';
-import type { Command } from 'commander';
+import { InvalidArgumentError, type Command } from 'commander';
 import type { FastifyInstance } from 'fastify';
 
 import type { CliDeps } from './program.js';
@@ -20,7 +20,7 @@ export interface UiOptions {
   open?: boolean;
   /** Directory of the built web app. Default: `dist/web` next to the CLI bundle. */
   webDist?: string;
-  /** In-process workers executing runs. Default 1. */
+  /** In-process workers executing runs (the most cases running at once). Default: `S1PILOT_WORKERS`, else 1. */
   workers?: number;
   /** Server log level. Default `warn`. */
   logLevel?: ServerConfig['logLevel'];
@@ -67,7 +67,7 @@ export async function startUi(opts: UiOptions, deps: Pick<CliDeps, 'openBrowser'
     {
       port: opts.port ?? 5317,
       ...(opts.dataDir ? { dataDir: opts.dataDir } : {}),
-      workers: opts.workers ?? 1,
+      ...(opts.workers !== undefined ? { workers: opts.workers } : {}),
       logLevel: opts.logLevel ?? 'warn',
     },
     deps.env,
@@ -82,9 +82,18 @@ export async function startUi(opts: UiOptions, deps: Pick<CliDeps, 'openBrowser'
     });
   }
   const url = `http://${config.host}:${(app.server.address() as AddressInfo).port}`;
-  deps.stdout(`s1pilot is running at ${url}\nData directory: ${config.dataDir}\nPress Ctrl+C to stop.\n`);
+  deps.stdout(
+    `s1pilot is running at ${url}\nData directory: ${config.dataDir}\nWorkers: ${config.workers}\nPress Ctrl+C to stop.\n`,
+  );
   if (opts.open !== false) deps.openBrowser(url);
   return { url, app, close: () => app.close() };
+}
+
+/** Parses `--workers`: an integer from 1 to 32. */
+function parseWorkers(value: string): number {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1 || n > 32) throw new InvalidArgumentError('Expected a whole number from 1 to 32.');
+  return n;
 }
 
 /** Registers `s1pilot ui`. */
@@ -95,10 +104,14 @@ export function registerUiCommand(program: Command, deps: CliDeps): void {
     .option('--port <n>', 'port to listen on', (v) => Number.parseInt(v, 10), 5317)
     .option('--data-dir <dir>', 'data directory (default: ./.s1pilot if it exists, else ~/.s1pilot)')
     .option('--no-open', 'do not open a browser window')
-    .action(async (opts: { port: number; dataDir?: string; open: boolean }) => {
+    .option('--workers <n>', 'cases running at once (plans can only lower it; default: S1PILOT_WORKERS, else 1)', parseWorkers)
+    .action(async (opts: { port: number; dataDir?: string; open: boolean; workers?: number }) => {
       let handle: UiHandle;
       try {
-        handle = await startUi({ port: opts.port, ...(opts.dataDir ? { dataDir: opts.dataDir } : {}), open: opts.open }, deps);
+        handle = await startUi(
+          { port: opts.port, ...(opts.dataDir ? { dataDir: opts.dataDir } : {}), ...(opts.workers !== undefined ? { workers: opts.workers } : {}), open: opts.open },
+          deps,
+        );
       } catch (error) {
         if (!(error instanceof S1PilotError)) throw error;
         deps.stderr(`${error.message}\n`);

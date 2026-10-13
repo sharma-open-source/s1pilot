@@ -33,6 +33,23 @@ export interface LogLine {
   message?: string;
 }
 
+/**
+ * One case of the run with its own browser. Parallel plans run several at once; each lane keeps its own steps,
+ * element boxes and last decision so the grid and the focused view never mix cases.
+ */
+export interface CaseLane {
+  caseResultId: string;
+  caseId: string;
+  caseKey?: string;
+  mode?: CaseMode;
+  steps: LiveStepRow[];
+  lastDecision: (DecisionRecord & { stepIndex?: number }) | null;
+  elements: OverlayElement[];
+  chosenId: string | null;
+  /** Verdict once `case.finished` arrived; `null` while the case runs. */
+  verdict: string | null;
+}
+
 export interface LiveRunState {
   /** True once a snapshot arrived on the current connection. */
   ready: boolean;
@@ -49,6 +66,8 @@ export interface LiveRunState {
   nextLogId: number;
   finished: { status: RunStatus; summary: RunSummary } | null;
   totalCases: number | null;
+  /** Cases seen on this connection, in start order (see {@link CaseLane}). */
+  lanes: CaseLane[];
 }
 
 export const INITIAL_LIVE_STATE: LiveRunState = {
@@ -65,7 +84,71 @@ export const INITIAL_LIVE_STATE: LiveRunState = {
   nextLogId: 1,
   finished: null,
   totalCases: null,
+  lanes: [],
 };
+
+/** Most lanes kept; the oldest finished ones are dropped first. */
+const MAX_LANES = 32;
+
+function newLane(c: { caseResultId: string; caseId: string; caseKey?: string; mode?: CaseMode }): CaseLane {
+  return {
+    caseResultId: c.caseResultId,
+    caseId: c.caseId,
+    ...(c.caseKey !== undefined ? { caseKey: c.caseKey } : {}),
+    ...(c.mode !== undefined ? { mode: c.mode } : {}),
+    steps: [],
+    lastDecision: null,
+    elements: [],
+    chosenId: null,
+    verdict: null,
+  };
+}
+
+function addLane(lanes: CaseLane[], lane: CaseLane): CaseLane[] {
+  const next = [...lanes.filter((l) => l.caseResultId !== lane.caseResultId), lane];
+  while (next.length > MAX_LANES) {
+    const i = next.findIndex((l) => l.verdict !== null);
+    next.splice(i >= 0 ? i : 0, 1);
+  }
+  return next;
+}
+
+function updateLane(lanes: CaseLane[], id: string, fn: (lane: CaseLane) => CaseLane): CaseLane[] {
+  return lanes.some((l) => l.caseResultId === id) ? lanes.map((l) => (l.caseResultId === id ? fn(l) : l)) : lanes;
+}
+
+/** Lanes whose case is still running. */
+export function runningLanes(state: Pick<LiveRunState, 'lanes'>): CaseLane[] {
+  return state.lanes.filter((l) => l.verdict === null);
+}
+
+/** Lane the page follows when the user picked none: the latest case that is still running, else the latest one. */
+export function followedLane(state: Pick<LiveRunState, 'lanes'>): CaseLane | undefined {
+  return runningLanes(state).at(-1) ?? state.lanes.at(-1);
+}
+
+/**
+ * The state as seen from one lane: current case, steps, boxes, last decision and escalations of that case only.
+ * Returns the state unchanged when the lane is unknown.
+ */
+export function focusLane(state: LiveRunState, caseResultId: string | null | undefined): LiveRunState {
+  const lane = state.lanes.find((l) => l.caseResultId === caseResultId);
+  if (lane === undefined) return state;
+  return {
+    ...state,
+    currentCase: {
+      caseResultId: lane.caseResultId,
+      caseId: lane.caseId,
+      ...(lane.caseKey !== undefined ? { caseKey: lane.caseKey } : {}),
+      ...(lane.mode !== undefined ? { mode: lane.mode } : {}),
+    },
+    steps: lane.steps,
+    lastDecision: lane.lastDecision,
+    elements: lane.elements,
+    chosenId: lane.chosenId,
+    pending: state.pending.filter((e) => e.caseResultId === lane.caseResultId),
+  };
+}
 
 const MAX_LOG = 500;
 const TERMINAL: RunStatus[] = ['finished', 'aborted', 'passed', 'failed', 'needs-review', 'cancelled', 'error'];
@@ -174,23 +257,36 @@ export function applyEvent(prev: LiveRunState, ev: RunEvent): LiveRunState {
         elements: [],
         chosenId: null,
         lastDecision: null,
-        pending: [],
+        // Other cases of a parallel run keep their open escalations.
+        pending: s.pending.filter((e) => s.lanes.some((l) => l.caseResultId === e.caseResultId && l.verdict === null)),
+        lanes: addLane(s.lanes, newLane(ev)),
       };
       break;
-    case 'step.started':
-      s = { ...s, steps: upsertStep(s.steps, { index: ev.stepIndex, action: ev.action, status: 'running', decided: false }) };
+    case 'step.started': {
+      const row: LiveStepRow = { index: ev.stepIndex, action: ev.action, status: 'running', decided: false };
+      s = { ...s, steps: upsertStep(s.steps, row), lanes: updateLane(s.lanes, ev.caseResultId, (l) => ({ ...l, steps: upsertStep(l.steps, row) })) };
       break;
+    }
     case 'decision.made': {
       const existing = s.steps.find((x) => x.index === ev.stepIndex);
       s = {
         ...s,
         lastDecision: { ...ev.decision, stepIndex: ev.stepIndex },
         steps: existing ? upsertStep(s.steps, { ...existing, decided: true }) : s.steps,
+        lanes: updateLane(s.lanes, ev.caseResultId, (l) => {
+          const own = l.steps.find((x) => x.index === ev.stepIndex);
+          return { ...l, lastDecision: { ...ev.decision, stepIndex: ev.stepIndex }, steps: own ? upsertStep(l.steps, { ...own, decided: true }) : l.steps };
+        }),
       };
       break;
     }
     case 'observation.elements':
-      s = { ...s, elements: ev.elements, chosenId: ev.chosenId ?? null };
+      s = {
+        ...s,
+        elements: ev.elements,
+        chosenId: ev.chosenId ?? null,
+        lanes: updateLane(s.lanes, ev.caseResultId, (l) => ({ ...l, elements: ev.elements, chosenId: ev.chosenId ?? null })),
+      };
       break;
     case 'escalation.needed':
       s = { ...s, pending: [...s.pending.filter((e) => e.escalationId !== ev.escalationId), ev] };
@@ -203,6 +299,10 @@ export function applyEvent(prev: LiveRunState, ev: RunEvent): LiveRunState {
       s = {
         ...s,
         steps: upsertStep(s.steps, { index: ev.stepIndex, action: existing?.action ?? '', decided: existing?.decided ?? false, status: ev.status }),
+        lanes: updateLane(s.lanes, ev.caseResultId, (l) => {
+          const own = l.steps.find((x) => x.index === ev.stepIndex);
+          return { ...l, steps: upsertStep(l.steps, { index: ev.stepIndex, action: own?.action ?? '', decided: own?.decided ?? false, status: ev.status }) };
+        }),
       };
       break;
     }
@@ -220,6 +320,7 @@ export function applyEvent(prev: LiveRunState, ev: RunEvent): LiveRunState {
       break;
     }
     case 'case.finished':
+      s = { ...s, lanes: updateLane(s.lanes, ev.caseResultId, (l) => ({ ...l, verdict: ev.verdict })) };
       break;
   }
   return addLog(s, ev);
@@ -231,12 +332,27 @@ export function applySnapshot(prev: LiveRunState, snap: Record<string, unknown>)
   const steps = Array.isArray(snap['steps']) ? (snap['steps'] as Array<{ stepIndex: number; action: string; status: LiveStepRow['status'] }>) : [];
   const last = (snap['lastDecision'] ?? null) as DecisionRecord | null;
   const pending = Array.isArray(snap['pendingEscalations']) ? (snap['pendingEscalations'] as Escalation[]) : [];
+  const toRows = (rows: Array<{ stepIndex: number; action: string; status: LiveStepRow['status'] }>): LiveStepRow[] =>
+    rows.map((x) => ({ index: x.stepIndex, action: x.action, status: x.status, decided: false })).sort((a, b) => a.index - b.index);
+  const current = (snap['currentCase'] ?? null) as LiveRunState['currentCase'];
+  // `lanes` lists every running case (parallel runs); older servers only send the current one.
+  const snapLanes = Array.isArray(snap['lanes'])
+    ? (snap['lanes'] as Array<NonNullable<LiveRunState['currentCase']> & { steps?: Array<{ stepIndex: number; action: string; status: LiveStepRow['status'] }> }>)
+    : current !== null
+      ? [{ ...current, steps }]
+      : [];
+  const lanes = snapLanes.map((l) => ({
+    ...newLane(l),
+    steps: toRows(l.steps ?? []),
+    lastDecision: l.caseResultId === current?.caseResultId ? last : null,
+  }));
   return {
     ...prev,
+    lanes,
     ready: true,
     run: run ?? null,
-    currentCase: (snap['currentCase'] ?? null) as LiveRunState['currentCase'],
-    steps: steps.map((x) => ({ index: x.stepIndex, action: x.action, status: x.status, decided: false })).sort((a, b) => a.index - b.index),
+    currentCase: current,
+    steps: toRows(steps),
     lastDecision: last,
     pending,
     finished: run !== undefined && isTerminal(run.status) ? { status: run.status, summary: run.summary } : null,

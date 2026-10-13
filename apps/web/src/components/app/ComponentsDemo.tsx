@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react';
 
 import { CapabilityGrid } from './CapabilityGrid';
 import { CodeBlock } from './CodeBlock';
-import { DecisionPanel, EventLog, ProbabilityBar, RunProgressBar, StepStatusList } from './live';
+import { BrowserTile, DecisionPanel, EventLog, ProbabilityBar, RunProgressBar, StepStatusList } from './live';
 import { MatrixTable } from './MatrixTable';
 import { ModeMixBar } from './ModeMixBar';
 import { PageHeader } from './PageHeader';
@@ -251,6 +251,13 @@ export function ComponentsDemo() {
         <Skeleton className="h-4 w-48" />
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-10 w-full" />
+      </Demo>
+
+      <Demo title="Live run: BrowserTile (parallel browsers grid)">
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+          <BrowserTile title="SHOP-TC-42" status="running" detail="Step 3 · Checkout as guest" frame={null} onOpen={() => undefined} />
+          <BrowserTile title="SHOP-TC-43" status="running" detail="Step 2 · Pick colour & size" frame={null} waiting onOpen={() => undefined} />
+        </div>
       </Demo>
 
       <Demo title="Live run: ProbabilityBar, RunProgressBar, StepStatusList, DecisionPanel, EventLog">

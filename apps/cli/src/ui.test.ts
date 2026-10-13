@@ -64,8 +64,25 @@ describe('s1pilot ui', () => {
     ).rejects.toMatchObject({ code: 'WEB_DIST_MISSING' });
   });
 
-  it('registers --port, --data-dir and --no-open', () => {
+  it('registers --port, --data-dir, --no-open and --workers', () => {
     const ui = buildProgram().commands.find((c) => c.name() === 'ui');
-    expect(ui?.options.map((o) => o.long)).toEqual(['--port', '--data-dir', '--no-open']);
+    expect(ui?.options.map((o) => o.long)).toEqual(['--port', '--data-dir', '--no-open', '--workers']);
+    ui?.exitOverride().configureOutput({ writeErr: () => undefined });
+    expect(() => ui?.parseOptions(['--workers', '0'])).toThrow(/whole number from 1 to 32/);
+  });
+
+  it('takes the worker count from --workers, else S1PILOT_WORKERS, else 1', async () => {
+    const workersOf = async (workers: number | undefined, env: NodeJS.ProcessEnv): Promise<string> => {
+      const out: string[] = [];
+      const handle = await startUi(
+        { port: 0, dataDir: tmp(), webDist: webDist(), open: false, logLevel: 'silent', ...(workers === undefined ? {} : { workers }) },
+        { openBrowser: vi.fn(), stdout: (t) => out.push(t), env },
+      );
+      cleanups.push(() => handle.close());
+      return /Workers: (\d+)/.exec(out.join(''))?.[1] ?? '';
+    };
+    expect(await workersOf(4, { S1PILOT_WORKERS: '2' })).toBe('4');
+    expect(await workersOf(undefined, { S1PILOT_WORKERS: '3' })).toBe('3');
+    expect(await workersOf(undefined, {})).toBe('1');
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
-import { Button, Callout, Checkbox } from '@/components/ui';
+import { Button, Callout, Checkbox, Pill, StatusPill } from '@/components/ui';
 import { cn } from '@/lib/cn';
 
 /* ---------------------------------------------------------------- ProbabilityBar */
@@ -289,6 +289,55 @@ export function BrowserFrame({
       </div>
       {toolbar !== undefined && <div className="flex flex-wrap gap-2 border-t border-divider px-3.5 py-2.5 text-[13px]">{toolbar}</div>}
     </section>
+  );
+}
+
+/* ---------------------------------------------------------------- BrowserTile */
+
+export interface BrowserTileProps {
+  /** Case key, e.g. `SHOP-TC-42`. */
+  title: string;
+  /** Status for {@link StatusPill}: `running` while the case runs, then its verdict. */
+  status: string;
+  /** Current step, e.g. `Step 3 · Checkout as guest`. */
+  detail?: string;
+  frame: { url: string; width: number; height: number } | null;
+  /** The case waits for a human (escalation); shown as a warning pill. */
+  waiting?: boolean;
+  onOpen: () => void;
+}
+
+/** Small live screencast of one parallel browser; the whole tile is a button that opens it full size. */
+export function BrowserTile({ title, status, detail, frame, waiting = false, onOpen }: BrowserTileProps) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Open ${title} full size`}
+      className={cn(
+        'flex min-w-0 flex-col overflow-hidden rounded-card border bg-surface text-left hover:border-primary focus-visible:border-primary',
+        waiting ? 'border-warning-bar' : 'border-line',
+      )}
+    >
+      <span className="flex min-h-[44px] w-full items-center justify-between gap-2 border-b border-divider bg-surface-subtle px-3 py-2">
+        <span className="min-w-0 truncate font-mono text-[13px] font-semibold">{title}</span>
+        <span className="flex shrink-0 items-center gap-1.5">
+          {waiting && <Pill tone="warning">Waiting for you</Pill>}
+          <StatusPill status={status} />
+        </span>
+      </span>
+      <span
+        className="relative block w-full overflow-hidden bg-[repeating-linear-gradient(45deg,var(--surface-hatch-a)_0_12px,var(--surface-hatch-b)_12px_24px)]"
+        style={{ aspectRatio: frame ? `${frame.width} / ${frame.height}` : '16 / 9' }}
+      >
+        {frame !== null ? (
+          <img src={frame.url} alt="" className="absolute inset-0 h-full w-full select-none object-fill" draggable={false} />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center text-xs text-secondary">Waiting for the first frame…</span>
+        )}
+      </span>
+      <span className="block w-full truncate px-3 py-2 text-xs text-secondary">{detail ?? 'Starting…'}</span>
+    </button>
   );
 }
 

@@ -204,6 +204,24 @@ describe('matrix runs', () => {
     expect(seen.max).toBe(2);
   });
 
+  it('parallelism is a cap, not a repeat count: one case on one target runs once with 4 workers', async () => {
+    const { api, runtime, tc, dev } = await setup();
+    const plan = await api.plans.create({
+      projectKey: 'SHOP',
+      name: 'Four workers',
+      selection: { kind: 'list', caseIds: [tc.id] },
+      matrix: [{ environmentId: dev.id, browser: 'chromium' }],
+      parallelism: 4,
+      mode: 'explore',
+    });
+    expect(await api.plans.preview({ projectKey: 'SHOP', ...plan })).toMatchObject({ jobs: 1 });
+    runtime.workers.start(4);
+    const run = await finished(api, (await api.runs.create({ projectKey: 'SHOP', planId: plan.id })).id);
+    expect(run.jobs).toHaveLength(1);
+    expect(run.results).toHaveLength(1);
+    expect(run.summary).toMatchObject({ passed: 1 });
+  });
+
   it('a device descriptor is applied to the browser context, unknown devices fail the job', async () => {
     const { api, runtime, tc, dev } = await setup();
     const plan = await api.plans.create({
