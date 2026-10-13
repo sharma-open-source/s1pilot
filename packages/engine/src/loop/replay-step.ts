@@ -1,7 +1,7 @@
 import type { ExecutionMode, LearnedScript, Redactor, ResolvedAction } from '@s1pilot/domain';
 import type { Page } from 'playwright';
 
-import { execute, waitWhileBusy } from '../executor/index.js';
+import { execute, trackRequests, waitWhileBusy } from '../executor/index.js';
 import type { EngineAction, ExecutorContext } from '../executor/types.js';
 import type { StableWaitOptions } from '../executor/waits.js';
 import { staleSteps, type HashableStep } from '../learned/recorder.js';
@@ -59,9 +59,23 @@ export interface ReplayStepResult {
 /** Quiet-period settings used after each replayed action (explore waits longer). */
 export const REPLAY_STABLE: StableWaitOptions = { networkIdleMs: 20, quietMs: 50, quietCapMs: 1000 };
 
-/** How long replay keeps re-checking a fingerprint or locator that has not appeared yet (content behind a loader with no visible indicator). */
-const SETTLE_BUDGET_MS = 5000;
+/** How long replay keeps re-checking a fingerprint or locator that has not appeared yet. */
+const SETTLE_BUDGET_MS = 2000;
+/** Longer limit while the page still has requests in flight (content behind a loader with no visible indicator). */
+const SETTLE_LOADING_BUDGET_MS = 5000;
 const SETTLE_POLL_MS = 100;
+
+/**
+ * Starts a settle timer: the returned check is true once {@link SETTLE_BUDGET_MS} has passed with no
+ * request in flight, or once {@link SETTLE_LOADING_BUDGET_MS} has passed in any case.
+ */
+function settleTimer(page: Page): () => boolean {
+  const start = performance.now();
+  return () => {
+    const elapsed = performance.now() - start;
+    return elapsed >= SETTLE_LOADING_BUDGET_MS || (elapsed >= SETTLE_BUDGET_MS && trackRequests(page).size === 0);
+  };
+}
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -173,16 +187,16 @@ export async function replayStep(
     // before declaring a mismatch.
     let matched = false;
     await waitWhileBusy(ctx.page);
-    const deadline = performance.now() + SETTLE_BUDGET_MS;
+    const settled = settleTimer(ctx.page);
     for (;;) {
       try {
         matched = fingerprintsMatch(a.fingerprint, pageFingerprint(await observer.capture(ctx.page, { texts: false })));
       } catch (error) {
-        if (performance.now() >= deadline) {
+        if (settled()) {
           return fail(a, 'action-error', `Could not observe the page: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
-      if (matched || performance.now() >= deadline) break;
+      if (matched || settled()) break;
       await sleep(SETTLE_POLL_MS);
     }
     if (!matched) return fail(a, 'fingerprint', 'The page no longer matches the one this action was learned on');
@@ -191,8 +205,8 @@ export async function replayStep(
     if ('unreplayable' in action) return fail(a, 'action-error', action.unreplayable);
 
     let outcome = await execute(ctx.page, action, { stable: REPLAY_STABLE, ...ctx.executor, resolveValue });
-    const locatorDeadline = performance.now() + SETTLE_BUDGET_MS;
-    while (!outcome.ok && outcome.error?.code === 'locator_not_found' && performance.now() < locatorDeadline) {
+    const locatorSettled = settleTimer(ctx.page);
+    while (!outcome.ok && outcome.error?.code === 'locator_not_found' && !locatorSettled()) {
       await sleep(SETTLE_POLL_MS);
       outcome = await execute(ctx.page, action, { stable: REPLAY_STABLE, ...ctx.executor, resolveValue });
     }

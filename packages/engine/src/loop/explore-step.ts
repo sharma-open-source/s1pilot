@@ -11,7 +11,7 @@ import {
 
 import { gate, type GateResult } from '../decide/gate.js';
 import type { HumanHook } from '../decide/human.js';
-import { execute, waitWhileBusy } from '../executor/index.js';
+import { execute, trackRequests, waitWhileBusy } from '../executor/index.js';
 import { inferAction } from '../executor/infer.js';
 import type { ActionOutcome, EngineAction } from '../executor/types.js';
 import { actionKey, LoopGuard } from '../guards/loop.js';
@@ -46,6 +46,8 @@ const BLOCKED_QUESTION =
 /** Waits when the model finds nothing to do (yet): content may still be appearing. */
 const SETTLE_RETRIES = 2;
 const SETTLE_WAIT_MS = 3000;
+/** Before the step has acted, how long an idle page (no request in flight) may take to change. */
+const IDLE_SETTLE_MS = 500;
 
 /** Same element across two captures: a shared test id or CSS path (names may change, "Volume: 50%" → "90%"). */
 function sameElement(a: readonly LocatorCandidate[], b: readonly LocatorCandidate[]): boolean {
@@ -53,25 +55,26 @@ function sameElement(a: readonly LocatorCandidate[], b: readonly LocatorCandidat
   return a.some((x) => stable(x) && b.some((y) => y.kind === x.kind && y.value === x.value)) || JSON.stringify(a) === JSON.stringify(b);
 }
 
-/** Resolves on the next DOM mutation of the page, or after `ms`. Never throws. */
-async function waitForDomChange(page: EngineContext['page'], ms: number): Promise<void> {
-  await page
+/** Resolves on the next DOM mutation of the page, or after `ms`; true when the page changed. Never throws. */
+async function waitForDomChange(page: EngineContext['page'], ms: number): Promise<boolean> {
+  return page
     .evaluate(
       (limit) =>
-        new Promise<void>((resolve) => {
-          const done = (): void => {
+        new Promise<boolean>((resolve) => {
+          const done = (changed: boolean): void => {
             mo.disconnect();
             clearTimeout(timer);
             // Let the change finish rendering before the next observation.
-            setTimeout(resolve, 300);
+            setTimeout(() => resolve(changed), changed ? 300 : 0);
           };
-          const mo = new MutationObserver(done);
+          const mo = new MutationObserver(() => done(true));
           mo.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
-          const timer = setTimeout(done, limit);
+          const timer = setTimeout(() => done(false), limit);
         }),
       ms,
     )
-    .catch(() => undefined);
+    // The document went away (a navigation): the page did change.
+    .catch(() => true);
 }
 
 /**
@@ -180,6 +183,21 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
   /** Locators of every element this step acted on successfully. */
   const actedLocators: (readonly LocatorCandidate[])[] = [];
   let settles = 0;
+  /**
+   * The model found nothing to do (yet): the page may still be updating (a button that appears
+   * after an action, content behind a loader). Waits for a change and says whether to look again.
+   * Before the step has acted, an idle page (no request in flight) gets only a short look, so an
+   * unsure model or a really blocked step is not slowed down.
+   */
+  const settle = async (): Promise<boolean> => {
+    if (settles >= SETTLE_RETRIES) return false;
+    settles += 1;
+    if (actions.some((x) => x.ok)) {
+      await waitForDomChange(ctx.page, SETTLE_WAIT_MS);
+      return true;
+    }
+    return waitForDomChange(ctx.page, trackRequests(ctx.page).size > 0 ? SETTLE_WAIT_MS : IDLE_SETTLE_MS);
+  };
   let cleared = false;
   const quotedTexts = quotedValues(text).map((v) => v.toLowerCase());
   let iterations = 0;
@@ -522,12 +540,7 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
         return finish('blocked', 'takeover', verdict.reason);
       }
       const sensitiveStop = sensitivity?.gate !== undefined && sensitivity.gate.allowed !== true;
-      if (!sensitiveStop && settles < SETTLE_RETRIES) {
-        // Unsure: the page may still be updating (a button that appears later, content behind a loader).
-        settles += 1;
-        await waitForDomChange(ctx.page, SETTLE_WAIT_MS);
-        continue;
-      }
+      if (!sensitiveStop && (await settle())) continue;
       return finish('blocked', sensitiveStop ? 'sensitive' : 'blocked', verdict.reason);
     }
     const choice = verdict.choice;
@@ -537,12 +550,7 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
     }
     if (choice === 'stuck' || choice === 'blocked') {
       await iterationLine(gateTrace, offered);
-      // The element the step needs may not be there yet (still loading): look again after the page changes.
-      if (settles < SETTLE_RETRIES) {
-        settles += 1;
-        await waitForDomChange(ctx.page, SETTLE_WAIT_MS);
-        continue;
-      }
+      if (await settle()) continue;
       return finish('blocked', 'blocked', `Chosen option "${choice}"`);
     }
 

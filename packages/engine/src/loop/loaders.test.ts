@@ -4,7 +4,7 @@ import { MockDecisionModel } from '@s1pilot/providers';
 import { chromium, type Browser, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { waitWhileBusy } from '../executor/waits.js';
+import { BUSY_STATIC_MS, trackRequests, waitWhileBusy } from '../executor/waits.js';
 import { LearnedRecorder, buildLearnedScript } from '../learned/recorder.js';
 import { createMemoryTraceWriter } from '../trace/index.js';
 
@@ -85,6 +85,37 @@ describe('waitWhileBusy', () => {
     const t = Date.now();
     expect(await waitWhileBusy(page)).toBe(false);
     expect(Date.now() - t).toBeLessThan(1000);
+  });
+
+  it('ignores screen-reader-only text, big loader wrappers and progress bars with a value', async () => {
+    const page = await (await browser.newContext()).newPage();
+    await page.setContent(`<style>.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }</style>
+<span class="sr-only">Loading…</span>
+<div class="loader-wrapper" style="width: 600px; height: 400px">Content</div>
+<div role="progressbar" aria-valuenow="40" style="width: 100px; height: 8px"></div>
+<div class="spinner" style="width: 24px; height: 24px; opacity: 0"></div>`);
+    const t = Date.now();
+    expect(await waitWhileBusy(page)).toBe(false);
+    expect(Date.now() - t).toBeLessThan(500);
+  });
+
+  it('gives up on a decorative spinner that never goes, and skips it afterwards', async () => {
+    const page = await (await browser.newContext()).newPage();
+    await page.setContent('<h1>Dashboard</h1><div class="spinner" style="width: 24px; height: 24px"></div>');
+    let t = Date.now();
+    expect(await waitWhileBusy(page)).toBe(false);
+    expect(Date.now() - t).toBeLessThan(BUSY_STATIC_MS + 1000);
+    t = Date.now();
+    expect(await waitWhileBusy(page)).toBe(false);
+    expect(Date.now() - t).toBeLessThan(300);
+  });
+
+  it('keeps waiting past the static limit while the loader request is in flight', async () => {
+    const page = await openSlow('?delay=2500&loader=spinner');
+    trackRequests(page);
+    await page.getByRole('button', { name: 'Load orders' }).click();
+    expect(await waitWhileBusy(page, 5000)).toBe(true);
+    await expect(page.getByRole('link', { name: 'Next page' }).count()).resolves.toBe(1);
   });
 });
 

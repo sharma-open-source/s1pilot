@@ -34,6 +34,7 @@ import {
   installDomainGuard,
   installReadOnlyGuard,
   replayWithHeal,
+  trackRequests,
   verifyStep,
   type CaseInstance,
   type EngineContext,
@@ -411,6 +412,8 @@ async function runInstance(input: RunCasesInput, runId: string, job: Job, emit: 
     guards.push(await installDomainGuard(context, { baseUrl: environment.baseUrl, allowDomains: environment.allowDomains, onEvent }));
     if (environment.readOnly) guards.push(await installReadOnlyGuard(context, { onEvent }));
     const page = await context.newPage();
+    // From the first navigation on, so a loader on the start page is waited for (not taken for decoration).
+    trackRequests(page);
     try {
       const release = input.onPage?.(page, { runId, caseResultId });
       if (release) releasePage = release;

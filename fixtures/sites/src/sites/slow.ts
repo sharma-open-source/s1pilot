@@ -29,19 +29,19 @@ const CSS = `<style>
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>`;
 
-/** Shows the loader in `#id`, then replaces it with `html` after `delay` ms. */
+/** Shows the loader in `#id` while fetching `/slow/api` (answered after `delay` ms), then shows `html`. */
 function loaderScript(loader: LoaderKind, delay: number): string {
   return `window.fxLoad = function (id, html) {
   var el = document.getElementById(id);
   el.innerHTML = ${JSON.stringify(LOADER[loader])};
-  setTimeout(function () { el.innerHTML = html; }, ${delay});
+  fetch('/slow/api?delay=${delay}').then(function () { el.innerHTML = html; });
 };`;
 }
 
 /**
- * `/slow`: a three-page flow with loaders, to test waiting. `/slow` → "Load orders" shows a loader,
- * then a "Next page" link → `/slow/details` (server answers after `?serve=` ms) shows a loader,
- * then a Name form → Save → `/slow/done` ("Order saved"). `?delay=` sets the loader time
+ * `/slow`: a three-page flow with loaders, to test waiting. `/slow` → "Load orders" shows a loader
+ * (while fetching `/slow/api`), then a "Next page" link → `/slow/details` (server answers after
+ * `?serve=` ms) shows a loader, then a Name form → Save → `/slow/done` ("Order saved"). `?delay=` sets the loader time
  * (default 1500 ms) and `?loader=` its kind ({@link LOADER_KINDS}); both carry through the flow.
  */
 export const slow: SiteHandler = async (ctx: Ctx) => {
@@ -74,6 +74,10 @@ document.getElementById('load').addEventListener('click', function () { fxLoad('
 <button type="submit">Save</button>
 </form>`;
     return ctx.html(layout('Details', '<h1>Details</h1><div id="form"></div>', `${loaderScript(loader, delay)}\nfxLoad('form', ${JSON.stringify(form)});`));
+  }
+  if (ctx.path === '/api') {
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    return ctx.sendJson({ ok: true });
   }
   if (ctx.path === '/done') {
     return ctx.html(layout('Order saved', `<h1>Order saved</h1><p role="status">Saved for ${esc(q.get('name') ?? '')}</p>`));

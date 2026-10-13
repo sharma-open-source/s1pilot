@@ -20,7 +20,7 @@ import type {
   NewPageRecord,
   ScrollDirection,
 } from './types.js';
-import { waitForStable } from './waits.js';
+import { trackRequests, waitForStable } from './waits.js';
 
 export * from './infer.js';
 export * from './types.js';
@@ -98,6 +98,8 @@ async function scroll(target: Locator, dir: ScrollDirection): Promise<void> {
  */
 export async function execute(page: Page, action: EngineAction, ctx: ExecutorContext = {}): Promise<ActionOutcome> {
   const started = performance.now();
+  // Count the requests this action starts, so a loader waiting on them is not taken for decoration.
+  trackRequests(page);
   const timeout = ctx.actionTimeoutMs ?? DEFAULT_TIMEOUT_MS;
   const startUrl = page.url();
   const secrets: string[] = [];
