@@ -1,0 +1,75 @@
+# Team mode stack (S-066): API server, queue worker(s), Postgres (pg-boss queue) and MinIO (S3, used from S-068).
+#
+#   docker compose -f deploy/compose.team.yml up --build
+#
+# Set POSTGRES_PASSWORD and MINIO_ROOT_PASSWORD in the environment or an untracked .env file; there are no defaults
+# on purpose. Never commit that file.
+#
+# Current limitation: the repositories still run on SQLite (`S1PILOT_DB_URL`, a file on the shared `data` volume), and
+# only the job queue lives in Postgres. SQLite on a volume shared between containers is fine for a single host pilot,
+# not for scale-out. Copy existing data with `s1pilot admin migrate-sqlite-to-pg` once the repositories gain a
+# Postgres driver.
+
+x-s1pilot: &s1pilot
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  depends_on:
+    postgres:
+      condition: service_healthy
+  environment: &s1pilot-env
+    S1PILOT_MODE: team
+    S1PILOT_HOST: 0.0.0.0
+    S1PILOT_PORT: "5317"
+    S1PILOT_DATA_DIR: /data
+    S1PILOT_QUEUE_URL: postgres://s1pilot:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/s1pilot
+  volumes:
+    - data:/data
+
+services:
+  server:
+    <<: *s1pilot
+    command: ["--workers", "0"]
+    ports:
+      - "5317:5317"
+
+  worker:
+    <<: *s1pilot
+    command: ["--workers", "2"]
+    environment:
+      <<: *s1pilot-env
+      # The worker has no public port; it only serves its health endpoint inside the network.
+      S1PILOT_PORT: "5318"
+    deploy:
+      replicas: 1
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: s1pilot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: s1pilot
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U s1pilot -d s1pilot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: s1pilot
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+volumes:
+  data:
+  pgdata:
+  minio:

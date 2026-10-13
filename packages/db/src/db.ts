@@ -37,7 +37,7 @@ export interface OpenDbOptions {
   crypto?: SecretCrypto;
 }
 
-const refusingCrypto: SecretCrypto = {
+export const refusingCrypto: SecretCrypto = {
   encrypt: () => {
     throw new Error('No SecretCrypto configured: pass `crypto` to openDb to store secret variables');
   },
@@ -50,6 +50,9 @@ const refusingCrypto: SecretCrypto = {
  * Opens (creating if needed) a SQLite database, enables foreign keys and runs pending migrations.
  */
 export function openDb(opts: OpenDbOptions): Db {
+  if (/^postgres(ql)?:\/\//i.test(opts.url)) {
+    throw new Error('openDb opens SQLite only; use openDatabase() / openPgDb() for postgres:// URLs');
+  }
   const path = opts.url.startsWith('file:') ? opts.url.slice('file:'.length) : opts.url;
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
 
@@ -58,8 +61,8 @@ export function openDb(opts: OpenDbOptions): Db {
   if (path !== ':memory:') sqlite.pragma('journal_mode = WAL');
 
   const orm = drizzle(sqlite, { schema });
-  // Resolves to packages/db/drizzle from both src/ and dist/.
-  migrate(orm, { migrationsFolder: fileURLToPath(new URL('../drizzle', import.meta.url)) });
+  // Resolves to packages/db/migrations/sqlite from both src/ and dist/.
+  migrate(orm, { migrationsFolder: fileURLToPath(new URL('../migrations/sqlite', import.meta.url)) });
 
   return {
     orm,

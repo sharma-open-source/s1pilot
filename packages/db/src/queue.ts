@@ -45,7 +45,7 @@ export interface ClaimOptions {
 }
 
 /**
- * Job queue contract. The SQLite implementation ({@link createSqliteJobQueue}) can be replaced by pg-boss (S-066).
+ * Job queue contract. The SQLite implementation ({@link createSqliteJobQueue}) is replaced by pg-boss ({@link createPgBossQueue}, S-066) in team mode.
  * A claimed job is leased to one worker; if the lease expires without heartbeat the job is re-queued
  * (until `maxAttempts` is reached, then it is `failed`).
  */
@@ -67,6 +67,8 @@ export interface JobQueue {
   reapExpired(): Promise<Job[]>;
   get(jobId: string): Promise<Job | undefined>;
   listByRun(runId: string): Promise<Job[]>;
+  /** Releases connections held by the queue (pg-boss). The SQLite queue has nothing to release. */
+  close?(): Promise<void>;
 }
 
 const DEFAULT_LEASE_MS = 30_000;

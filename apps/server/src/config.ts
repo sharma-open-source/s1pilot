@@ -11,6 +11,8 @@ export const ConfigSchema = z.object({
   host: z.string().min(1),
   dataDir: z.string().min(1),
   dbUrl: z.string().min(1),
+  /** `postgres://` URL of the pg-boss job queue (team mode, S-066). Unset = the SQLite queue in the data dir. */
+  queueUrl: z.string().min(1).optional(),
   artifactsDir: z.string().min(1),
   mode: z.enum(['local', 'team']),
   /** In-process workers executing queued runs (0 disables execution). */
@@ -34,6 +36,7 @@ const ENV_KEYS: Record<string, keyof ServerConfig> = {
   S1PILOT_HOST: 'host',
   S1PILOT_DATA_DIR: 'dataDir',
   S1PILOT_DB_URL: 'dbUrl',
+  S1PILOT_QUEUE_URL: 'queueUrl',
   S1PILOT_ARTIFACTS_DIR: 'artifactsDir',
   S1PILOT_MODE: 'mode',
   S1PILOT_LOG_LEVEL: 'logLevel',
@@ -85,6 +88,7 @@ const FLAGS: Record<string, keyof ServerConfig> = {
   '--host': 'host',
   '--data-dir': 'dataDir',
   '--db-url': 'dbUrl',
+  '--queue-url': 'queueUrl',
   '--artifacts-dir': 'artifactsDir',
   '--mode': 'mode',
   '--log-level': 'logLevel',
@@ -92,7 +96,7 @@ const FLAGS: Record<string, keyof ServerConfig> = {
   '--escalation-timeout-min': 'escalationTimeoutMin',
 };
 
-/** Parses `--port --host --data-dir --db-url --artifacts-dir --mode --log-level --workers` flags into config overrides. */
+/** Parses `--port --host --data-dir --db-url --queue-url --artifacts-dir --mode --log-level --workers` flags into config overrides. */
 export function parseServerArgs(argv: readonly string[]): Raw {
   const out: Raw = {};
   for (let i = 0; i < argv.length; i++) {

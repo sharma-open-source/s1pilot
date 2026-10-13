@@ -1,0 +1,7 @@
+**/node_modules
+**/dist
+.git
+.claude
+.s1pilot
+.env
+.env.*

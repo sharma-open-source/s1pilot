@@ -1,4 +1,4 @@
-import { createSqliteJobQueue, type Db, type JobQueue } from '@s1pilot/db';
+import { createPgBossQueue, createSqliteJobQueue, type Db, type JobQueue } from '@s1pilot/db';
 import { launchBrowser } from '@s1pilot/runner';
 import type { FastifyBaseLogger } from 'fastify';
 
@@ -53,7 +53,8 @@ const runtimes = new WeakMap<Db, ServerRuntime>();
 
 /** Creates the runtime for a database (no workers are started; call `runtime.workers.start(n)`). */
 export function createRuntime(opts: RuntimeOptions): ServerRuntime {
-  const queue = createSqliteJobQueue(opts.db);
+  // Team mode: several server / worker processes share one pg-boss queue (S-066).
+  const queue = opts.config.queueUrl ? createPgBossQueue({ connectionString: opts.config.queueUrl }) : createSqliteJobQueue(opts.db);
   const bus = new RunEventBus();
   const notifyDeps = { db: opts.db, config: opts.config, log: opts.log };
   const lifecycle = createRunLifecycle({ db: opts.db, queue, bus, onReviewCreated: (projectId) => void notifyReviewQueue(notifyDeps, projectId).catch(() => undefined) });

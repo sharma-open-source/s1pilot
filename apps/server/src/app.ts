@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
-import { createVault, openDb, type Db } from '@s1pilot/db';
+import { createVault, isPostgresUrl, openDb, type Db } from '@s1pilot/db';
+import { S1PilotError } from '@s1pilot/domain/errors';
 import { createLogger } from '@s1pilot/domain/logger';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance, type FastifyRequest } from 'fastify';
@@ -56,6 +57,12 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
 
   mkdirSync(config.dataDir, { recursive: true });
   mkdirSync(config.artifactsDir, { recursive: true });
+  if (opts.db === undefined && isPostgresUrl(config.dbUrl)) {
+    throw new S1PilotError(
+      'CONFIG_ERROR',
+      'The repositories still run on SQLite; a postgres:// dbUrl is not supported yet. Use queueUrl (S1PILOT_QUEUE_URL) for the pg-boss queue and `s1pilot admin migrate-sqlite-to-pg` to copy data.',
+    );
+  }
   const ownsDb = opts.db === undefined;
   const db =
     opts.db ??
@@ -89,6 +96,7 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
     await runtime.auth.close();
     await runtime.recorder.close();
     await runtime.workers.stop(); // before the db closes
+    await runtime.queue.close?.();
     if (ownsDb) db.close();
   });
 
