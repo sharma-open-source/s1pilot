@@ -11,7 +11,7 @@ import {
 
 import { gate, type GateResult } from '../decide/gate.js';
 import type { HumanHook } from '../decide/human.js';
-import { execute } from '../executor/index.js';
+import { execute, waitWhileBusy } from '../executor/index.js';
 import { inferAction } from '../executor/infer.js';
 import type { ActionOutcome, EngineAction } from '../executor/types.js';
 import { actionKey, LoopGuard } from '../guards/loop.js';
@@ -43,7 +43,7 @@ const MAX_OVERLAY_ELEMENTS = 300;
 const STEP_DONE_QUESTION = "Has this test step's action been fully performed?";
 const BLOCKED_QUESTION =
   'Is this test step impossible to carry out here (error page, captcha, or a login wall that the step itself does not log in through)?';
-/** Waits after an action when the model then finds nothing to do: content may still be appearing. */
+/** Waits when the model finds nothing to do (yet): content may still be appearing. */
 const SETTLE_RETRIES = 2;
 const SETTLE_WAIT_MS = 3000;
 
@@ -320,8 +320,9 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
       timings[key] = Math.round(performance.now() - since);
     };
 
-    // 1. Observe.
+    // 1. Observe (once any loader on the page has gone).
     let t = performance.now();
+    await waitWhileBusy(ctx.page);
     let obs: Observation;
     try {
       obs = await observer.capture(ctx.page, { history });
@@ -521,8 +522,8 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
         return finish('blocked', 'takeover', verdict.reason);
       }
       const sensitiveStop = sensitivity?.gate !== undefined && sensitivity.gate.allowed !== true;
-      if (!sensitiveStop && actions.some((x) => x.ok) && settles < SETTLE_RETRIES) {
-        // Unsure right after acting: the page may still be updating (a button that appears later).
+      if (!sensitiveStop && settles < SETTLE_RETRIES) {
+        // Unsure: the page may still be updating (a button that appears later, content behind a loader).
         settles += 1;
         await waitForDomChange(ctx.page, SETTLE_WAIT_MS);
         continue;
@@ -536,7 +537,8 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
     }
     if (choice === 'stuck' || choice === 'blocked') {
       await iterationLine(gateTrace, offered);
-      if (actions.some((x) => x.ok) && settles < SETTLE_RETRIES) {
+      // The element the step needs may not be there yet (still loading): look again after the page changes.
+      if (settles < SETTLE_RETRIES) {
         settles += 1;
         await waitForDomChange(ctx.page, SETTLE_WAIT_MS);
         continue;

@@ -1,10 +1,12 @@
 import type { Page } from 'playwright';
 
+import { waitWhileBusy } from '../executor/waits.js';
+
 /**
  * A step that only waits, read from its wording (no model involved):
  * - `pause`: `Wait 5 seconds`, `Pause for 500 ms`;
  * - `text`: `Wait until "Upload complete" appears` / `… disappears`, optionally `up to 60 seconds`;
- * - `load`: `Wait for the page to load`.
+ * - `load`: `Wait for the page to load` (also waits for loading indicators to go).
  */
 export type WaitStep =
   | { kind: 'pause'; ms: number }
@@ -97,6 +99,7 @@ export async function performWait(page: Page, w: WaitStep, signal?: AbortSignal)
     try {
       await page.waitForLoadState('load', { timeout: w.timeoutMs });
       await page.waitForLoadState('networkidle', { timeout: w.timeoutMs }).catch(() => undefined);
+      await waitWhileBusy(page, w.timeoutMs);
       return { ok: true };
     } catch {
       return { ok: false, message: `The page did not finish loading within ${Math.round(w.timeoutMs / 1000)} s` };

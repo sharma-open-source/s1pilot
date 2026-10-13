@@ -24,7 +24,8 @@ export function makeVars(entries: Record<string, { value: string; secret?: boole
 
 /**
  * Mock System 1 script. `plan` maps a step text to the option descriptions (`[role] name`) to pick
- * in order; once exhausted the model answers `step_done` and reports the step as done. Also picks
+ * in order (an element not offered yet is answered `stuck` and asked for again); once exhausted the
+ * model answers `step_done` and reports the step as done. Also picks
  * test-data keys for `input_key` questions by field label.
  */
 export function scriptedS1(plan: Record<string, string[]>): MockResolver {
@@ -53,6 +54,11 @@ export function scriptedS1(plan: Record<string, string[]>): MockResolver {
       want === undefined
         ? 'step_done'
         : (entries.find(([, d]) => d === want) ?? entries.find(([, d]) => d.startsWith(`${want} (`) || d.startsWith(`${want} in "`)))?.[0];
-    return { choice: hit ?? 'stuck' };
+    if (hit === undefined) {
+      // Not offered (yet): ask for the same element again next time, e.g. after a loader.
+      calls.set(step, n - 1);
+      return { choice: 'stuck' };
+    }
+    return { choice: hit };
   };
 }

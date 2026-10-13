@@ -1,7 +1,7 @@
 import type { ExecutionMode, LearnedScript, Redactor, ResolvedAction } from '@s1pilot/domain';
 import type { Page } from 'playwright';
 
-import { execute } from '../executor/index.js';
+import { execute, waitWhileBusy } from '../executor/index.js';
 import type { EngineAction, ExecutorContext } from '../executor/types.js';
 import type { StableWaitOptions } from '../executor/waits.js';
 import { staleSteps, type HashableStep } from '../learned/recorder.js';
@@ -59,8 +59,8 @@ export interface ReplayStepResult {
 /** Quiet-period settings used after each replayed action (explore waits longer). */
 export const REPLAY_STABLE: StableWaitOptions = { networkIdleMs: 20, quietMs: 50, quietCapMs: 1000 };
 
-/** How long replay keeps re-checking a fingerprint or locator that has not appeared yet. */
-const SETTLE_BUDGET_MS = 2000;
+/** How long replay keeps re-checking a fingerprint or locator that has not appeared yet (content behind a loader with no visible indicator). */
+const SETTLE_BUDGET_MS = 5000;
 const SETTLE_POLL_MS = 100;
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -172,6 +172,7 @@ export async function replayStep(
     // The page may still be settling (replay waits less than explore): re-check for a short while
     // before declaring a mismatch.
     let matched = false;
+    await waitWhileBusy(ctx.page);
     const deadline = performance.now() + SETTLE_BUDGET_MS;
     for (;;) {
       try {

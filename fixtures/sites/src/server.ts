@@ -9,6 +9,7 @@ import { mail } from './sites/mail.js';
 import { quality } from './sites/quality.js';
 import { settings } from './sites/settings.js';
 import { shop } from './sites/shop.js';
+import { slow } from './sites/slow.js';
 
 export interface FixtureOptions {
   /** Port to listen on; default 0 (random free port). */
@@ -27,7 +28,7 @@ export interface FixtureServer {
   close(): Promise<void>;
 }
 
-const SITES: Record<string, SiteHandler> = { shop, settings, forms, mail, quality };
+const SITES: Record<string, SiteHandler> = { shop, settings, forms, mail, quality, slow };
 
 async function readBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
@@ -46,7 +47,7 @@ function index(): string {
 }
 
 /**
- * Starts the demo sites (`/shop`, `/settings`, `/forms`, `/mail`) on a local port.
+ * Starts the demo sites (`/shop`, `/settings`, `/forms`, `/mail`, `/quality`, `/slow`) on a local port.
  * Bugs and variants can be fixed by options, or switched per browser with `?bugs=` / `?variant=`
  * (remembered in a cookie) or the `x-fixture-bugs` / `x-fixture-variant` headers.
  * Throws on unknown ids in `options`.
