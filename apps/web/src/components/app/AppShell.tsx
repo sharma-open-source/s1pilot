@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-wrap bg-app">
-      <div className="w-full flex-[1_1_240px] min-[640px]:max-w-[260px]">
+      <div className="w-full flex-[1_1_240px] min-[640px]:sticky min-[640px]:top-0 min-[640px]:flex min-[640px]:h-screen min-[640px]:max-w-[260px] min-[640px]:flex-col min-[640px]:self-start min-[640px]:overflow-y-auto min-[640px]:border-r min-[640px]:border-line min-[640px]:bg-surface">
         <Nav
           pathname={pathname}
           projects={list}

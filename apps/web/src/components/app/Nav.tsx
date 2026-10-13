@@ -247,7 +247,7 @@ export function Nav({
   return (
     <nav
       aria-label="Main"
-      className="box-border flex w-full flex-col gap-[22px] border-b border-line bg-surface px-3.5 py-5 text-fg min-[640px]:h-full min-[640px]:min-h-screenmin-[640px]:border-b-0 min-[640px]:border-r"
+      className="box-border flex w-full flex-col gap-[22px] border-b border-line bg-surface px-3.5 py-5 text-fg min-[640px]:flex-1 min-[640px]:border-b-0"
     >
       <div className="flex items-center gap-2.5 px-1.5">
         <div className="flex h-7 w-7 items-center justify-center rounded-tag bg-ink font-mono text-[13px] font-semibold text-white">
