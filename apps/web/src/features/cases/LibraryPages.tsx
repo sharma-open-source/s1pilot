@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { PageHeader } from '@/components/app/PageHeader';
-import { Breadcrumb, Callout, Card, EmptyState, LinkButton, Skeleton } from '@/components/ui';
+import { Breadcrumb, Callout, Card, EmptyState, LinkButton, Pagination, paginate, Skeleton } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
 
 interface Column<T> {
@@ -22,6 +22,8 @@ interface LibraryTableProps<T> {
 }
 
 function LibraryTable<T>({ title, projectKey, rows, loading, error, columns, rowKey, empty }: LibraryTableProps<T>) {
+  const [pageNo, setPageNo] = useState(1);
+  const paged = paginate(rows ?? [], pageNo);
   return (
     <>
       <PageHeader
@@ -69,7 +71,7 @@ function LibraryTable<T>({ title, projectKey, rows, loading, error, columns, row
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
+                {paged.items.map((row) => (
                   <tr key={rowKey(row)} className="border-t border-divider-row">
                     {columns.map((c, i) => (
                       <td
@@ -84,6 +86,9 @@ function LibraryTable<T>({ title, projectKey, rows, loading, error, columns, row
               </tbody>
             </table>
           </div>
+        )}
+        {rows !== undefined && rows.length > 0 && (
+          <Pagination page={paged.page} pageCount={paged.pageCount} shown={paged.items.length} total={paged.total} onPageChange={setPageNo} />
         )}
       </Card>
     </>

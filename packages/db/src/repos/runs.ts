@@ -1,5 +1,5 @@
-import { TestRunSchema, type TestRun } from '@s1pilot/domain';
-import { desc, eq } from 'drizzle-orm';
+import { TestRunSchema, type RunStatus, type TestRun } from '@s1pilot/domain';
+import { and, count, desc, eq, inArray, notInArray } from 'drizzle-orm';
 import type { z } from 'zod';
 
 import type { Db } from '../db.js';
@@ -32,6 +32,33 @@ export const runs = {
       .limit(limit)
       .all()
       .map((row) => fromRow(TestRunSchema, row));
+  },
+
+  /**
+   * One page of a project's runs, newest first, with the total matching count.
+   * `status` keeps only those statuses; `excludeStatus` drops them (e.g. live runs for the reports list).
+   */
+  async pageByProject(
+    db: Db,
+    projectId: string,
+    opts: { page: number; pageSize: number; status?: readonly RunStatus[]; excludeStatus?: readonly RunStatus[] },
+  ): Promise<{ items: TestRun[]; total: number }> {
+    const where = and(
+      eq(t.projectId, projectId),
+      opts.status && opts.status.length > 0 ? inArray(t.status, [...opts.status]) : undefined,
+      opts.excludeStatus && opts.excludeStatus.length > 0 ? notInArray(t.status, [...opts.excludeStatus]) : undefined,
+    );
+    const total = db.orm.select({ n: count() }).from(t).where(where).get()?.n ?? 0;
+    const items = db.orm
+      .select()
+      .from(t)
+      .where(where)
+      .orderBy(desc(t.startedAt))
+      .limit(opts.pageSize)
+      .offset((opts.page - 1) * opts.pageSize)
+      .all()
+      .map((row) => fromRow(TestRunSchema, row));
+    return { items, total };
   },
 
   /** Runs created from a plan, newest first. */

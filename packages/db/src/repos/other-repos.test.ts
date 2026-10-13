@@ -135,6 +135,23 @@ describe('runs and results repos', () => {
 });
 
 describe('defects repo', () => {
+  it('pages runs newest first with status filters', async () => {
+    const { db, project } = await setup();
+    const mk = (status: 'running' | 'passed' | 'failed', day: number) =>
+      repos.runs.create(db, { id: newId(), projectId: project.id, trigger: 'manual', status, startedAt: `2026-01-0${day}T00:00:00.000Z` });
+    const a = await mk('passed', 1);
+    const b = await mk('failed', 2);
+    const c = await mk('running', 3);
+    const first = await repos.runs.pageByProject(db, project.id, { page: 1, pageSize: 2 });
+    expect(first.total).toBe(3);
+    expect(first.items.map((r) => r.id)).toEqual([c.id, b.id]);
+    expect((await repos.runs.pageByProject(db, project.id, { page: 2, pageSize: 2 })).items.map((r) => r.id)).toEqual([a.id]);
+    const done = await repos.runs.pageByProject(db, project.id, { page: 1, pageSize: 10, excludeStatus: ['queued', 'running', 'paused'] });
+    expect(done).toMatchObject({ total: 2 });
+    expect(done.items.map((r) => r.id)).toEqual([b.id, a.id]);
+    expect((await repos.runs.pageByProject(db, project.id, { page: 1, pageSize: 10, status: ['running'] })).items.map((r) => r.id)).toEqual([c.id]);
+  });
+
   it('stores external refs and links to results', async () => {
     const { db, project, testCase } = await setup();
     const run = await repos.runs.create(db, { id: newId(), projectId: project.id, trigger: 'manual', status: 'finished' });

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ExitCriteriaTile } from './ExitCriteriaTile';
 import { attemptTotals, bucketOf, defaultFilter, matchesFilter, resultMeta, runDuration, shortRunId, type ReportFilter } from './model';
@@ -11,6 +11,7 @@ import {
   Breadcrumb,
   Button,
   Callout,
+  DEFAULT_PAGE_SIZE,
   Dialog,
   DropdownContent,
   DropdownItem,
@@ -19,6 +20,8 @@ import {
   EmptyState,
   Field,
   LinkButton,
+  paginate,
+  Pagination,
   Segmented,
   Skeleton,
   Textarea,
@@ -76,6 +79,11 @@ export function RunReportPage({ projectKey, runId, search, onSearch, navigate }:
   const attempts = attemptTotals(results);
   const took = report ? runDuration(report.run.startedAt, report.run.finishedAt) : null;
   const selected = selectedFromUrl ?? listed[0];
+  // Page of the result list; until the user pages, show the page holding the selected result.
+  const [pageNo, setPageNo] = useState<number | null>(null);
+  useEffect(() => setPageNo(null), [filter]);
+  const selectedIndex = selectedFromUrl ? listed.indexOf(selectedFromUrl) : -1;
+  const paged = paginate(listed, pageNo ?? (selectedIndex >= 0 ? Math.floor(selectedIndex / DEFAULT_PAGE_SIZE) + 1 : 1));
 
   const summary = report?.run.summary;
   const failedCount = (summary?.failed ?? 0) + (summary?.blocked ?? 0) + (summary?.flaky ?? 0);
@@ -227,7 +235,7 @@ export function RunReportPage({ projectKey, runId, search, onSearch, navigate }:
             </div>
           ) : (
             <div role="list" aria-label="Result list">
-              {listed.map((r) => (
+              {paged.items.map((r) => (
                 <div role="listitem" key={r.id}>
                   <ResultListItem
                     resultKey={r.key}
@@ -243,6 +251,7 @@ export function RunReportPage({ projectKey, runId, search, onSearch, navigate }:
               ))}
             </div>
           )}
+          <Pagination page={paged.page} pageCount={paged.pageCount} shown={paged.items.length} total={paged.total} onPageChange={setPageNo} hideSingle className="px-3" />
         </section>
 
         {selected ? (

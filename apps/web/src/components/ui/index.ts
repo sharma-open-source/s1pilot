@@ -5,6 +5,7 @@ export * from './dialog';
 export * from './dropdown';
 export * from './form';
 export * from './misc';
+export * from './pagination';
 export * from './pill';
 export * from './segmented';
 export * from './tabs';

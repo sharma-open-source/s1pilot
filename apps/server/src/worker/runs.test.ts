@@ -151,6 +151,13 @@ describe('runs: create → queue → worker → persisted results', () => {
     const second = await finished(api, (await api.runs.create({ projectKey: 'SHOP', caseKeys: [tc.key], environment: 'dev' })).id);
     expect(second.status).toBe('passed');
     expect(second.results[0]?.mode).toBe('replay');
+
+    // Paged listing: newest first, total across pages, `finished` keeps both (neither is live).
+    const first = await api.runs.page({ projectKey: 'SHOP', pageSize: 1 });
+    expect(first).toMatchObject({ total: 2, page: 1, pageSize: 1 });
+    expect(first.items.map((r) => r.id)).toEqual([second.id]);
+    expect((await api.runs.page({ projectKey: 'SHOP', pageSize: 1, page: 2 })).items.map((r) => r.id)).toEqual([created.id]);
+    expect((await api.runs.page({ projectKey: 'SHOP', finished: true })).total).toBe(2);
   });
 
   it('rejects unknown environments and cases', async () => {

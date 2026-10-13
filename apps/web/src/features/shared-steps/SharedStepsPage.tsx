@@ -5,7 +5,7 @@ import { DeleteSharedStepDialog } from './DeleteSharedStepDialog';
 import type { SharedStepRow } from './model';
 
 import { PageHeader } from '@/components/app/PageHeader';
-import { Breadcrumb, Button, Callout, Card, EmptyState, Input, LinkButton, Skeleton } from '@/components/ui';
+import { Breadcrumb, Button, Callout, Card, EmptyState, Input, LinkButton, Pagination, paginate, Skeleton } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
 import { Can } from '@/lib/session';
 import { trpc } from '@/lib/trpc';
@@ -31,6 +31,7 @@ export function SharedStepsPage({ projectKey }: { projectKey: string }) {
   const q = trpc.sharedSteps.list.useQuery({ projectKey });
   const del = trpc.sharedSteps.delete.useMutation();
   const [filter, setFilter] = useState('');
+  const [pageNo, setPageNo] = useState(1);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [deleting, setDeleting] = useState<SharedStepRow | null>(null);
 
@@ -40,6 +41,7 @@ export function SharedStepsPage({ projectKey }: { projectKey: string }) {
     if (rows === undefined || f === '') return rows;
     return rows.filter((r) => r.name.toLowerCase().includes(f) || r.steps.some((s) => s.action.toLowerCase().includes(f)));
   }, [rows, filter]);
+  const paged = paginate(shown ?? [], pageNo);
   const base = `/p/${encodeURIComponent(projectKey)}`;
   const editHref = (id: string) => `${base}/library/shared-steps/${encodeURIComponent(id)}`;
 
@@ -71,7 +73,10 @@ export function SharedStepsPage({ projectKey }: { projectKey: string }) {
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-divider px-4 py-3">
             <label className="flex min-w-0 flex-[1_1_260px] items-center gap-2 text-[13px]">
               <span className="text-secondary">Filter</span>
-              <Input className="h-[36px] flex-1" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Name or step text" />
+              <Input className="h-[36px] flex-1" value={filter} onChange={(e) => {
+                  setFilter(e.target.value);
+                  setPageNo(1);
+                }} placeholder="Name or step text" />
             </label>
             <span className="text-[13px] text-secondary">
               {rows.length} shared step{rows.length === 1 ? '' : 's'}
@@ -123,7 +128,7 @@ export function SharedStepsPage({ projectKey }: { projectKey: string }) {
                 </tr>
               </thead>
               <tbody>
-                {shown.map((r) => (
+                {paged.items.map((r) => (
                   <tr key={r.id} className="border-t border-divider-row align-top">
                     <td className="max-w-[320px] px-4 py-3">
                       <Link to={editHref(r.id) as never} className="font-medium text-primary-text">
@@ -151,6 +156,9 @@ export function SharedStepsPage({ projectKey }: { projectKey: string }) {
               </tbody>
             </table>
           </div>
+        )}
+        {shown !== undefined && shown.length > 0 && (
+          <Pagination page={paged.page} pageCount={paged.pageCount} shown={paged.items.length} total={paged.total} onPageChange={setPageNo} />
         )}
       </Card>
 

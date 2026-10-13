@@ -29,6 +29,8 @@ import {
   EmptyState,
   Field,
   Input,
+  Pagination,
+  pageCountOf,
   Skeleton,
   StatusPill,
 } from '@/components/ui';
@@ -225,7 +227,7 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
     return all.filter((c) => (c.lastResult?.verdict ?? 'none') === lastResult);
   }, [list.data, lastResult]);
   const total = list.data?.total ?? 0;
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageCount = pageCountOf(total, PAGE_SIZE);
   const owners = useMemo(() => {
     const set = new Set<string>();
     for (const c of list.data?.items ?? []) if (c.owner !== undefined && c.owner !== '') set.add(c.owner);
@@ -560,22 +562,7 @@ export function CasesPage({ projectKey, search, onSearch, navigate }: CasesPageP
               </EmptyState>
             </div>
           )}
-          <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-divider px-4 py-3 text-[13px] text-secondary">
-            <span>
-              Showing {items.length} of {total}
-            </span>
-            <span className="flex items-center gap-2.5">
-              <Button size="sm" disabled={page <= 1} onClick={() => onSearch({ ...search, page: page - 1 <= 1 ? undefined : page - 1 })}>
-                Previous
-              </Button>
-              <span>
-                Page {page} of {pageCount}
-              </span>
-              <Button size="sm" disabled={page >= pageCount} onClick={() => onSearch({ ...search, page: page + 1 })}>
-                Next
-              </Button>
-            </span>
-          </div>
+          <Pagination page={page} pageCount={pageCount} shown={items.length} total={total} onPageChange={(p) => onSearch({ ...search, page: p <= 1 ? undefined : p })} />
         </Card>
       </div>
       <TagDialog

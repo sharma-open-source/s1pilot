@@ -36,7 +36,8 @@ const fake = createFakeTrpc({
   'projects.list': () => [],
   'defects.list': (input) => {
     const { query } = input as { query: string };
-    return { total: rows.length, items: query.includes('status:open') ? rows.filter((r) => r['status'] === 'open') : rows };
+    const items = query.includes('status:open') ? rows.filter((r) => r['status'] === 'open') : rows;
+    return { total: rows.length, matched: items.length, items, page: 1, pageSize: 25 };
   },
   'defects.createFromResult': () => ({ projectKey: 'SHOP', resultId: 'cr1', stepNumber: 3, title: 'Cart empties after reload on iOS Safari', severity: 'S2', details: DETAILS }),
   'defects.create': (input) => {

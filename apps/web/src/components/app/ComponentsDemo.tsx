@@ -26,6 +26,7 @@ import {
   Input,
   InsetBox,
   LinkButton,
+  Pagination,
   Pill,
   Range,
   Segmented,
@@ -61,6 +62,7 @@ export function ComponentsDemo() {
   const [device, setDevice] = useState('Pixel 7');
   const [dialog, setDialog] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  const [demoPage, setDemoPage] = useState(2);
   return (
     <>
       <PageHeader eyebrow="Dev" title="Components" />
@@ -245,6 +247,12 @@ export function ComponentsDemo() {
 
       <Demo title="ModeMixBar">
         <ModeMixBar mix={{ replay: 60, heal: 15, explore: 25 }} className="w-full" />
+      </Demo>
+
+      <Demo title="Pagination (table footer)">
+        <div className="w-full rounded-card border border-line">
+          <Pagination page={demoPage} pageCount={4} shown={25} total={87} onPageChange={setDemoPage} />
+        </div>
       </Demo>
 
       <Demo title="Skeleton">

@@ -192,18 +192,25 @@ export async function applyUpdate(
 export const defectsRouter = router({
   /** Defects of a project, newest first; `query` uses the shared filter grammar (`status:open severity:S2 tracker:none`). */
   list: publicProcedure
-    .input(z.object({ projectKey: ProjectKeySchema, query: z.string().default('') }))
+    .input(
+      z.object({
+        projectKey: ProjectKeySchema,
+        query: z.string().default(''),
+        page: z.number().int().min(1).default(1),
+        pageSize: z.number().int().min(1).max(200).default(25),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const project = await requireProject(ctx, input.projectKey);
       const ast = parseDefectQuery(input.query);
       const all = await ctx.repos.defects.listByProject(ctx.db, project.id);
-      const rows = await Promise.all(all.map((d) => toRow(ctx, d)));
-      return {
-        total: all.length,
-        items: rows.filter((r) =>
-          matchesDefectQuery({ key: r.key, title: r.title, status: r.status, severity: r.severity, tracker: r.tracker?.provider }, ast),
-        ),
-      };
+      const matched = all.filter((d) =>
+        matchesDefectQuery({ key: defectKey(d), title: d.title, status: d.status, severity: d.severity, tracker: d.external?.provider }, ast),
+      );
+      const start = (input.page - 1) * input.pageSize;
+      const items = await Promise.all(matched.slice(start, start + input.pageSize).map((d) => toRow(ctx, d)));
+      // `total` counts every defect of the project (empty-state copy); `matched` counts the filtered list (pagination).
+      return { total: all.length, matched: matched.length, items, page: input.page, pageSize: input.pageSize };
     }),
 
   /** One defect with its linked results. */

@@ -6,7 +6,7 @@ import { CasePickerDialog } from '../plans/CasePickerDialog';
 import { RequirementDialog, type RequirementRow } from './RequirementDialog';
 
 import { PageHeader } from '@/components/app/PageHeader';
-import { Breadcrumb, Button, Callout, Card, ConfirmDialog, EmptyState, Input, LinkButton, Pill, Skeleton } from '@/components/ui';
+import { Breadcrumb, Button, Callout, Card, ConfirmDialog, EmptyState, Input, LinkButton, Pagination, paginate, Pill, Skeleton } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
 import { Can } from '@/lib/session';
 import { trpc } from '@/lib/trpc';
@@ -40,6 +40,7 @@ export function RequirementsPage({ projectKey }: { projectKey: string }) {
   const utils = trpc.useUtils();
   const q = trpc.requirements.list.useQuery({ projectKey });
   const [filter, setFilter] = useState('');
+  const [pageNo, setPageNo] = useState(1);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [dialog, setDialog] = useState<{ mode: 'create' } | { mode: 'edit'; row: RequirementRow } | null>(null);
   const [linking, setLinking] = useState<RequirementRow | null>(null);
@@ -55,6 +56,7 @@ export function RequirementsPage({ projectKey }: { projectKey: string }) {
     if (rows === undefined || f === '') return rows;
     return rows.filter((r) => r.key.toLowerCase().includes(f) || r.title.toLowerCase().includes(f) || (r.description ?? '').toLowerCase().includes(f));
   }, [rows, filter]);
+  const paged = paginate(shown ?? [], pageNo);
   const uncovered = rows?.filter((r) => r.coverage === 0).length ?? 0;
   const base = `/p/${encodeURIComponent(projectKey)}/cases`;
 
@@ -86,7 +88,10 @@ export function RequirementsPage({ projectKey }: { projectKey: string }) {
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-divider px-4 py-3">
             <label className="flex min-w-0 flex-[1_1_260px] items-center gap-2 text-[13px]">
               <span className="text-secondary">Filter</span>
-              <Input className="h-[36px] flex-1" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Key, title or description" />
+              <Input className="h-[36px] flex-1" value={filter} onChange={(e) => {
+                  setFilter(e.target.value);
+                  setPageNo(1);
+                }} placeholder="Key, title or description" />
             </label>
             <span className="text-[13px] text-secondary">
               {rows.length} requirement{rows.length === 1 ? '' : 's'}
@@ -132,7 +137,7 @@ export function RequirementsPage({ projectKey }: { projectKey: string }) {
                 </tr>
               </thead>
               <tbody>
-                {shown.map((r) => (
+                {paged.items.map((r) => (
                   <tr key={r.id} className="border-t border-divider-row align-top">
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-[13px]">{r.key}</td>
                     <td className="max-w-[360px] px-2 py-3">
@@ -163,6 +168,9 @@ export function RequirementsPage({ projectKey }: { projectKey: string }) {
               </tbody>
             </table>
           </div>
+        )}
+        {shown !== undefined && shown.length > 0 && (
+          <Pagination page={paged.page} pageCount={paged.pageCount} shown={paged.items.length} total={paged.total} onPageChange={setPageNo} />
         )}
       </Card>
 

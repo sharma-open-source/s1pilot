@@ -78,6 +78,10 @@ describe('defects router', () => {
     expect((await api.defects.list({ projectKey: 'SHOP', query: 'status:open' })).items.map((d) => d.key)).toEqual(['DEF-1']);
     expect((await api.defects.list({ projectKey: 'SHOP', query: 'status:draft OR severity:S2' })).items).toHaveLength(2);
     expect((await api.defects.list({ projectKey: 'SHOP', query: 'tracker:none AND NOT status:draft' })).items).toHaveLength(1);
+    const paged = await api.defects.list({ projectKey: 'SHOP', page: 2, pageSize: 1 });
+    expect(paged).toMatchObject({ total: 2, matched: 2, page: 2, pageSize: 1 });
+    expect(paged.items.map((d) => d.key)).toEqual(['DEF-1']);
+    expect(await api.defects.list({ projectKey: 'SHOP', query: 'status:open', pageSize: 1 })).toMatchObject({ total: 2, matched: 1 });
     await expect(api.defects.list({ projectKey: 'SHOP', query: 'status:bogus' })).rejects.toMatchObject({ message: expect.stringContaining('Unknown status') });
     await api.defects.linkResult({ defectId: b.id, resultId: 'cr2' });
     expect((await api.defects.get(b.id)).linked).toHaveLength(1);

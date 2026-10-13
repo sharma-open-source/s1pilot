@@ -6,7 +6,7 @@ import { ReviewDetail } from './ReviewDetail';
 
 import { PageHeader } from '@/components/app/PageHeader';
 import { ReviewListItem } from '@/components/app/review';
-import { Button, Callout, EmptyState, Segmented, Skeleton } from '@/components/ui';
+import { Callout, EmptyState, Pagination, pageCountOf, Segmented, Skeleton } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { errorMessage } from '@/lib/errors';
 import { subscribeWorkspace, useProjects } from '@/lib/nav-data';
@@ -58,7 +58,7 @@ export function ReviewPage({ projectKey, search, onSearch }: ReviewPageProps) {
   const base = `/p/${encodeURIComponent(projectKey)}/review`;
   const items = list.data?.items ?? [];
   const selected = items.find((i) => i.id === search.item) ?? items[0];
-  const totalPages = Math.max(1, Math.ceil((list.data?.total ?? 0) / (list.data?.pageSize ?? 20)));
+  const totalPages = pageCountOf(list.data?.total ?? 0, list.data?.pageSize ?? 20);
   const rowLabel = (i: { id: string; status: string }) => (i.status === 'approved' ? ('approved' as const) : i.status === 'rejected' ? ('rejected' as const) : undefined);
 
   return (
@@ -138,19 +138,7 @@ export function ReviewPage({ projectKey, search, onSearch }: ReviewPageProps) {
               ))}
             </div>
           )}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between gap-2 border-t border-divider p-3 text-sm">
-              <Button size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                Previous
-              </Button>
-              <span className="text-secondary">
-                Page {page} of {totalPages}
-              </span>
-              <Button size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-                Next
-              </Button>
-            </div>
-          )}
+          <Pagination page={page} pageCount={totalPages} shown={items.length} total={list.data?.total ?? 0} onPageChange={setPage} hideSingle className="px-3" />
         </section>
 
         {selected ? (

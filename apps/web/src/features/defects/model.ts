@@ -1,5 +1,7 @@
 import { BROWSER_LABEL } from '../review/model';
 
+import { parsePageParam } from '@/components/ui/pagination';
+
 /** URL search state of `/p/:key/defects`. */
 export interface DefectsSearch {
   /** Filter query (`status:open`). */
@@ -16,6 +18,8 @@ export interface DefectsSearch {
   new?: boolean;
   title?: string;
   source?: string;
+  /** List page (omitted on page 1). */
+  page?: number;
 }
 
 /** Statuses in lifecycle order, with their labels. */
@@ -76,6 +80,7 @@ export function parseSearch(search: Record<string, unknown>): DefectsSearch {
   const fromManual = str('fromManual');
   const title = str('title');
   const source = str('source');
+  const page = parsePageParam(search['page']);
   return {
     ...(q ? { q } : {}),
     ...(defect ? { defect } : {}),
@@ -85,5 +90,6 @@ export function parseSearch(search: Record<string, unknown>): DefectsSearch {
     ...(search['new'] === true || search['new'] === 'true' || search['new'] === 1 ? { new: true } : {}),
     ...(title ? { title } : {}),
     ...(source ? { source } : {}),
+    ...(page !== undefined ? { page } : {}),
   };
 }

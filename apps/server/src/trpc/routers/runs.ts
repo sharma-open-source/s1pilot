@@ -8,6 +8,7 @@ import {
   S1PilotError,
   newId,
   type BrowserName,
+  type RunStatus,
   type RunTrigger,
   type ExecutionMode,
   type Project,
@@ -204,6 +205,9 @@ async function describeRun(ctx: Context, runId: string) {
   };
 }
 
+/** Runs still in progress; the reports list leaves them out. */
+const LIVE_RUN_STATUSES: readonly RunStatus[] = ['queued', 'running', 'paused'];
+
 const CreateInput = z.object({
   projectKey: ProjectKeySchema,
   /** Human keys of the cases to run (`SHOP-TC-42`). Required unless `planId` is given. */
@@ -295,6 +299,35 @@ export const runsRouter = router({
           return { ...run, config, progress };
         }),
       );
+    }),
+
+  /**
+   * One page of a project's runs, newest first, with the total count for pagination.
+   * `finished` keeps only runs that are no longer queued, running or paused (the reports list).
+   */
+  page: publicProcedure
+    .input(
+      z.object({
+        projectKey: ProjectKeySchema,
+        finished: z.boolean().default(false),
+        page: z.number().int().min(1).default(1),
+        pageSize: z.number().int().min(1).max(200).default(25),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const project = await requireProject(ctx, input.projectKey);
+      const { items, total } = await ctx.repos.runs.pageByProject(ctx.db, project.id, {
+        page: input.page,
+        pageSize: input.pageSize,
+        ...(input.finished ? { excludeStatus: LIVE_RUN_STATUSES } : {}),
+      });
+      const rows = await Promise.all(
+        items.map(async (run) => {
+          const { config, progress } = await describeRun(ctx, run.id);
+          return { ...run, config, progress };
+        }),
+      );
+      return { items: rows, total, page: input.page, pageSize: input.pageSize };
     }),
 
   /** One run: status, summary counts, configuration, job states and the case results so far. */

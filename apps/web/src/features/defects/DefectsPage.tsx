@@ -17,7 +17,7 @@ import {
 import { PageHeader } from '@/components/app/PageHeader';
 import { QueryInput } from '@/components/app/QueryInput';
 import { ExpectedActual } from '@/components/app/report';
-import { Button, Callout, Card, Checkbox, EmptyState, Field, Input, Pill, Select, Skeleton, Tag, Textarea } from '@/components/ui';
+import { Button, Callout, Card, Checkbox, DEFAULT_PAGE_SIZE, EmptyState, Field, Input, Pagination, pageCountOf, Pill, Select, Skeleton, Tag, Textarea } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { errorMessage } from '@/lib/errors';
 import { useProjects } from '@/lib/nav-data';
@@ -46,7 +46,8 @@ export function DefectsPage({ projectKey, search, onSearch }: DefectsPageProps) 
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => setText(q), [q]);
   useEffect(() => () => clearTimeout(timer.current), []);
-  const list = trpc.defects.list.useQuery({ projectKey, query: q }, { placeholderData: keepPreviousData });
+  const page = search.page ?? 1;
+  const list = trpc.defects.list.useQuery({ projectKey, query: q, page, pageSize: DEFAULT_PAGE_SIZE }, { placeholderData: keepPreviousData });
   const tracker = trpc.trackers.mapping.useQuery({ projectKey });
   const items = list.data?.items ?? [];
 
@@ -56,7 +57,8 @@ export function DefectsPage({ projectKey, search, onSearch }: DefectsPageProps) 
     timer.current = setTimeout(() => onSearch({ ...(value ? { q: value } : {}), ...(search.defect ? { defect: search.defect } : {}) }, { replace: true }), 300);
   };
   const creating = search.defect === undefined;
-  const open = (next: DefectsSearch) => onSearch({ ...(q ? { q } : {}), ...next });
+  const open = (next: DefectsSearch) => onSearch({ ...(q ? { q } : {}), ...(search.page ? { page: search.page } : {}), ...next });
+  const matched = list.data?.matched ?? 0;
 
   return (
     <>
@@ -120,11 +122,22 @@ export function DefectsPage({ projectKey, search, onSearch }: DefectsPageProps) 
           {!list.isLoading && items.length === 0 && !list.isError && (
             <div className="p-4">
               <EmptyState>
-                {(list.data?.total ?? 0) > 0
-                  ? 'No defects match this filter.'
+                {matched > 0
+                  ? 'This page is empty. The list may have changed; go back a page.'
+                  : (list.data?.total ?? 0) > 0
+                    ? 'No defects match this filter.'
                   : 'No defects yet. Create one from a failed result in a run report, or use New defect.'}
               </EmptyState>
             </div>
+          )}
+          {!list.isLoading && matched > 0 && (
+            <Pagination
+              page={page}
+              pageCount={pageCountOf(matched, DEFAULT_PAGE_SIZE)}
+              shown={items.length}
+              total={matched}
+              onPageChange={(p) => onSearch({ ...(q ? { q } : {}), ...(search.defect ? { defect: search.defect } : {}), ...(p > 1 ? { page: p } : {}) })}
+            />
           )}
         </Card>
 

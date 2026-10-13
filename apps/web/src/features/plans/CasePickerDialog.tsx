@@ -2,7 +2,7 @@ import { keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { QueryInput } from '@/components/app/QueryInput';
-import { Button, Callout, Dialog, EmptyState, Skeleton, StatusPill } from '@/components/ui';
+import { Button, Callout, Dialog, EmptyState, Pagination, pageCountOf, Skeleton, StatusPill } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
 import { trpc } from '@/lib/trpc';
 
@@ -49,7 +49,7 @@ export function CasePickerDialog({ projectKey, open, onOpenChange, initial, onCo
   );
   const items = list.data?.items ?? [];
   const total = list.data?.total ?? 0;
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageCount = pageCountOf(total, PAGE_SIZE);
   const allOnPage = items.length > 0 && items.every((c) => selected.has(c.id));
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -149,22 +149,7 @@ export function CasePickerDialog({ projectKey, open, onOpenChange, initial, onCo
           </div>
         )}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2.5 text-[13px] text-secondary">
-        <span>
-          Showing {items.length} of {total}
-        </span>
-        <span className="flex items-center gap-2.5">
-          <Button size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-            Previous
-          </Button>
-          <span>
-            Page {page} of {pageCount}
-          </span>
-          <Button size="sm" disabled={page >= pageCount} onClick={() => setPage(page + 1)}>
-            Next
-          </Button>
-        </span>
-      </div>
+      <Pagination page={page} pageCount={pageCount} shown={items.length} total={total} onPageChange={setPage} className="border-t-0 px-0 py-0" />
     </Dialog>
   );
 }

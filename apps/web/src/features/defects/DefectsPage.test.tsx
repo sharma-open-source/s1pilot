@@ -56,7 +56,7 @@ const DETAIL = {
 
 function renderPage(search: DefectsSearch = {}, over: Record<string, Handler> = {}) {
   const fake = createFakeTrpc({
-    'defects.list': () => ({ total: 2, items: [row(), row({ id: 'd2', key: 'DEF-2', title: 'Missing label', severity: 'S3', source: null, failingBrowsers: [], status: 'fixed', retestRunId: 'run9', tracker: { provider: 'jira', id: 'SHOP-12', url: 'https://jira.test/SHOP-12' } })] }),
+    'defects.list': () => ({ total: 2, matched: 2, page: 1, pageSize: 25, items: [row(), row({ id: 'd2', key: 'DEF-2', title: 'Missing label', severity: 'S3', source: null, failingBrowsers: [], status: 'fixed', retestRunId: 'run9', tracker: { provider: 'jira', id: 'SHOP-12', url: 'https://jira.test/SHOP-12' } })] }),
     'defects.createFromResult': () => DRAFT,
     'defects.get': () => DETAIL,
     ...over,
@@ -85,6 +85,8 @@ describe('model helpers', () => {
     expect(statusText('in-progress', null)).toBe('In progress');
     expect(shortSha('abcdef1234567890')).toBe('abcdef1');
     expect(parseSearch({ q: 'status:open', step: '2', new: 'true', defect: '' })).toEqual({ q: 'status:open', step: 2, new: true });
+    expect(parseSearch({ page: '3' })).toEqual({ page: 3 });
+    expect(parseSearch({ page: '1' })).toEqual({});
   });
 });
 
@@ -110,7 +112,7 @@ describe('DefectsPage', () => {
     const user = userEvent.setup();
     const { fake, onSearch } = renderPage(
       {},
-      { 'defects.list': (i) => { if ((i as { query: string }).query === 'status:nope') throw new FakeTrpcError('Unknown status "nope"', 'BAD_REQUEST'); return { total: 0, items: [] }; } },
+      { 'defects.list': (i) => { if ((i as { query: string }).query === 'status:nope') throw new FakeTrpcError('Unknown status "nope"', 'BAD_REQUEST'); return { total: 0, matched: 0, page: 1, pageSize: 25, items: [] }; } },
     );
     await screen.findByText(/No defects yet/);
     await user.type(screen.getByLabelText('Filter defects'), 'status:open');
