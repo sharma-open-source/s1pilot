@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import type { WizardDraft, WizardStep } from './model';
+import { KEY_HINT, type WizardDraft, type WizardStep } from './model';
 
 import { Button } from '@/components/ui';
 
@@ -80,6 +80,24 @@ export function ResultLine({
   return (
     <span role="alert" className="text-sm font-medium text-danger">
       {error}
+    </span>
+  );
+}
+
+/**
+ * Hint under an API key field. With a key saved (encrypted on the server) it says so and offers Remove / Keep;
+ * the key itself is never sent back to the browser.
+ */
+export function KeyHint({ saved, removed, onToggleRemove, extra }: { saved: boolean; removed: boolean; onToggleRemove: () => void; extra?: string }) {
+  if (!saved) return <>{extra !== undefined ? `${KEY_HINT} ${extra}` : KEY_HINT}</>;
+  return (
+    <span className="flex flex-wrap items-center gap-x-2 gap-y-1" role="status">
+      <span className={removed ? 'text-warning' : 'text-success'}>
+        {removed ? 'The saved key is removed when you save.' : 'Key saved (encrypted). Type a new key to replace it.'}
+      </span>
+      <Button size="sm" variant="secondary" onClick={onToggleRemove}>
+        {removed ? 'Keep saved key' : 'Remove saved key'}
+      </Button>
     </span>
   );
 }

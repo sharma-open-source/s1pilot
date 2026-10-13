@@ -25,6 +25,13 @@ describe('modelKeys', () => {
     expect(modelKeys(openrouter({ baseUrl: 'http://localhost:11434/v1' }), { OR_KEY: 'k1' })).toEqual({ s1: 'k1' });
   });
 
+  it('uses keys saved encrypted (decrypted beforehand) and reports one that was not loaded', () => {
+    const saved = openrouter({ apiKeyRef: 'secret:model/workspace/s2' });
+    saved.system1.apiKeyRef = 'secret:model/workspace/s1';
+    expect(modelKeys(saved, {}, { s1: 'saved1', s2: 'saved2' })).toEqual({ s1: 'saved1', s2: 'saved2' });
+    expect(() => modelKeys(saved, {}, {})).toThrow(/saved API key/);
+  });
+
   it('reports a referenced variable that is not set', () => {
     expect(() => modelKeys(openrouter({ apiKeyRef: 'env:MISSING' }), { OR_KEY: 'k1' })).toThrow(/MISSING/);
   });
@@ -35,7 +42,8 @@ describe('system2KeySource', () => {
     expect(system2KeySource(openrouter({ apiKeyRef: 'env:S2_KEY' }))).toMatch(/environment variable S2_KEY/);
     const fallback = system2KeySource(openrouter());
     expect(fallback).toMatch(/S1PILOT_S2_API_KEY or, when that is unset, the System 1 key/);
-    expect(fallback).toMatch(/pasted key is only used for Test connection/);
+    expect(fallback).toMatch(/No key is saved for System 2/);
+    expect(system2KeySource(openrouter({ apiKeyRef: 'secret:model/workspace/s2' }))).toMatch(/key saved in the model settings/);
     expect(system2KeySource(openrouter({ baseUrl: 'http://localhost:11434/v1' }))).not.toMatch(/System 1 key/);
   });
 });

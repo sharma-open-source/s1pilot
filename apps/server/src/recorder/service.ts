@@ -23,6 +23,7 @@ import {
 
 import type { ServerConfig } from '../config.js';
 import { WORKSPACE_MODEL_KEY } from '../trpc/routers/helpers.js';
+import { loadModelSecrets } from '../worker/model-secrets.js';
 import { createModelFactory, type ModelFactory } from '../worker/models.js';
 
 type Browser = Awaited<ReturnType<typeof launchBrowser>>;
@@ -118,7 +119,7 @@ export class RecorderService {
       const settings = project.modelSettings ?? (workspace.success ? workspace.data : undefined);
       if (!settings?.system2) return undefined;
       const redactor = createRedactor({ secrets: [], patterns: project.dataPolicy.redactPatterns });
-      return (this.opts.createModels ?? createModelFactory())(settings, redactor).s2;
+      return (this.opts.createModels ?? createModelFactory())(settings, redactor, undefined, await loadModelSecrets(this.opts.db, settings)).s2;
     } catch {
       return undefined;
     }

@@ -330,7 +330,7 @@ export class RemoteWorker {
 
     const vars = resolveVariables(ctx.environment, { vault: identityVault, ciphertexts: ctx.secrets });
     const redactor = createRedactor({ secrets: vars.secretValues(), patterns: ctx.project.redactPatterns });
-    const buildModels = (): ReturnType<ModelFactory> => (this.o.createModels ?? createModelFactory())(ctx.modelSettings, redactor, new Calibrator(ctx.calibration));
+    const buildModels = (): ReturnType<ModelFactory> => (this.o.createModels ?? createModelFactory())(ctx.modelSettings, redactor, new Calibrator(ctx.calibration), ctx.modelSecrets);
     const flowMap = new Map<string, SharedStep>(ctx.flows.flatMap((f) => [[f.id, f] as const, [f.name, f] as const]));
     const browser = await this.getBrowser(payload.browser);
     if (signal.aborted) return;

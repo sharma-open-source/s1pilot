@@ -276,7 +276,7 @@ describe('Models step', () => {
     expect(Number(act.value)).toBeGreaterThanOrEqual(0.5);
   });
 
-  it('warns when the System 2 endpoint is a cloud endpoint, then saves settings without the key', async () => {
+  it('warns when the System 2 endpoint is a cloud endpoint, then saves the pasted key apart from the settings', async () => {
     seedDraft();
     const user = userEvent.setup();
     const fake = createFakeTrpc({
@@ -311,7 +311,9 @@ describe('Models step', () => {
     const saved = callsTo(fake, 'models.updateSettings')[0]?.input as {
       target: string;
       settings: Record<string, unknown>;
+      apiKeys: unknown;
     };
+    expect(saved.apiKeys).toEqual({ s1: 'sk-secret' });
     expect(saved.target).toBe('SHOP');
     expect(saved.settings).toMatchObject({
       system1: { adapter: 'systemone', baseUrl: 'http://localhost:8000', model: 'clef-flash' },
@@ -324,7 +326,7 @@ describe('Models step', () => {
       thresholds: { act: 0.8, pass: 0.8, escalate: 0.5 },
       dualOrderSensitive: true,
     });
-    expect(JSON.stringify(saved)).not.toContain('sk-secret');
+    expect(JSON.stringify(saved.settings)).not.toContain('sk-secret');
     expect(window.sessionStorage.getItem('s1pilot.wizard.draft')).not.toContain('sk-secret');
     expect(callsTo(fake, 'projects.update')[0]?.input).toEqual({
       key: 'SHOP',

@@ -9,6 +9,7 @@ import {
 } from '@s1pilot/domain';
 import { z } from 'zod';
 
+import { deleteModelKey } from '../../worker/model-secrets.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
 
@@ -124,6 +125,7 @@ export const projectsRouter = router({
   delete: publicProcedure.input(KeyInput).mutation(async ({ ctx, input }) => {
     const project = await requireProject(ctx, input.key);
     await ctx.repos.projects.delete(ctx.db, project.id);
+    await Promise.all([deleteModelKey(ctx.db, project.id, 's1'), deleteModelKey(ctx.db, project.id, 's2')]);
     return { deleted: true as const, key: input.key };
   }),
 });

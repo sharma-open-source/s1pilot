@@ -6,8 +6,10 @@ import { createLogger } from '@s1pilot/domain/logger';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { loadConfig } from '../../config.js';
+import { loadModelSecrets, readModelKey } from '../../worker/model-secrets.js';
 import { createContext, type ServerUser } from '../context.js';
 import { appRouter, createCallerFactory } from '../router.js';
+
 
 import { REVEAL_LIMIT } from './environments.js';
 
@@ -299,6 +301,56 @@ describe('models', () => {
     const result = await api.models.probe({ baseUrl: 'http://127.0.0.1:1', model: 'm', timeoutMs: 500 });
     expect(result.ok).toBe(false);
     expect(result.error).toBeDefined();
+  });
+
+  it('stores a pasted key encrypted, keeps, uses and removes it, and never returns it', async () => {
+    const { api, db } = await setup();
+    const KEY = 'sk-test-pasted-123';
+    const seen: Array<string | undefined> = [];
+    const server = createServer((req, res) => {
+      seen.push(req.headers.authorization);
+      req.resume();
+      req.on('end', () => {
+        if (req.headers.authorization !== `Bearer ${KEY}`) {
+          res.writeHead(401, { 'content-type': 'application/json' });
+          return void res.end('{"error":"unauthorized"}');
+        }
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ answers: { q: { probabilities: { e1: 1 } } } }));
+      });
+    });
+    servers.push(server);
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const port = (server.address() as AddressInfo).port;
+    const baseUrl = `http://127.0.0.1:${port}`;
+    const settings = { ...mockSettings(), system1: { adapter: 'systemone' as const, baseUrl, model: 'fake-s1' } };
+
+    const saved = await api.models.updateSettings({ target: 'workspace', settings, apiKeys: { s1: KEY } });
+    const ref = saved.settings?.system1.apiKeyRef;
+    expect(ref).toBe('secret:model/workspace/s1');
+    expect(JSON.stringify(saved)).not.toContain(KEY);
+    expect(JSON.stringify(await api.models.getSettings('workspace'))).not.toContain(KEY);
+    const dump = db.sqlite.prepare("select name from sqlite_master where type = 'table'").all() as Array<{ name: string }>;
+    for (const { name } of dump) expect(JSON.stringify(db.sqlite.prepare(`select * from "${name}"`).all()), name).not.toContain(KEY);
+
+    // Test connection with the saved key: only for the host it was saved for.
+    await api.models.probe({ target: 'workspace', baseUrl, model: 'fake-s1', adapter: 'systemone', apiKeyRef: ref, timeoutMs: 2000 });
+    expect(seen).toContain(`Bearer ${KEY}`);
+    seen.length = 0;
+    await api.models.probe({ target: 'workspace', baseUrl: `http://localhost:${port}`, model: 'fake-s1', adapter: 'systemone', apiKeyRef: ref, timeoutMs: 2000 });
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen).not.toContain(`Bearer ${KEY}`);
+
+    // Saving again with the ref keeps the key; a project cannot borrow it; null removes it.
+    await api.models.updateSettings({ target: 'workspace', settings: { ...settings, system1: { ...settings.system1, apiKeyRef: ref } } });
+    expect(await loadModelSecrets(db, (await api.models.getSettings('workspace')).settings)).toEqual({ s1: KEY });
+    await api.projects.create({ name: 'Shop', key: 'SHOP', baseUrl: 'http://a.test' });
+    await expect(
+      api.models.updateSettings({ target: 'SHOP', settings: { ...settings, system1: { ...settings.system1, apiKeyRef: ref } } }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    const removed = await api.models.updateSettings({ target: 'workspace', settings: { ...settings, system1: { ...settings.system1, apiKeyRef: ref } }, apiKeys: { s1: null } });
+    expect(removed.settings?.system1.apiKeyRef).toBeUndefined();
+    expect(await readModelKey(db, 'secret:model/workspace/s1')).toBeUndefined();
   });
 
   it('status reports reachability and caches for 30 s', async () => {

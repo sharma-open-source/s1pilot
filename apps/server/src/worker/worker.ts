@@ -35,6 +35,7 @@ import { WORKSPACE_MODEL_KEY } from '../trpc/routers/helpers.js';
 
 import type { RunEventBus } from './event-bus.js';
 import { toRunEvent } from './events.js';
+import { loadModelSecrets } from './model-secrets.js';
 import { createModelFactory, type ModelFactory } from './models.js';
 import { RUN_CASE_JOB, RunCaseJobPayloadSchema, type RunLifecycle } from './run-lifecycle.js';
 
@@ -346,7 +347,8 @@ export class WorkerPool {
     // Models are built per attempt so a retry starts with fresh model state.
     // Calibration fitted from human review outcomes (S-058) is applied to every System 1 answer.
     const calibrator = await loadCalibrator(db, project.id);
-    const buildModels = (): ReturnType<ModelFactory> => (this.opts.createModels ?? createModelFactory())(settings, redactor, calibrator);
+    const secrets = await loadModelSecrets(db, settings);
+    const buildModels = (): ReturnType<ModelFactory> => (this.opts.createModels ?? createModelFactory())(settings, redactor, calibrator, secrets);
 
     const flows = await repos.sharedSteps.listByProject(db, project.id);
     const flowMap = new Map<string, SharedStep>(

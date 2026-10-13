@@ -6,10 +6,21 @@ import {
   type ModelEndpoint,
   type ModelSettings,
   type ProbeResult,
+  S1PilotError,
 } from '@s1pilot/domain';
 import { probe } from '@s1pilot/providers';
 import { z } from 'zod';
 
+import {
+  deleteModelKey,
+  isModelSecretRef,
+  loadModelSecrets,
+  modelSecretRef,
+  readModelKey,
+  storeModelKey,
+  type ModelKeySlot,
+  type ModelSecrets,
+} from '../../worker/model-secrets.js';
 import { modelKeys } from '../../worker/models.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
@@ -18,9 +29,64 @@ import { WORKSPACE_MODEL_KEY, getWorkspaceModelSettings, requireProject } from '
 
 const Target = z.union([z.literal('workspace'), ProjectKeySchema]);
 
-/** Resolves an `env:NAME` key reference for probing; other refs (`secret:`) are resolved by the runner. */
+/** Resolves an `env:NAME` key reference for probing; `secret:model/…` refs are handled by {@link savedKeyFor}. */
 function resolveKey(ref: string | undefined, env: NodeJS.ProcessEnv = process.env): string | undefined {
   return ref?.startsWith('env:') ? env[ref.slice(4)] : undefined;
+}
+
+const hostOf = (url: string | undefined): string | undefined => {
+  try {
+    return url === undefined ? undefined : new URL(url).host.toLowerCase();
+  } catch {
+    return undefined;
+  }
+};
+
+/** Owner id of encrypted keys: `workspace` or the project id. */
+async function keyOwner(ctx: Context, target: string): Promise<string> {
+  return target === 'workspace' ? 'workspace' : (await requireProject(ctx, target)).id;
+}
+
+/**
+ * The saved key behind `ref` for "Test connection", only when `target`'s settings use that ref for an endpoint on
+ * the same host as `baseUrl`, so a saved key is never sent to another server.
+ */
+async function savedKeyFor(ctx: Context, target: string, ref: string, baseUrl: string): Promise<string | undefined> {
+  const { settings } = await readSettings(ctx, target);
+  const host = hostOf(baseUrl);
+  const allowed = [settings?.system1, settings?.system2].some((ep) => ep?.apiKeyRef === ref && host !== undefined && hostOf(ep.baseUrl) === host);
+  return allowed ? readModelKey(ctx.db, ref) : undefined;
+}
+
+/**
+ * Applies `apiKeys` to the endpoints of `settings` before saving: a string is encrypted and stored (its ref replaces
+ * `apiKeyRef`), null removes the stored key. A `secret:model/…` ref must be the target's own. Stored keys that the
+ * new settings no longer reference are deleted.
+ */
+async function applyApiKeys(
+  ctx: Context,
+  owner: string,
+  settings: ModelSettings | null,
+  apiKeys: Partial<Record<ModelKeySlot, string | null>> | undefined,
+): Promise<ModelSettings | null> {
+  const endpoints: Array<[ModelKeySlot, ModelEndpoint | undefined]> = [
+    ['s1', settings?.system1],
+    ['s2', settings?.system2],
+  ];
+  for (const [slot, ep] of endpoints) {
+    const own = modelSecretRef(owner, slot);
+    const pasted = apiKeys?.[slot];
+    if (ep && typeof pasted === 'string') {
+      ep.apiKeyRef = await storeModelKey(ctx.db, owner, slot, pasted);
+      continue;
+    }
+    if (ep && pasted === null && ep.apiKeyRef === own) delete ep.apiKeyRef;
+    if (ep && isModelSecretRef(ep.apiKeyRef) && ep.apiKeyRef !== own) {
+      throw new S1PilotError('INVALID_API_KEY_REF', 'A saved API key can only be used by the settings it was saved for. Enter the key again.', { slot });
+    }
+    if (ep?.apiKeyRef !== own) await deleteModelKey(ctx.db, owner, slot);
+  }
+  return settings;
 }
 
 async function readSettings(ctx: Context, target: string) {
@@ -48,12 +114,21 @@ export interface EndpointStatus {
 const statusCache = new WeakMap<object, Map<string, { at: number; value: EndpointStatus }>>();
 
 /** Keys the runs would use for `settings` (see {@link modelKeys}); a missing referenced variable becomes an error text. */
-function statusKeys(settings: ModelSettings | null | undefined): { s1?: string; s2?: string; error?: string } {
+function statusKeys(settings: ModelSettings | null | undefined, secrets: ModelSecrets = {}): { s1?: string; s2?: string; error?: string } {
   if (!settings) return {};
   try {
-    return modelKeys(settings);
+    return modelKeys(settings, process.env, secrets);
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/** Saved keys of `settings`; a missing one becomes an error text instead of throwing. */
+async function statusSecrets(ctx: Context, settings: ModelSettings | null | undefined): Promise<{ secrets: ModelSecrets; error?: string }> {
+  try {
+    return { secrets: await loadModelSecrets(ctx.db, settings) };
+  } catch (error) {
+    return { secrets: {}, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -85,33 +160,47 @@ export const modelsRouter = router({
   /** `'workspace'` or a project key. Project settings fall back to the workspace defaults (`effective`). */
   getSettings: publicProcedure.input(Target).query(({ ctx, input }) => readSettings(ctx, input)),
 
-  /** Saves settings for the target; `settings: null` removes a project override / the workspace default. */
+  /**
+   * Saves settings for the target; `settings: null` removes a project override / the workspace default (and its
+   * saved keys). `apiKeys` are pasted keys: stored encrypted and referenced as `secret:model/…`; null removes one.
+   */
   updateSettings: publicProcedure
-    .input(z.object({ target: Target, settings: ModelSettingsSchema.nullable() }))
+    .input(
+      z.object({
+        target: Target,
+        settings: ModelSettingsSchema.nullable(),
+        apiKeys: z.object({ s1: z.string().trim().min(1).nullable().optional(), s2: z.string().trim().min(1).nullable().optional() }).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { db, repos } = ctx;
+      const settings = await applyApiKeys(ctx, await keyOwner(ctx, input.target), input.settings, input.apiKeys);
       if (input.target === 'workspace') {
-        if (input.settings) await repos.settings.set(db, WORKSPACE_MODEL_KEY, input.settings);
+        if (settings) await repos.settings.set(db, WORKSPACE_MODEL_KEY, settings);
         else await repos.settings.delete(db, WORKSPACE_MODEL_KEY);
       } else {
         const project = await requireProject(ctx, input.target);
-        if (input.settings === null) {
+        if (settings === null) {
           // The repo merges patches and cannot clear the override, so null the column directly.
           db.sqlite.prepare('UPDATE projects SET model_settings = NULL, updated_at = ? WHERE id = ?').run(
             new Date().toISOString(),
             project.id,
           );
         } else {
-          await repos.projects.update(db, project.id, { modelSettings: input.settings });
+          await repos.projects.update(db, project.id, { modelSettings: settings });
         }
       }
       return readSettings(ctx, input.target);
     }),
 
-  /** "Test connection": probes an endpoint. The key is used for this call only and never stored. */
+  /**
+   * "Test connection": probes an endpoint. A pasted key is used for this call only. A saved key (`apiKeyRef`
+   * `secret:model/…`, with the `target` it belongs to) is used only for an endpoint on the host it was saved for.
+   */
   probe: publicProcedure
     .input(
       z.object({
+        target: Target.optional(),
         baseUrl: z.string().url(),
         model: z.string().min(1).optional(),
         adapter: z.union([AdapterKindSchema, z.literal('auto')]).default('auto'),
@@ -120,8 +209,12 @@ export const modelsRouter = router({
         timeoutMs: z.number().int().min(100).max(60_000).default(5000),
       }),
     )
-    .mutation(async ({ input }): Promise<ProbeResult> => {
-      const apiKey = input.apiKey ?? resolveKey(input.apiKeyRef);
+    .mutation(async ({ ctx, input }): Promise<ProbeResult> => {
+      const saved =
+        input.apiKey === undefined && input.apiKeyRef !== undefined && isModelSecretRef(input.apiKeyRef) && input.target !== undefined
+          ? await savedKeyFor(ctx, input.target, input.apiKeyRef, input.baseUrl)
+          : undefined;
+      const apiKey = input.apiKey ?? saved ?? resolveKey(input.apiKeyRef);
       const result = await probe(
         {
           baseUrl: input.baseUrl,
@@ -140,7 +233,8 @@ export const modelsRouter = router({
     .query(async ({ ctx, input }) => {
       const { effective } = await readSettings(ctx, input?.projectKey ?? 'workspace');
       // Same keys as the runs use, so "reachable" means a run (or test generation) will authenticate.
-      const keys = statusKeys(effective);
+      const loaded = await statusSecrets(ctx, effective);
+      const keys = loaded.error !== undefined ? { error: loaded.error } : statusKeys(effective, loaded.secrets);
       const [system1, system2] = await Promise.all([
         endpointStatus(ctx, effective?.system1, keys.s1, keys.error),
         endpointStatus(ctx, effective?.system2, keys.s2, keys.error),

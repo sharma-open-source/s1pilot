@@ -24,6 +24,7 @@ import type { LiveHub } from '../live/hub.js';
 import { WORKSPACE_MODEL_KEY } from '../trpc/routers/helpers.js';
 import type { RunEventBus } from '../worker/event-bus.js';
 import { toRunEvent } from '../worker/events.js';
+import { loadModelSecrets } from '../worker/model-secrets.js';
 import { RUN_CASE_JOB, RunCaseJobPayloadSchema, type RunLifecycle } from '../worker/run-lifecycle.js';
 
 import type { ClaimedJob, HeartbeatResult, JobContext, ServerMessage } from './protocol.js';
@@ -210,6 +211,7 @@ export class RemoteWorkerService {
         project: { id: project.id, key: project.key, redactPatterns: project.dataPolicy.redactPatterns },
         modelSettings,
         secrets,
+        modelSecrets: await loadModelSecrets(db, modelSettings),
         flows,
         datasets,
         calibration,

@@ -6,11 +6,14 @@ import {
   apiKeyRefFrom,
   constrainThresholds,
   escalateBounds,
+  isSavedKeyRef,
+  keyFieldFrom,
+  keyToSave,
   ModelsSchema,
   S1_ADAPTERS,
   type ModelsValues,
 } from './model';
-import { fieldError, ResultLine, WizardFooter, type StepProps } from './shared';
+import { fieldError, KeyHint, ResultLine, WizardFooter, type StepProps } from './shared';
 
 import { CapabilityGrid } from '@/components/app/CapabilityGrid';
 import {
@@ -45,13 +48,17 @@ function useProbe() {
     model: string;
     adapter: ModelsValues['s1']['adapter'] | 'openai-chat';
     apiKey: string;
+    /** Project whose saved key (`savedRef`) an empty field tests with. */
+    target: string;
+    savedRef: string | undefined;
   }) => {
     setProbe({ state: 'pending' });
-    const ref = apiKeyRefFrom(input.apiKey);
+    const ref = apiKeyRefFrom(input.apiKey) ?? (input.apiKey.trim() === '' ? input.savedRef : undefined);
     const pastedKey =
       input.apiKey.trim() !== '' && ref === undefined ? input.apiKey.trim() : undefined;
     try {
       const result = await utils.client.models.probe.mutate({
+        target: input.target,
         baseUrl: input.baseUrl,
         adapter: input.adapter,
         ...(input.model !== '' ? { model: input.model } : {}),
@@ -82,6 +89,21 @@ function ProbeLine({ probe, label }: { probe: ProbeState; label: string }) {
   );
 }
 
+const hostLabel = (url: string): string => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+};
+
+/** Where an endpoint's key comes from, for the inherited-models notice. Never the key itself. */
+function keySourceLabel(ref: string | undefined): string {
+  if (isSavedKeyRef(ref)) return 'API key saved';
+  if (ref?.startsWith('env:') === true) return `API key from ${ref}`;
+  return 'no API key saved';
+}
+
 /** Step 3: System 1 / System 2 endpoints, confidence policy and data policy. */
 export function ModelsStep({ draft, patch, go }: StepProps) {
   const projectKey = draft.createdKey ?? '';
@@ -90,13 +112,20 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
   const [s2Probe, runS2Probe, resetS2Probe] = useProbe();
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Keys saved encrypted on the server show as "saved"; `env:NAME` refs show as text.
+  const [k1] = useState(() => keyFieldFrom(draft.models.s1.keyRef));
+  const [k2] = useState(() => keyFieldFrom(draft.models.s2.keyRef));
+  const [remove, setRemove] = useState({ s1: false, s2: false });
+  const saved = { s1: remove.s1 ? undefined : k1.savedRef, s2: remove.s2 ? undefined : k2.savedRef };
+  const current = trpc.models.getSettings.useQuery(projectKey, { enabled: projectKey !== '' });
+  const inherited = current.data?.inheritsFromWorkspace === true ? current.data.effective : null;
 
   const form = useForm<ModelsValues>({
     resolver: zodResolver(ModelsSchema),
     defaultValues: {
       ...draft.models,
-      s1: { ...draft.models.s1, apiKey: '' },
-      s2: { ...draft.models.s2, apiKey: '' },
+      s1: { adapter: draft.models.s1.adapter, baseUrl: draft.models.s1.baseUrl, model: draft.models.s1.model, apiKey: k1.text },
+      s2: { baseUrl: draft.models.s2.baseUrl, model: draft.models.s2.model, apiKey: k2.text },
     },
   });
   const errors = form.formState.errors;
@@ -106,20 +135,22 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
   const sendScreenshots = form.watch('sendScreenshots');
   const dual = form.watch('dualOrderSensitive');
 
-  // Persist everything except API keys.
+  // Persist everything except API keys (typed `env:NAME` refs and saved-key refs are kept).
   useEffect(() => {
     const sub = form.watch((v) => {
       const { s1, s2, ...rest } = v as ModelsValues;
+      const ref1 = apiKeyRefFrom(s1.apiKey) ?? k1.savedRef;
+      const ref2 = apiKeyRefFrom(s2.apiKey) ?? k2.savedRef;
       patch({
         models: {
           ...rest,
-          s1: { adapter: s1.adapter, baseUrl: s1.baseUrl, model: s1.model },
-          s2: { baseUrl: s2.baseUrl, model: s2.model },
+          s1: { adapter: s1.adapter, baseUrl: s1.baseUrl, model: s1.model, ...(ref1 !== undefined ? { keyRef: ref1 } : {}) },
+          s2: { baseUrl: s2.baseUrl, model: s2.model, ...(ref2 !== undefined ? { keyRef: ref2 } : {}) },
         },
       });
     });
     return () => sub.unsubscribe();
-  }, [form, patch]);
+  }, [form, patch, k1.savedRef, k2.savedRef]);
 
   const testEndpoint = async (which: 's1' | 's2') => {
     const v = form.getValues(which);
@@ -136,6 +167,8 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
         model: v.model.trim(),
         adapter: form.getValues('s1.adapter'),
         apiKey: v.apiKey,
+        target: projectKey,
+        savedRef: saved.s1,
       });
     } else {
       await runS2Probe({
@@ -143,6 +176,8 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
         model: v.model.trim(),
         adapter: 'openai-chat',
         apiKey: v.apiKey,
+        target: projectKey,
+        savedRef: saved.s2,
       });
     }
   };
@@ -160,8 +195,9 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
           });
           return;
         }
-        const s1Ref = apiKeyRefFrom(v.s1.apiKey);
-        const s2Ref = apiKeyRefFrom(v.s2.apiKey);
+        const key1 = keyToSave(v.s1.apiKey, k1.savedRef, remove.s1);
+        const key2 = keyToSave(v.s2.apiKey, k2.savedRef, remove.s2);
+        // Vanilla client: a pasted key must never enter the query cache. The server stores it encrypted.
         await utils.client.models.updateSettings.mutate({
           target: projectKey,
           settings: {
@@ -169,7 +205,7 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
               adapter,
               baseUrl: v.s1.baseUrl,
               model: v.s1.model,
-              ...(s1Ref ? { apiKeyRef: s1Ref } : {}),
+              ...(key1.apiKeyRef !== undefined ? { apiKeyRef: key1.apiKeyRef } : {}),
             },
             ...(v.s2.baseUrl !== ''
               ? {
@@ -177,12 +213,16 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
                     adapter: 'openai-chat' as const,
                     baseUrl: v.s2.baseUrl,
                     model: v.s2.model,
-                    ...(s2Ref ? { apiKeyRef: s2Ref } : {}),
+                    ...(key2.apiKeyRef !== undefined ? { apiKeyRef: key2.apiKeyRef } : {}),
                   },
                 }
               : {}),
             thresholds: { act: v.act, pass: v.act, fail: 0.2, escalate: v.escalate },
             dualOrderSensitive: v.dualOrderSensitive,
+          },
+          apiKeys: {
+            ...(key1.apiKey !== undefined ? { s1: key1.apiKey } : {}),
+            ...(v.s2.baseUrl !== '' && key2.apiKey !== undefined ? { s2: key2.apiKey } : {}),
           },
         });
       }
@@ -212,6 +252,18 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
 
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
+      {inherited && (
+        <Callout tone="info-ai">
+          This project uses the workspace models from Settings: <span className="font-mono">{inherited.system1.model}</span>
+          {inherited.system1.baseUrl !== undefined && (
+            <>
+              {' '}at <span className="font-mono">{hostLabel(inherited.system1.baseUrl)}</span>
+            </>
+          )}
+          {' '}({keySourceLabel(inherited.system1.apiKeyRef)}). Leave the fields below empty to keep using them, or fill them in to
+          give this project its own models.
+        </Callout>
+      )}
       <div className="flex flex-wrap items-start gap-5">
         <Card
           aria-label="System 1 decision model"
@@ -261,10 +313,22 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
             </Field>
             <Field
               label="API key (optional)"
-              hint="Enter env:NAME to save a reference. A pasted key is used for Test connection only and is never stored."
+              hint={
+                <KeyHint
+                  saved={k1.savedRef !== undefined}
+                  removed={remove.s1}
+                  onToggleRemove={() => setRemove((r) => ({ ...r, s1: !r.s1 }))}
+                />
+              }
             >
               {(id) => (
-                <Input id={id} type="password" autoComplete="off" {...form.register('s1.apiKey')} />
+                <Input
+                  id={id}
+                  type="password"
+                  autoComplete="off"
+                  placeholder={saved.s1 !== undefined ? '••••••••  saved' : undefined}
+                  {...form.register('s1.apiKey')}
+                />
               )}
             </Field>
           </div>
@@ -379,10 +443,23 @@ export function ModelsStep({ draft, patch, go }: StepProps) {
             </Field>
             <Field
               label="API key (optional)"
-              hint="Enter env:NAME to save a reference. A pasted key is used for Test connection only and is never stored. Without a reference, S1PILOT_S2_API_KEY is used, or the System 1 key when both use the same host."
+              hint={
+                <KeyHint
+                  saved={k2.savedRef !== undefined}
+                  removed={remove.s2}
+                  onToggleRemove={() => setRemove((r) => ({ ...r, s2: !r.s2 }))}
+                  extra="Without a key, S1PILOT_S2_API_KEY is used, or the System 1 key when both use the same host."
+                />
+              }
             >
               {(id) => (
-                <Input id={id} type="password" autoComplete="off" {...form.register('s2.apiKey')} />
+                <Input
+                  id={id}
+                  type="password"
+                  autoComplete="off"
+                  placeholder={saved.s2 !== undefined ? '••••••••  saved' : undefined}
+                  {...form.register('s2.apiKey')}
+                />
               )}
             </Field>
             <div className="flex flex-wrap items-center gap-2.5">

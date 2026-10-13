@@ -9,7 +9,10 @@ import {
   EMPTY_DRAFT,
   EnvironmentsSchema,
   escalateBounds,
+  draftFromProject,
+  keyFieldFrom,
   keyFromName,
+  keyToSave,
   loadDraft,
   ModelsSchema,
   DEFAULT_MODELS,
@@ -120,6 +123,35 @@ describe('apiKeyRefFrom', () => {
     expect(apiKeyRefFrom('secret:openai')).toBe('secret:openai');
     expect(apiKeyRefFrom('sk-live-123')).toBeUndefined();
     expect(apiKeyRefFrom('')).toBeUndefined();
+  });
+});
+
+describe('API key fields', () => {
+  const SAVED = 'secret:model/p1/s1';
+
+  it('shows env refs as text and saved keys only as saved', () => {
+    expect(keyFieldFrom('env:OR_KEY')).toEqual({ text: 'env:OR_KEY' });
+    expect(keyFieldFrom(SAVED)).toEqual({ text: '', savedRef: SAVED });
+    expect(keyFieldFrom(undefined)).toEqual({ text: '' });
+  });
+
+  it('sends a pasted key to store, a ref as ref, and keeps or removes the saved key', () => {
+    expect(keyToSave('  sk-live-123 ', SAVED)).toEqual({ apiKey: 'sk-live-123' });
+    expect(keyToSave('env:OR_KEY', SAVED)).toEqual({ apiKeyRef: 'env:OR_KEY' });
+    expect(keyToSave('', SAVED)).toEqual({ apiKeyRef: SAVED });
+    expect(keyToSave('', SAVED, true)).toEqual({ apiKey: null });
+    expect(keyToSave('', undefined)).toEqual({});
+  });
+
+  it('keeps key references when project setup loads a saved project', () => {
+    const draft = draftFromProject({
+      key: 'SHOP',
+      name: 'Shop',
+      baseUrl: 'http://a.test',
+      settings: { system1: { adapter: 'systemone', baseUrl: 'http://m.test', model: 'm', apiKeyRef: SAVED }, system2: { baseUrl: 'http://c.test', model: 'c', apiKeyRef: 'env:S2' } },
+    });
+    expect(draft.models.s1).toMatchObject({ model: 'm', keyRef: SAVED });
+    expect(draft.models.s2).toMatchObject({ model: 'c', keyRef: 'env:S2' });
   });
 });
 

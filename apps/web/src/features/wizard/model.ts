@@ -179,21 +179,48 @@ export const ModelsSchema = z
     }
   });
 
-/** Only `env:NAME` / `secret:key` references can be saved; a pasted key is used for Test connection only. */
+/** An `env:NAME` / `secret:key` reference typed into a key field, or undefined for anything else (a pasted key). */
 export function apiKeyRefFrom(input: string): string | undefined {
   const v = input.trim();
   return /^(env|secret):\S+$/.test(v) ? v : undefined;
 }
 
-/** Wizard draft; kept in sessionStorage until finish. Never holds API keys. */
+/** True for the reference of a key the server stores encrypted (`secret:model/…`); the key itself never reaches the UI. */
+export const isSavedKeyRef = (ref: string | undefined): boolean => ref?.startsWith('secret:model/') === true;
+
+/** What the API key field of an endpoint shows: an `env:NAME` ref as text; a saved key only as "saved". */
+export function keyFieldFrom(ref: string | undefined): { text: string; savedRef?: string } {
+  if (ref !== undefined && isSavedKeyRef(ref)) return { text: '', savedRef: ref };
+  return { text: ref ?? '' };
+}
+
+/**
+ * How an API key field is saved: a typed reference becomes `apiKeyRef`; a pasted key goes to `apiKey` (the server
+ * stores it encrypted); an empty field keeps the saved key unless `remove` is set, which sends `apiKey: null`.
+ */
+export function keyToSave(input: string, savedRef: string | undefined, remove = false): { apiKeyRef?: string; apiKey?: string | null } {
+  const v = input.trim();
+  if (v !== '') {
+    const ref = apiKeyRefFrom(v);
+    return ref !== undefined ? { apiKeyRef: ref } : { apiKey: v };
+  }
+  if (savedRef === undefined) return {};
+  return remove ? { apiKey: null } : { apiKeyRef: savedRef };
+}
+
+/** Hint under an API key field. */
+export const KEY_HINT = 'Paste the key to save it encrypted on the server, or enter env:NAME to read it from a server environment variable.';
+
+/** Wizard draft; kept in sessionStorage until finish. Never holds API keys, only their references. */
 export interface WizardDraft {
   basics: BasicsValues & { keyTouched: boolean };
   /** Project key once step 1 created the project. */
   createdKey?: string;
   envRows?: EnvRow[];
   models: Omit<ModelsValues, 's1' | 's2'> & {
-    s1: Omit<ModelsValues['s1'], 'apiKey'>;
-    s2: Omit<ModelsValues['s2'], 'apiKey'>;
+    /** `keyRef`: saved `apiKeyRef` (`env:NAME`, or `secret:model/…` for a key stored encrypted on the server). */
+    s1: Omit<ModelsValues['s1'], 'apiKey'> & { keyRef?: string };
+    s2: Omit<ModelsValues['s2'], 'apiKey'> & { keyRef?: string };
   };
   login: { choice?: 'recorded' | 'flow' | 'skipped'; flowName: string };
   firstTest: string;
@@ -263,15 +290,15 @@ export interface ExistingProject {
   name: string;
   baseUrl: string;
   settings: {
-    system1?: { adapter?: string; baseUrl?: string; model?: string };
-    system2?: { baseUrl?: string; model?: string };
+    system1?: { adapter?: string; baseUrl?: string; model?: string; apiKeyRef?: string };
+    system2?: { baseUrl?: string; model?: string; apiKeyRef?: string };
     thresholds?: { act?: number; escalate?: number };
     dualOrderSensitive?: boolean;
   } | null;
   dataPolicy?: { sendPageText?: boolean; sendScreenshots?: string };
 }
 
-/** Builds a draft from a saved project so "Project setup" edits it instead of starting over. API keys are never loaded. */
+/** Builds a draft from a saved project so "Project setup" edits it instead of starting over. Key references are kept; keys are never loaded. */
 export function draftFromProject(p: ExistingProject): WizardDraft {
   const s = p.settings ?? {};
   const adapter = s.system1?.adapter;
@@ -292,8 +319,13 @@ export function draftFromProject(p: ExistingProject): WizardDraft {
             : DEFAULT_MODELS.s1.adapter,
         baseUrl: s.system1?.baseUrl ?? '',
         model: s.system1?.model ?? '',
+        ...(s.system1?.apiKeyRef !== undefined ? { keyRef: s.system1.apiKeyRef } : {}),
       },
-      s2: { baseUrl: s.system2?.baseUrl ?? '', model: s.system2?.model ?? '' },
+      s2: {
+        baseUrl: s.system2?.baseUrl ?? '',
+        model: s.system2?.model ?? '',
+        ...(s.system2?.apiKeyRef !== undefined ? { keyRef: s.system2.apiKeyRef } : {}),
+      },
     },
   };
 }

@@ -19,6 +19,7 @@ import { z } from 'zod';
 
 import type { Context } from '../trpc/context.js';
 import { effectiveModelSettings } from '../trpc/routers/helpers.js';
+import { loadModelSecrets } from '../worker/model-secrets.js';
 import { system2KeySource } from '../worker/models.js';
 
 const nowIso = (): string => new Date().toISOString();
@@ -59,7 +60,7 @@ async function systemTwo(ctx: Context, project: Project): Promise<{ s2: ChatMode
     throw new S1PilotError('S2_NOT_CONFIGURED', 'Test generation needs a System 2 model. Configure one in the model settings.', { projectKey: project.key });
   }
   const redactor = createRedactor({ secrets: [], patterns: project.dataPolicy.redactPatterns });
-  const s2 = ctx.runtime.createModels(settings, redactor).s2;
+  const s2 = ctx.runtime.createModels(settings, redactor, undefined, await loadModelSecrets(ctx.db, settings)).s2;
   if (!s2) throw new S1PilotError('S2_NOT_CONFIGURED', 'Test generation needs a System 2 model. Configure one in the model settings.', { projectKey: project.key });
   return { s2, redact: (t) => redactor.redact(t), keySource: system2KeySource(settings) };
 }

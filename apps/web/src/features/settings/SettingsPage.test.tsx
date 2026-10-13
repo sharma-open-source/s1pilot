@@ -163,7 +163,7 @@ describe('SettingsPage', () => {
     expect(dump).not.toContain(TOKEN);
   });
 
-  it('warns on save that a pasted System 2 key is not stored, and never sends it', async () => {
+  it('sends a pasted System 2 key only as a key to store encrypted, never inside the settings', async () => {
     const user = userEvent.setup();
     const saved = {
       system1: { adapter: 'systemone', baseUrl: 'https://openrouter.ai/api/alpha/decisions', model: 'cloudflare/clef', apiKeyRef: 'env:OR_KEY' },
@@ -177,13 +177,43 @@ describe('SettingsPage', () => {
       'models.status': () => ({ system1: { configured: true, reachable: true }, system2: { configured: true, reachable: true } }),
     });
     await screen.findByDisplayValue('anthropic/claude-haiku-4.5');
-    expect(screen.getByText(/Without a reference, S1PILOT_S2_API_KEY is used/)).toBeInTheDocument();
+    expect(screen.getByText(/Without a key, S1PILOT_S2_API_KEY is used/)).toBeInTheDocument();
     const keyFields = screen.getAllByLabelText(/API key \(optional\)/);
     await user.type(keyFields[1] as HTMLElement, 'sk-or-pasted-key');
     await user.click(screen.getByRole('button', { name: 'Save model defaults' }));
-    expect(await screen.findByText(/the pasted API key was not stored/)).toBeInTheDocument();
-    const call = fake.calls.find((c) => c.path === 'models.updateSettings');
-    expect(JSON.stringify(call?.input)).not.toContain('sk-or-pasted-key');
+    expect(await screen.findByText('Workspace model defaults saved')).toBeInTheDocument();
+    const call = fake.calls.find((c) => c.path === 'models.updateSettings')?.input as { settings: unknown; apiKeys: unknown };
+    expect(call.apiKeys).toEqual({ s2: 'sk-or-pasted-key' });
+    expect(JSON.stringify(call.settings)).not.toContain('sk-or-pasted-key');
+    expect(call.settings).toMatchObject({ system1: { apiKeyRef: 'env:OR_KEY' } });
+  });
+
+  it('shows a saved key as saved after reload, keeps it on save and removes it on request', async () => {
+    const user = userEvent.setup();
+    const saved = {
+      system1: { adapter: 'systemone', baseUrl: 'https://openrouter.ai/api/alpha/decisions', model: 'cloudflare/clef', apiKeyRef: 'secret:model/workspace/s1' },
+      thresholds: { act: 0.8, pass: 0.8, fail: 0.2, escalate: 0.5 },
+      dualOrderSensitive: true,
+    };
+    const { fake } = renderPage('models', {
+      'models.getSettings': () => ({ scope: 'workspace', settings: saved, effective: saved, inheritsFromWorkspace: false }),
+      'models.updateSettings': () => saved,
+      'models.status': () => ({ system1: { configured: true, reachable: true }, system2: { configured: false, reachable: false } }),
+    });
+    expect(await screen.findByDisplayValue('cloudflare/clef')).toBeInTheDocument();
+    expect(screen.getByText(/Key saved \(encrypted\)/)).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('secret:model/workspace/s1')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save model defaults' }));
+    await waitFor(() => expect(fake.calls.filter((c) => c.path === 'models.updateSettings')).toHaveLength(1));
+    const kept = fake.calls.find((c) => c.path === 'models.updateSettings')?.input as { settings: { system1: { apiKeyRef?: string } }; apiKeys: unknown };
+    expect(kept.settings.system1.apiKeyRef).toBe('secret:model/workspace/s1');
+    expect(kept.apiKeys).toEqual({});
+    await user.click(screen.getByRole('button', { name: 'Remove saved key' }));
+    await user.click(screen.getByRole('button', { name: 'Save model defaults' }));
+    await waitFor(() => expect(fake.calls.filter((c) => c.path === 'models.updateSettings')).toHaveLength(2));
+    const removed = fake.calls.filter((c) => c.path === 'models.updateSettings')[1]?.input as { settings: { system1: { apiKeyRef?: string } }; apiKeys: unknown };
+    expect(removed.settings.system1.apiKeyRef).toBeUndefined();
+    expect(removed.apiKeys).toEqual({ s1: null });
   });
 
   it('revokes a token after confirmation', async () => {

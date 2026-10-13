@@ -19,6 +19,8 @@ export const JobContextSchema = z.object({
   modelSettings: ModelSettingsSchema,
   /** Decrypted inline secret variables of the environment by key. They exist only in the worker's memory. */
   secrets: z.record(z.string()),
+  /** API keys decrypted from `secret:model/…` references of `modelSettings`. They exist only in the worker's memory. */
+  modelSecrets: z.object({ s1: z.string().optional(), s2: z.string().optional() }).default({}),
   flows: z.array(SharedStepSchema),
   /** Test data set rows usable in this environment, by set name (S-026). */
   datasets: z.record(TestDataSetSchema.shape.rows).default({}),

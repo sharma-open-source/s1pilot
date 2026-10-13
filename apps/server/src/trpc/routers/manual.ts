@@ -19,6 +19,7 @@ import {
 import { z } from 'zod';
 
 import { createArtifactStore } from '../../artifacts/factory.js';
+import { loadModelSecrets } from '../../worker/model-secrets.js';
 import { createModelFactory } from '../../worker/models.js';
 import type { Context } from '../context.js';
 import { publicProcedure, router } from '../trpc.js';
@@ -218,7 +219,7 @@ async function structureNote(ctx: Context, project: Project, note: string): Prom
   if (!settings?.system2) return undefined;
   try {
     const redactor = createRedactor({ secrets: [], patterns: project.dataPolicy.redactPatterns });
-    const s2 = createModelFactory()(settings, redactor).s2;
+    const s2 = createModelFactory()(settings, redactor, undefined, await loadModelSecrets(ctx.db, settings)).s2;
     if (!s2) return undefined;
     const Out = z.object({
       title: z.string().min(1),

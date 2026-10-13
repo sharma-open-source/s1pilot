@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { CapabilityGrid } from '@/components/app/CapabilityGrid';
 import { Button, Callout, Card, Checkbox, Field, Input, Pill, Range, Select, Skeleton } from '@/components/ui';
-import { actBounds, apiKeyRefFrom, constrainThresholds, escalateBounds, S1_ADAPTERS, type S1AdapterChoice } from '@/features/wizard/model';
+import { actBounds, apiKeyRefFrom, constrainThresholds, escalateBounds, keyFieldFrom, keyToSave, S1_ADAPTERS, type S1AdapterChoice } from '@/features/wizard/model';
+import { KeyHint } from '@/features/wizard/shared';
 import { errorMessage } from '@/lib/errors';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
@@ -13,32 +14,55 @@ interface Form {
   s1Url: string;
   s1Model: string;
   s1Key: string;
+  /** `secret:model/…` ref of a key saved encrypted on the server (the key itself never reaches the browser). */
+  s1Saved?: string;
+  s1Remove: boolean;
   s2Url: string;
   s2Model: string;
   s2Key: string;
+  s2Saved?: string;
+  s2Remove: boolean;
   act: number;
   escalate: number;
   dual: boolean;
 }
 
-/** Where System 2 gets its key at run time when none is referenced. */
-const KEY_HINT_S2 =
-  'Enter env:NAME to save a reference. A pasted key is used for Test connection only and is never stored. Without a reference, S1PILOT_S2_API_KEY is used, or the System 1 key when both use the same host.';
+/** Where System 2 gets its key at run time when none is saved. */
+const KEY_FALLBACK_S2 = 'Without a key, S1PILOT_S2_API_KEY is used, or the System 1 key when both use the same host.';
 
-const EMPTY: Form = { adapter: 'systemone', s1Url: '', s1Model: '', s1Key: '', s2Url: '', s2Model: '', s2Key: '', act: 0.8, escalate: 0.5, dual: true };
+const EMPTY: Form = {
+  adapter: 'systemone',
+  s1Url: '',
+  s1Model: '',
+  s1Key: '',
+  s1Remove: false,
+  s2Url: '',
+  s2Model: '',
+  s2Key: '',
+  s2Remove: false,
+  act: 0.8,
+  escalate: 0.5,
+  dual: true,
+};
 
 type Saved = NonNullable<RouterOutputs['models']['getSettings']['settings']>;
 
 function fromSaved(s: Saved | null): Form {
   if (!s) return EMPTY;
+  const k1 = keyFieldFrom(s.system1.apiKeyRef);
+  const k2 = keyFieldFrom(s.system2?.apiKeyRef);
   return {
     adapter: (S1_ADAPTERS.some((a) => a.value === s.system1.adapter) ? s.system1.adapter : 'auto') as S1AdapterChoice,
     s1Url: s.system1.baseUrl ?? '',
     s1Model: s.system1.model,
-    s1Key: s.system1.apiKeyRef ?? '',
+    s1Key: k1.text,
+    ...(k1.savedRef !== undefined ? { s1Saved: k1.savedRef } : {}),
+    s1Remove: false,
     s2Url: s.system2?.baseUrl ?? '',
     s2Model: s.system2?.model ?? '',
-    s2Key: s.system2?.apiKeyRef ?? '',
+    s2Key: k2.text,
+    ...(k2.savedRef !== undefined ? { s2Saved: k2.savedRef } : {}),
+    s2Remove: false,
     act: s.thresholds.act,
     escalate: s.thresholds.escalate,
     dual: s.dualOrderSensitive,
@@ -81,11 +105,14 @@ export function ModelsSection() {
     }
     const model = (which === 's1' ? form.s1Model : form.s2Model).trim();
     const key = (which === 's1' ? form.s1Key : form.s2Key).trim();
-    const ref = apiKeyRefFrom(key);
+    const savedRef = which === 's1' ? (form.s1Remove ? undefined : form.s1Saved) : form.s2Remove ? undefined : form.s2Saved;
+    // An empty field tests with the saved key; the server uses it only for the host it was saved for.
+    const ref = apiKeyRefFrom(key) ?? (key === '' ? savedRef : undefined);
     setProbe({ state: 'pending', which });
     try {
       // Vanilla client: a pasted key must never enter the query cache.
       const result = await utils.client.models.probe.mutate({
+        target: 'workspace',
         baseUrl,
         adapter: which === 's1' ? form.adapter : 'openai-chat',
         ...(model !== '' ? { model } : {}),
@@ -111,8 +138,10 @@ export function ModelsSection() {
       } else {
         if (adapter === undefined) throw new Error('Run Test connection first so the adapter can be detected, or pick one');
         if (form.s1Model.trim() === '') throw new Error('Enter the System 1 model id');
-        const s1Ref = apiKeyRefFrom(form.s1Key);
-        const s2Ref = apiKeyRefFrom(form.s2Key);
+        const k1 = keyToSave(form.s1Key, form.s1Saved, form.s1Remove);
+        const k2 = keyToSave(form.s2Key, form.s2Saved, form.s2Remove);
+        const hasS2 = form.s2Url.trim() !== '';
+        // Vanilla client: a pasted key must never enter the query cache. The server stores it encrypted.
         await utils.client.models.updateSettings.mutate({
           target: 'workspace',
           settings: {
@@ -120,28 +149,23 @@ export function ModelsSection() {
               adapter,
               baseUrl: form.s1Url.trim(),
               model: form.s1Model.trim(),
-              ...(s1Ref ? { apiKeyRef: s1Ref } : {}),
+              ...(k1.apiKeyRef !== undefined ? { apiKeyRef: k1.apiKeyRef } : {}),
               ...(current?.system1.profileId ? { profileId: current.system1.profileId } : {}),
             },
-            ...(form.s2Url.trim() !== ''
-              ? { system2: { adapter: 'openai-chat' as const, baseUrl: form.s2Url.trim(), model: form.s2Model.trim(), ...(s2Ref ? { apiKeyRef: s2Ref } : {}) } }
+            ...(hasS2
+              ? { system2: { adapter: 'openai-chat' as const, baseUrl: form.s2Url.trim(), model: form.s2Model.trim(), ...(k2.apiKeyRef !== undefined ? { apiKeyRef: k2.apiKeyRef } : {}) } }
               : {}),
             thresholds: { act: form.act, pass: form.act, fail: current?.thresholds.fail ?? 0.2, escalate: form.escalate },
             dualOrderSensitive: form.dual,
           },
+          apiKeys: {
+            ...(k1.apiKey !== undefined ? { s1: k1.apiKey } : {}),
+            ...(hasS2 && k2.apiKey !== undefined ? { s2: k2.apiKey } : {}),
+          },
         });
       }
       await Promise.all([utils.models.getSettings.invalidate(), utils.models.status.invalidate()]);
-      // Pasted keys are never stored: say so, or runs and test generation fail later with HTTP 401.
-      const pasted = [form.s1Key, form.s2Url.trim() !== '' ? form.s2Key : ''].some((k) => k.trim() !== '' && apiKeyRefFrom(k) === undefined);
-      setMsg(
-        pasted
-          ? {
-              tone: 'warning',
-              text: 'Saved, but the pasted API key was not stored (keys are never saved). Add it to the server environment and enter env:NAME here, for example env:OPENROUTER_API_KEY, then restart the server.',
-            }
-          : { tone: 'success', text: 'Workspace model defaults saved' },
-      );
+      setMsg({ tone: 'success', text: 'Workspace model defaults saved' });
     } catch (err) {
       setMsg({ tone: 'danger', text: errorMessage(err) });
     } finally {
@@ -181,8 +205,20 @@ export function ModelsSection() {
           </Field>
           <Field label="Base URL">{(id) => <Input id={id} mono type="url" placeholder="http://localhost:8000" value={form.s1Url} onChange={(e) => set('s1Url', e.target.value)} />}</Field>
           <Field label="Model">{(id) => <Input id={id} mono autoComplete="off" value={form.s1Model} onChange={(e) => set('s1Model', e.target.value)} />}</Field>
-          <Field label="API key (optional)" hint="Enter env:NAME to save a reference. A pasted key is used for Test connection only and is never stored.">
-            {(id) => <Input id={id} type="password" autoComplete="off" value={form.s1Key} onChange={(e) => setForm((f) => ({ ...f, s1Key: e.target.value }))} />}
+          <Field
+            label="API key (optional)"
+            hint={<KeyHint saved={form.s1Saved !== undefined} removed={form.s1Remove} onToggleRemove={() => setForm((f) => ({ ...f, s1Remove: !f.s1Remove }))} />}
+          >
+            {(id) => (
+              <Input
+                id={id}
+                type="password"
+                autoComplete="off"
+                placeholder={form.s1Saved !== undefined && !form.s1Remove ? '••••••••  saved' : undefined}
+                value={form.s1Key}
+                onChange={(e) => setForm((f) => ({ ...f, s1Key: e.target.value }))}
+              />
+            )}
           </Field>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -220,7 +256,21 @@ export function ModelsSection() {
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
           <Field label="Base URL">{(id) => <Input id={id} mono type="url" placeholder="http://localhost:11434/v1" value={form.s2Url} onChange={(e) => set('s2Url', e.target.value)} />}</Field>
           <Field label="Model">{(id) => <Input id={id} mono autoComplete="off" value={form.s2Model} onChange={(e) => set('s2Model', e.target.value)} />}</Field>
-          <Field label="API key (optional)" hint={KEY_HINT_S2}>{(id) => <Input id={id} type="password" autoComplete="off" value={form.s2Key} onChange={(e) => setForm((f) => ({ ...f, s2Key: e.target.value }))} />}</Field>
+          <Field
+            label="API key (optional)"
+            hint={<KeyHint saved={form.s2Saved !== undefined} removed={form.s2Remove} onToggleRemove={() => setForm((f) => ({ ...f, s2Remove: !f.s2Remove }))} extra={KEY_FALLBACK_S2} />}
+          >
+            {(id) => (
+              <Input
+                id={id}
+                type="password"
+                autoComplete="off"
+                placeholder={form.s2Saved !== undefined && !form.s2Remove ? '••••••••  saved' : undefined}
+                value={form.s2Key}
+                onChange={(e) => setForm((f) => ({ ...f, s2Key: e.target.value }))}
+              />
+            )}
+          </Field>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <Button disabled={probe.state === 'pending'} onClick={() => void test('s2')}>Test connection</Button>

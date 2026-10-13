@@ -30,6 +30,7 @@ import {
 
 import type { ServerConfig } from '../config.js';
 import { WORKSPACE_MODEL_KEY } from '../trpc/routers/helpers.js';
+import { loadModelSecrets } from '../worker/model-secrets.js';
 import { createModelFactory, type ModelFactory } from '../worker/models.js';
 
 type Browser = Awaited<ReturnType<typeof launchBrowser>>;
@@ -91,7 +92,7 @@ export class AuthService {
       ciphertexts: await repos.environments.secretCiphertexts(db, environment.id),
     });
     const redactor = createRedactor({ secrets: vars.secretValues(), patterns: project.dataPolicy.redactPatterns });
-    const models = (this.opts.createModels ?? createModelFactory())(settings, redactor);
+    const models = (this.opts.createModels ?? createModelFactory())(settings, redactor, undefined, await loadModelSecrets(db, settings));
     const flows = await repos.sharedSteps.listByProject(db, project.id);
     const flowMap = new Map<string, SharedStep>(flows.flatMap((f) => [[f.id, f] as const, [f.name, f] as const]));
     return { browser, environment, models, vars, redactor, flows: (k) => flowMap.get(k), out };
