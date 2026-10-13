@@ -255,8 +255,24 @@ describe('PlanBuilderPage', () => {
     await user.click(await within(dialog).findByLabelText('Pick SHOP-TC-1'));
     await user.click(within(dialog).getByRole('button', { name: 'Use 1 case' }));
     expect(await screen.findByText('1 case selected')).toBeInTheDocument();
-    expect(await screen.findByText('Guest checkout')).toBeInTheDocument();
+    expect(await within(screen.getByRole('region', { name: 'Case selection' })).findByText('Guest checkout')).toBeInTheDocument();
     await waitFor(() => expect(calls(fake, 'plans.preview').some((c) => JSON.stringify(c.input).includes('"caseIds":["c1"]'))).toBe(true));
+  });
+
+  it('marks a case as manual and sends the assignment with the plan', async () => {
+    const user = userEvent.setup();
+    const { fake } = renderAt('/p/SHOP/plans/new', { plans: [] });
+    await user.click(await screen.findByRole('button', { name: 'Pick manually' }));
+    await user.click(screen.getByRole('button', { name: '+ Pick cases' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(await within(dialog).findByLabelText('Pick SHOP-TC-1'));
+    await user.click(within(dialog).getByRole('button', { name: 'Use 1 case' }));
+    await user.click(await screen.findByText('Manual testing'));
+    await user.selectOptions(await screen.findByLabelText('Execution for SHOP-TC-1'), 'hybrid');
+    expect(await screen.findByText('1 of 1 case manual')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(calls(fake, 'plans.preview').some((c) => JSON.stringify(c.input).includes('"assignments":{"c1":{"manual":true,"hybrid":true}}'))).toBe(true),
+    );
   });
 });
 

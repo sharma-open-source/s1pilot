@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { bucketOf, defaultFilter, detailTitle, matchesFilter, resultMeta } from './model';
+import { attemptTotals, bucketOf, defaultFilter, detailTitle, matchesFilter, resultMeta, runDuration } from './model';
 import { RunReportPage, type RunReportSearch } from './RunReportPage';
 
 import { createFakeTrpc, FakeTrpcProvider, type Handler } from '@/test/fake-trpc';
@@ -99,8 +99,25 @@ describe('model helpers', () => {
     expect(matchesFilter('passed', 'all')).toBe(true);
     expect(defaultFilter(['passed', 'needs-review'])).toBe('review');
     expect(defaultFilter(['passed'])).toBe('all');
-    expect(resultMeta({ environment: 'staging', browser: 'webkit', failedStep: 3 })).toBe('staging · WebKit · step 3');
+    expect(resultMeta({ caseId: 'c1', attempt: 1, environment: 'staging', browser: 'webkit', failedStep: 3 })).toBe('staging · WebKit · step 3');
     expect(detailTitle('SHOP-TC-44', 'webkit', 'failed', 3)).toBe('SHOP-TC-44 · WebKit · failed at step 3');
+  });
+});
+
+describe('attempts and durations', () => {
+  it('labels retried cases with their attempt number and shows durations', () => {
+    const base = { caseId: 'c1', environment: 'dev', browser: 'chromium', failedStep: 2, durationMs: 12_400 };
+    const rows = [1, 2, 3].map((attempt) => ({ ...base, attempt }));
+    const totals = attemptTotals([...rows, { ...base, caseId: 'c2', attempt: 1 }]);
+    expect(rows.map((r) => resultMeta(r, totals))).toEqual([
+      'dev · Chromium · attempt 1 of 3 · step 2 · 12.4 s',
+      'dev · Chromium · attempt 2 of 3 · step 2 · 12.4 s',
+      'dev · Chromium · attempt 3 of 3 · step 2 · 12.4 s',
+    ]);
+    expect(resultMeta({ ...base, caseId: 'c2', attempt: 1, failedStep: null, durationMs: 850 }, totals)).toBe('dev · Chromium · 850 ms');
+    expect(runDuration('2026-10-13T10:00:00Z', '2026-10-13T10:03:05Z')).toBe('3m 05s');
+    expect(runDuration('2026-10-13T10:00:00Z', '2026-10-13T10:00:42Z')).toBe('42 s');
+    expect(runDuration('2026-10-13T10:00:00Z', undefined)).toBeNull();
   });
 });
 
@@ -112,7 +129,7 @@ describe('RunReportPage', () => {
     expect(within(summary).getByText('Exit criteria').nextSibling).toHaveTextContent('–');
     const list = screen.getByRole('list', { name: 'Result list' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(2);
-    expect(within(list).getByText('staging · WebKit · step 3')).toBeInTheDocument();
+    expect(within(list).getByText('staging · WebKit · step 3 · 10 ms')).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'SHOP-TC-44 · WebKit · failed at step 3' })).toBeInTheDocument();
     expect(screen.getByText('An error appears next to the ZIP field')).toBeInTheDocument();
     expect(screen.getByText('fill e12 (textbox "ZIP")', { selector: 'span' })).toBeInTheDocument();

@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
 
-import { shortRunId } from './model';
+import { runDuration, shortRunId } from './model';
 
 import { PageHeader } from '@/components/app/PageHeader';
 import { Callout, EmptyState, LinkButton, Skeleton, StatusPill } from '@/components/ui';
@@ -40,7 +40,7 @@ export function RunsListPage({ projectKey, reports = false }: { projectKey: stri
             <caption className="sr-only">{title}, newest first</caption>
             <thead className="bg-surface-subtle text-xs uppercase tracking-[0.05em] text-muted">
               <tr>
-                {['Run', 'Plan / cases', 'Env', 'Trigger', 'Status', 'Counts', 'Started', ...(reports ? ['Export'] : [])].map((h) => (
+                {['Run', 'Plan / cases', 'Env', 'Trigger', 'Status', 'Counts', 'Started', 'Duration', ...(reports ? ['Export'] : [])].map((h) => (
                   <th key={h} scope="col" className="px-3.5 py-2.5 font-semibold">
                     {h}
                   </th>
@@ -75,6 +75,7 @@ export function RunsListPage({ projectKey, reports = false }: { projectKey: stri
                     <td className="whitespace-nowrap px-3.5 py-3 text-secondary">
                       <time dateTime={r.startedAt}>{relativeTime(r.startedAt)}</time>
                     </td>
+                    <td className="whitespace-nowrap px-3.5 py-3 font-mono text-xs text-secondary">{runDuration(r.startedAt, r.finishedAt) ?? (live ? 'running' : '–')}</td>
                     {reports && (
                       <td className="whitespace-nowrap px-3.5 py-3 text-xs">
                         {[

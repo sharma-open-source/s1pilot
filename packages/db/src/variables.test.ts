@@ -44,6 +44,20 @@ describe('resolveVariables', () => {
     expect(JSON.stringify(resolved.publicView())).not.toContain('hunter2');
   });
 
+  it('treats plain variables named like passwords or tokens as secrets', () => {
+    const resolved = resolveVariables(
+      env([
+        { key: 'admin_password', value: 'hunter2', secret: false, source: 'inline' },
+        { key: 'REGION', value: 'eu', secret: false, source: 'inline' },
+      ]),
+      { vault },
+    );
+    expect(resolved.get('admin_password')).toBe('hunter2');
+    expect(resolved.isSecret('admin_password')).toBe(true);
+    expect(resolved.publicView()).toEqual({ admin_password: '«secret:admin_password»', REGION: 'eu' });
+    expect(resolved.secretValues()).toEqual(['hunter2']);
+  });
+
   it('names the key and env var, never a value, when an env var is missing', () => {
     const call = () =>
       resolveVariables(env([{ key: 'API_TOKEN', secret: true, source: 'env', envVar: 'SHOP_TOKEN' }]), {

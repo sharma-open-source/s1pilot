@@ -6,6 +6,7 @@ import { authRouter } from './routers/auth.js';
 import { calibrationRouter } from './routers/calibration.js';
 import { casesRouter } from './routers/cases.js';
 import { dashboardRouter } from './routers/dashboard.js';
+import { datasetsRouter } from './routers/datasets.js';
 import { defectsRouter } from './routers/defects.js';
 import { environmentsRouter } from './routers/environments.js';
 import { generateRouter } from './routers/generate.js';
@@ -46,6 +47,7 @@ export const appRouter = router({
   suites: suitesRouter,
   cases: casesRouter,
   sharedSteps: sharedStepsRouter,
+  datasets: datasetsRouter,
   requirements: requirementsRouter,
   plans: plansRouter,
   runs: runsRouter,

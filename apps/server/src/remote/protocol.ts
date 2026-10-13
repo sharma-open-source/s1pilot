@@ -7,6 +7,7 @@ import {
   ModelSettingsSchema,
   SharedStepSchema,
   TestCaseSchema,
+  TestDataSetSchema,
 } from '@s1pilot/domain';
 import { z } from 'zod';
 
@@ -19,6 +20,8 @@ export const JobContextSchema = z.object({
   /** Decrypted inline secret variables of the environment by key. They exist only in the worker's memory. */
   secrets: z.record(z.string()),
   flows: z.array(SharedStepSchema),
+  /** Test data set rows usable in this environment, by set name (S-026). */
+  datasets: z.record(TestDataSetSchema.shape.rows).default({}),
   /** Fitted calibration models of the project (S-058). */
   calibration: z.array(CalibrationModelSchema),
 });

@@ -30,11 +30,53 @@ export function defaultFilter(verdicts: string[]): ReportFilter {
   return 'all';
 }
 
-/** `staging · WebKit · step 3` (the step only for failed / blocked results). */
-export function resultMeta(r: { environment: string; browser: string; failedStep: number | null }): string {
-  return [r.environment, BROWSER_LABEL[r.browser] ?? r.browser, r.failedStep !== null ? `step ${r.failedStep}` : '']
+/** Fields of a result row that identify one case execution (all of its retry attempts share them). */
+interface AttemptKey {
+  caseId: string;
+  environment: string;
+  browser: string;
+  attempt: number;
+}
+
+const executionKey = (r: AttemptKey): string => `${r.caseId}|${r.environment}|${r.browser}`;
+
+/** Number of attempts per case execution (`caseId|environment|browser`), for "attempt 2 of 3" labels. */
+export function attemptTotals(results: readonly AttemptKey[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const r of results) out.set(executionKey(r), Math.max(out.get(executionKey(r)) ?? 0, r.attempt));
+  return out;
+}
+
+/**
+ * `staging · WebKit · attempt 2 of 3 · step 3 · 12.4 s`: the attempt only when the case was retried, the step only
+ * for failed / blocked results.
+ */
+export function resultMeta(
+  r: AttemptKey & { failedStep: number | null; durationMs?: number | null },
+  totals?: ReadonlyMap<string, number>,
+): string {
+  const total = totals?.get(executionKey(r)) ?? 1;
+  return [
+    r.environment,
+    BROWSER_LABEL[r.browser] ?? r.browser,
+    total > 1 ? `attempt ${r.attempt} of ${total}` : '',
+    r.failedStep !== null ? `step ${r.failedStep}` : '',
+    r.durationMs !== undefined && r.durationMs !== null && r.durationMs > 0 ? formatMs(r.durationMs) : '',
+  ]
     .filter((p) => p !== '')
     .join(' · ');
+}
+
+/** Wall-clock run time as `45 s`, `3m 05s` or `1h 02m`; `null` until the run has started and finished. */
+export function runDuration(startedAt: string | undefined, finishedAt: string | undefined): string | null {
+  if (startedAt === undefined || finishedAt === undefined) return null;
+  const ms = Date.parse(finishedAt) - Date.parse(startedAt);
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
 }
 
 /** Detail heading: `SHOP-TC-44 · WebKit · failed at step 3`. */

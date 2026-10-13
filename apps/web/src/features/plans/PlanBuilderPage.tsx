@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { CasePickerDialog } from './CasePickerDialog';
 import { DeletePlanDialog } from './DeletePlanDialog';
+import { ManualAssignments } from './ManualAssignments';
 import {
   blankForm,
   changeDevice,
@@ -175,6 +176,8 @@ function PlanBuilder({ projectKey, projectLabel, envs, plan }: BuilderProps) {
   const previewEnabled = form.matrix.length > 0 && (form.selectionKind === 'list' || form.query.trim() !== '');
   const preview = trpc.plans.preview.useQuery(debouncedInput, { enabled: previewEnabled, retry: false, placeholderData: keepPreviousData });
   const pv = previewEnabled && !preview.isError ? preview.data : undefined;
+  // Counts from the previous query stay on screen while the new one is debounced or fetched; mark them as stale.
+  const previewStale = pv !== undefined && (debouncedInput !== previewInput || preview.isPlaceholderData);
   const queryError = form.selectionKind === 'query' && preview.isError ? errorMessage(preview.error) : undefined;
 
   const save = async (): Promise<string | undefined> => {
@@ -364,9 +367,10 @@ function PlanBuilder({ projectKey, projectLabel, envs, plan }: BuilderProps) {
                 )}
               </div>
             )}
-            <div className="flex flex-wrap gap-2" aria-live="polite" aria-label="Selection preview">
+            <div className="flex flex-wrap items-center gap-2" aria-live="polite" aria-label="Selection preview" aria-busy={previewStale}>
               {pv !== undefined ? (
                 <>
+                  {previewStale && <span className="text-[13px] text-muted">Updating…</span>}
                   <Chip>
                     {pv.matched} {form.selectionKind === 'list' ? (pv.matched === 1 ? 'case selected' : 'cases selected') : pv.matched === 1 ? 'case matches' : 'cases match'}
                   </Chip>
@@ -447,6 +451,7 @@ function PlanBuilder({ projectKey, projectLabel, envs, plan }: BuilderProps) {
               <Checkbox label="Visual comparison (later)" checked={false} disabled />
               <Checkbox label="Record video" checked={form.checks.video} onChange={(e) => set({ checks: { ...form.checks, video: e.target.checked } })} />
             </div>
+            <ManualAssignments cases={manualCases} assignments={form.assignments} onChange={(assignments) => set({ assignments })} />
           </Card>
         </div>
 

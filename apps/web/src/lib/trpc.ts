@@ -15,7 +15,8 @@ export const trpc = createTRPCReact<AppRouter>();
 const lateFetch: typeof fetch = (input, init) => globalThis.fetch(input, init);
 
 function links(fetchImpl: typeof fetch = lateFetch) {
-  return [httpBatchLink({ url: '/trpc', fetch: fetchImpl })];
+  // Split batches before the URL gets long enough for a proxy or server to reject it.
+  return [httpBatchLink({ url: '/trpc', fetch: fetchImpl, maxURLLength: 4000 })];
 }
 
 /** Creates the React-bound tRPC client used by `trpc.Provider`. Tests pass a fake `fetch`. */

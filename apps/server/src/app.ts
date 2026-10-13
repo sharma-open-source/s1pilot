@@ -74,7 +74,8 @@ export async function buildApp(config: ServerConfig, opts: BuildAppOptions = {})
     opts.db ??
     openDb({ url: config.dbUrl, crypto: await createVault({ keyFile: join(config.dataDir, 'master.key') }) });
 
-  const app: FastifyInstance = Fastify({ loggerInstance: log });
+  // tRPC batches GETs as `/trpc/a.b,c.d,...`; Fastify's default 100-char `:path` param limit 404s busy pages.
+  const app: FastifyInstance = Fastify({ loggerInstance: log, routerOptions: { maxParamLength: 5000 } });
 
   if (dev) await app.register(cors, { origin: true });
   await app.register(websocket);

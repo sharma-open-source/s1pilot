@@ -1,4 +1,4 @@
-import { S1PilotError, type Environment } from '@s1pilot/domain';
+import { S1PilotError, looksLikeSecretKey, type Environment } from '@s1pilot/domain';
 
 import type { Vault } from './vault.js';
 
@@ -64,7 +64,8 @@ export function resolveVariables(
         });
       }
     }
-    resolved.set(key, { value, secret });
+    // A plain variable named like a secret (`PASSWORD`) is still treated as one: redacted and never sent to models.
+    resolved.set(key, { value, secret: secret || looksLikeSecretKey(key) });
   }
 
   return {

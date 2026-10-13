@@ -4,35 +4,22 @@ import { previewDataset, type DatasetPreview } from './model';
 
 import { Button, Callout, Card, Dialog } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 
-/** One data set as listed by `GET /api/projects/:key/datasets`. */
-export interface DatasetInfo {
-  name: string;
-  rows: number;
-  usedBy?: number | string[];
-  note?: string;
-}
+/** One data set as listed by `datasets.list`. */
+export type DatasetInfo = RouterOutputs['datasets']['list'][number];
 
 function usage(d: DatasetInfo): string {
-  if (d.note !== undefined) return d.note;
-  const used = Array.isArray(d.usedBy) ? d.usedBy.join(', ') : d.usedBy;
-  return `${d.rows} rows · ${used === undefined || used === 0 ? 'not used yet' : typeof used === 'number' ? `used by ${used} cases` : `used by ${used}`}`;
+  const scope = d.environment !== null ? ` · ${d.environment} only` : '';
+  return `${d.rows} rows · ${d.usedBy === 0 ? 'not used yet' : `used by ${d.usedBy} ${d.usedBy === 1 ? 'case' : 'cases'}`}${scope}`;
 }
 
 /** Test data sets grid with CSV / JSON upload and a first-20-rows preview. */
-export function DatasetsCard({
-  projectKey,
-  datasets,
-  loading,
-  loadError,
-  onUploaded,
-}: {
-  projectKey: string;
-  datasets: DatasetInfo[];
-  loading: boolean;
-  loadError: string | null;
-  onUploaded: () => void;
-}) {
+export function DatasetsCard({ projectKey }: { projectKey: string }) {
+  const utils = trpc.useUtils();
+  const list = trpc.datasets.list.useQuery({ projectKey });
+  const uploadMutation = trpc.datasets.upload.useMutation({ onSuccess: () => utils.datasets.list.invalidate({ projectKey }) });
+  const datasets = list.data ?? [];
   const picker = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<DatasetPreview | null>(null);
@@ -63,15 +50,8 @@ export function DatasetsCard({
     setUploading(true);
     setError(null);
     try {
-      const body = new FormData();
-      body.append('file', file, file.name);
-      const res = await fetch(`/api/projects/${encodeURIComponent(projectKey)}/datasets`, { method: 'POST', body });
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(text !== '' && text.length < 200 ? text : `Upload failed (HTTP ${res.status})`);
-      }
+      await uploadMutation.mutateAsync({ projectKey, fileName: file.name, content: await file.text() });
       close();
-      onUploaded();
     } catch (err) {
       setUploading(false);
       setError(errorMessage(err));
@@ -99,18 +79,23 @@ export function DatasetsCard({
         />
       </div>
       {error !== null && preview === null && <Callout tone="danger">{error}</Callout>}
-      {loading ? (
+      {list.isLoading ? (
         <p className="text-sm text-secondary" role="status">
           Loading data sets…
         </p>
-      ) : loadError !== null ? (
-        <p className="text-sm text-secondary">Data sets are not available from the server yet ({loadError}).</p>
+      ) : list.isError ? (
+        <Callout tone="danger">
+          Could not load data sets: {errorMessage(list.error)}{' '}
+          <Button size="sm" onClick={() => void list.refetch()}>
+            Retry
+          </Button>
+        </Callout>
       ) : datasets.length === 0 ? (
         <p className="text-sm text-secondary">No data sets yet. Upload a CSV or JSON file to drive parameterised cases.</p>
       ) : (
         <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 p-0 text-sm">
           {datasets.map((d) => (
-            <li key={d.name} className="rounded-control border border-divider p-3">
+            <li key={d.id} className="rounded-control border border-divider p-3">
               <strong className="font-mono text-[13px]">{d.name}</strong>
               <div className="text-xs text-strong-2">{usage(d)}</div>
             </li>

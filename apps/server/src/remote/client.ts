@@ -2,7 +2,7 @@ import { mkdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { resolveVariables } from '@s1pilot/db';
+import { datasetBaseName, resolveVariables } from '@s1pilot/db';
 import {
   Calibrator,
   S1PilotError,
@@ -411,6 +411,7 @@ export class RemoteWorker {
         vars,
         redactor,
         flows: (idOrName) => flowMap.get(idOrName),
+        datasets: (name) => ctx.datasets[datasetBaseName(name)],
         suiteOf: (c) => c.suiteId ?? ctx.project.key,
         signal,
         onPage: (page, info) => {

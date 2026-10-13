@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildPatch, formFromEnv, parseCsv, parseDomains, previewDataset, timeAgo, validateForm, type MaskedEnv } from './model';
+import { buildPatch, formFromEnv, parseCsv, parseDomains, previewDataset, SECRET_LIKE_KEY_MESSAGE, timeAgo, validateForm, type MaskedEnv } from './model';
 
 const ENV = {
   id: 'e1',
@@ -59,6 +59,16 @@ describe('validateForm', () => {
 
   it('accepts a clean form', () => {
     expect(validateForm(formFromEnv(ENV)).ok).toBe(true);
+  });
+
+  it('blocks plain variables named like passwords or tokens until stored as a secret', () => {
+    const form = formFromEnv(ENV);
+    form.variables.push({ rid: 'p1', key: 'admin_password', kind: 'variable', value: 'x', envVar: '', source: 'inline', existing: true });
+    form.variables.push({ rid: 'p2', key: 'API_TOKEN', kind: 'secret-encrypted', value: 'y', envVar: '', source: 'inline', existing: false });
+    form.variables.push({ rid: 'p3', key: 'passenger', kind: 'variable', value: 'z', envVar: '', source: 'inline', existing: false });
+    const { ok, errors } = validateForm(form);
+    expect(ok).toBe(false);
+    expect(errors.variables).toEqual({ p1: { key: SECRET_LIKE_KEY_MESSAGE } });
   });
 });
 

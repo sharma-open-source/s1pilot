@@ -1,6 +1,7 @@
+import { looksLikeSecretKey } from '@s1pilot/domain';
 import { useEffect, useRef, useState } from 'react';
 
-import { newRid, VAR_KIND_LABEL, type FormErrors, type VarKind, type VarRow } from './model';
+import { newRid, SECRET_LIKE_KEY_MESSAGE, VAR_KIND_LABEL, type FormErrors, type VarKind, type VarRow } from './model';
 
 import { Button, Card, CardHeader, Input, Select, Tag } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
@@ -187,6 +188,8 @@ export function VariablesCard({
             {rows.map((row) => {
               const err = errors[row.rid];
               const secret = row.kind !== 'variable';
+              const secretLike = !secret && looksLikeSecretKey(row.key.trim());
+              const keyError = err?.key === SECRET_LIKE_KEY_MESSAGE ? undefined : err?.key;
               return (
                 <tr key={row.rid} className="border-t border-divider align-top">
                   <td className="px-5 py-3 font-mono text-[13px]">
@@ -203,10 +206,25 @@ export function VariablesCard({
                           aria-invalid={err?.key !== undefined}
                           onChange={(e) => patchRow(row.rid, { key: e.target.value })}
                         />
-                        {err?.key !== undefined && (
+                        {keyError !== undefined && (
                           <span role="alert" className="text-xs text-danger">
-                            {err.key}
+                            {keyError}
                           </span>
+                        )}
+                        {secretLike && (
+                          <div role={err?.key === SECRET_LIKE_KEY_MESSAGE ? 'alert' : undefined} className="flex max-w-56 flex-col gap-1.5 font-sans text-xs text-danger">
+                            {SECRET_LIKE_KEY_MESSAGE}.
+                            <Button
+                              size="sm"
+                              className="self-start"
+                              aria-label={`Store ${row.key} as a secret`}
+                              onClick={() =>
+                                patchRow(row.rid, row.source === 'env' ? { kind: 'secret-env', existing: false } : { kind: 'secret-encrypted', existing: false, envVar: '' })
+                              }
+                            >
+                              Store as secret
+                            </Button>
+                          </div>
                         )}
                       </div>
                     )}
@@ -232,7 +250,9 @@ export function VariablesCard({
                       </Select>
                     )}
                   </td>
-                  <td className={secret ? 'px-5 py-3 font-medium text-danger' : 'px-5 py-3'}>{secret ? 'Key name only' : 'Key + value'}</td>
+                  <td className={secret || secretLike ? 'px-5 py-3 font-medium text-danger' : 'px-5 py-3'}>
+                    {secret ? 'Key name only' : secretLike ? 'Key name only (treated as a secret at run time)' : 'Key + value'}
+                  </td>
                   <td className="px-2.5 py-3">
                     <Button size="sm" aria-label={`Remove ${row.key || 'new row'}`} onClick={() => onChange(rows.filter((r) => r.rid !== row.rid))}>
                       Remove

@@ -60,6 +60,18 @@ describe('parseCaseQuery', () => {
     ]);
   });
 
+  it('accepts spaces around a field operator instead of falling back to free text', () => {
+    const p2 = clause({ kind: 'priority', op: '<=', value: 'P2' });
+    for (const q of ['priority <= P2', 'priority<= P2', 'priority <=P2', 'Priority <= p2']) expect(parseQuery(q), q).toEqual(p2);
+    expect(parseQuery('tags: smoke')).toEqual(clause({ kind: 'tag', value: 'smoke' }));
+    expect(parseQuery('owner : "Ann Lee"')).toEqual(clause({ kind: 'owner', value: 'Ann Lee' }));
+    expect(parseQuery('priority <= P2 AND status: ready')).toEqual({ type: 'and', left: p2, right: clause({ kind: 'status', value: 'ready' }) });
+    // Plain words stay free text; keywords are never swallowed.
+    expect(parseQuery('status ready')).toMatchObject({ type: 'and', left: clause({ kind: 'text', value: 'status' }) });
+    expect(() => parseQuery('tags: AND x')).toThrowError(/tags: needs a value/);
+    expect(parseDefectQuery('severity: S2')).toEqual({ type: 'clause', clause: { kind: 'severity', value: 'S2' } });
+  });
+
   it('gives OR lower precedence than AND and honours NOT and parentheses', () => {
     expect(parseQuery('a OR b AND c')).toMatchObject({ type: 'or', right: { type: 'and' } });
     expect(parseQuery('(a OR b) AND c')).toMatchObject({ type: 'and', left: { type: 'or' } });

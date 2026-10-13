@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { ExitCriteriaTile } from './ExitCriteriaTile';
-import { bucketOf, defaultFilter, matchesFilter, resultMeta, shortRunId, type ReportFilter } from './model';
+import { attemptTotals, bucketOf, defaultFilter, matchesFilter, resultMeta, runDuration, shortRunId, type ReportFilter } from './model';
 import { ResultDetail } from './ResultDetail';
 
 import { PageHeader } from '@/components/app/PageHeader';
@@ -73,6 +73,8 @@ export function RunReportPage({ projectKey, runId, search, onSearch, navigate }:
   const filter: ReportFilter =
     search.filter ?? (selectedFromUrl ? bucketOf(selectedFromUrl.verdict) : defaultFilter(results.map((r) => r.verdict)));
   const listed = results.filter((r) => matchesFilter(r.verdict, filter));
+  const attempts = attemptTotals(results);
+  const took = report ? runDuration(report.run.startedAt, report.run.finishedAt) : null;
   const selected = selectedFromUrl ?? listed[0];
 
   const summary = report?.run.summary;
@@ -90,6 +92,12 @@ export function RunReportPage({ projectKey, runId, search, onSearch, navigate }:
                 <>
                   Run <span className="font-mono">#{shortRunId(runId)}</span> · build{' '}
                   <span className="font-mono">{report?.run.buildRef ?? '–'}</span>
+                  {took !== null && (
+                    <>
+                      {' '}
+                      · took <span className="font-mono">{took}</span>
+                    </>
+                  )}
                 </>
               ),
             },
@@ -224,7 +232,7 @@ export function RunReportPage({ projectKey, runId, search, onSearch, navigate }:
                   <ResultListItem
                     resultKey={r.key}
                     title={r.title}
-                    meta={resultMeta(r)}
+                    meta={resultMeta(r, attempts)}
                     status={r.verdict}
                     warnings={r.checks.filter((c) => c.severity === 'warn').length}
                     selected={selected?.id === r.id}

@@ -68,6 +68,16 @@ describe('server', () => {
     const client = createTRPCClient<AppRouter>({ links: [httpBatchLink({ url: `${address}/trpc` })] });
     expect(await client.health.query()).toEqual({ ok: true, version: getVersion(), mode: 'local' });
   });
+
+  it('accepts batched tRPC GETs whose procedure list is longer than 100 characters', async () => {
+    const app = await buildApp(loadConfig({ dataDir: tmp(), logLevel: 'silent' }, {}));
+    apps.push(app);
+    const paths = Array.from({ length: 20 }, () => 'health');
+    const input = encodeURIComponent(JSON.stringify(Object.fromEntries(paths.map((_, i) => [i, {}]))));
+    const res = await app.inject({ method: 'GET', url: `/trpc/${paths.join(',')}?batch=1&input=${input}` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toHaveLength(20);
+  });
 });
 
 describe('trpc context and error mapping', () => {

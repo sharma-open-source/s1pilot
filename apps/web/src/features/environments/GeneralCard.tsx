@@ -119,7 +119,7 @@ export function GeneralCard({
   );
 }
 
-/** Safeguards card. "Block navigation outside allowed domains" is derived from the allowed-domains list. */
+/** Safeguards card. "Block navigation outside allowed domains" is always enforced by the runner's domain guard; the list widens it. */
 export function SafeguardsCard({ form, onChange }: { form: EnvForm; onChange: (patch: Partial<EnvForm>) => void }) {
   const approvals = ALL_SENSITIVE.every((a) => form.requireApprovalFor.includes(a));
   return (
@@ -131,9 +131,9 @@ export function SafeguardsCard({ form, onChange }: { form: EnvForm; onChange: (p
         checked={approvals}
         onChange={(e) => onChange({ requireApprovalFor: e.target.checked ? [...ALL_SENSITIVE] : [] })}
       />
-      <Checkbox label="Block navigation outside allowed domains" checked={form.allowDomains.length > 0} disabled aria-describedby="block-nav-hint" />
+      <Checkbox label="Block navigation outside allowed domains" checked disabled aria-describedby="block-nav-hint" />
       <span id="block-nav-hint" className="text-xs text-muted">
-        Enforced whenever Allowed domains is not empty.
+        Always on: runs only reach the base URL host{form.allowDomains.length > 0 ? ` and ${form.allowDomains.length} allowed ${form.allowDomains.length === 1 ? 'domain' : 'domains'}` : ''}. Add a host to Allowed domains to permit it.
       </span>
     </Card>
   );

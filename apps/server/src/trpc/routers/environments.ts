@@ -1,4 +1,4 @@
-import { EnvironmentSchema, IdSchema, ProjectKeySchema, S1PilotError, newId } from '@s1pilot/domain';
+import { EnvironmentSchema, IdSchema, ProjectKeySchema, S1PilotError, newId, plainSecretLikeKeys, type Variable } from '@s1pilot/domain';
 import { z } from 'zod';
 
 import type { Context } from '../context.js';
@@ -28,6 +28,18 @@ function checkRevealRate(ctx: Context): void {
   perDb.set(ctx.user.id, recent);
 }
 
+/** Rejects plain variables named like secrets (`PASSWORD`): their values would be shown and sent to models. */
+function assertNoPlainSecrets(variables: readonly Variable[] | undefined): void {
+  const keys = plainSecretLikeKeys(variables ?? []);
+  if (keys.length > 0) {
+    throw new S1PilotError(
+      'INVALID_INPUT',
+      `${keys.map((k) => `"${k}"`).join(', ')} ${keys.length === 1 ? 'looks' : 'look'} like a password or token: store ${keys.length === 1 ? 'it' : 'them'} as a secret, not a plain variable`,
+      { keys },
+    );
+  }
+}
+
 /** Environments and their variables. Secret values are only ever returned by `revealSecret`. */
 export const environmentsRouter = router({
   list: publicProcedure.input(z.object({ projectKey: ProjectKeySchema })).query(async ({ ctx, input }) => {
@@ -41,6 +53,7 @@ export const environmentsRouter = router({
 
   create: publicProcedure.input(EnvFields.extend({ projectKey: ProjectKeySchema })).mutation(async ({ ctx, input }) => {
     const { projectKey, ...fields } = input;
+    assertNoPlainSecrets(fields.variables);
     const project = await requireProject(ctx, projectKey);
     const existing = await ctx.repos.environments.listByProject(ctx.db, project.id);
     if (existing.some((e) => e.name === fields.name)) {
@@ -56,6 +69,7 @@ export const environmentsRouter = router({
   /** Patches an environment. When `variables` is given it replaces the set; secrets sent without a value keep theirs. */
   update: publicProcedure.input(z.object({ id: IdSchema, patch: EnvPatch })).mutation(async ({ ctx, input }) => {
     await requireEnvironment(ctx, input.id);
+    assertNoPlainSecrets(input.patch.variables);
     return maskEnvironment(await ctx.repos.environments.update(ctx.db, input.id, input.patch));
   }),
 

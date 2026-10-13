@@ -52,6 +52,45 @@ export interface PlanForm {
   cron: string;
   exitCriteria: ExitCriterion[];
   checks: PlanChecks;
+  /** Per-case manual / hybrid execution and assignee, keyed by case id (S-055). Automated cases have no entry. */
+  assignments: Record<string, CaseAssignment>;
+}
+
+/** How one case of a plan runs: manual (a tester's queue), optionally after an AI pre-run (hybrid). */
+export interface CaseAssignment {
+  manual: boolean;
+  hybrid: boolean;
+  /** User id; absent = whoever starts the run. */
+  assignee?: string | undefined;
+}
+
+/** Execution choice shown per case in the plan builder. */
+export type CaseExecution = 'automated' | 'manual' | 'hybrid';
+
+export const CASE_EXECUTION_OPTIONS: Array<{ value: CaseExecution; label: string }> = [
+  { value: 'automated', label: 'Automated' },
+  { value: 'manual', label: 'Manual' },
+  { value: 'hybrid', label: 'Hybrid · AI pre-run, then manual' },
+];
+
+/** Execution choice of a case in the form. */
+export function executionOf(a: CaseAssignment | undefined): CaseExecution {
+  return a?.manual !== true ? 'automated' : a.hybrid ? 'hybrid' : 'manual';
+}
+
+/** Sets a case's execution choice and/or assignee; automated cases are removed from the map. */
+export function setAssignment(
+  all: Record<string, CaseAssignment>,
+  caseId: string,
+  patch: { execution?: CaseExecution; assignee?: string },
+): Record<string, CaseAssignment> {
+  const current = all[caseId];
+  const execution = patch.execution ?? executionOf(current);
+  const { [caseId]: _drop, ...rest } = all;
+  void _drop;
+  if (execution === 'automated') return rest;
+  const assignee = patch.assignee !== undefined ? patch.assignee : current?.assignee;
+  return { ...rest, [caseId]: { manual: true, hybrid: execution === 'hybrid', ...(assignee ? { assignee } : {}) } };
 }
 
 /** Stored plan as returned by `plans.get` (the fields the form reads). */
@@ -69,6 +108,7 @@ export interface StoredPlan {
   schedule?: string | undefined;
   exitCriteria: ExitCriterion[];
   checks: PlanChecks;
+  assignments?: Record<string, CaseAssignment> | undefined;
 }
 
 export const DEFAULT_CRON = '0 2 * * 1-5';
@@ -93,6 +133,7 @@ export function blankForm(envs: PlanEnv[], caseIds: string[] = []): PlanForm {
     cron: DEFAULT_CRON,
     exitCriteria: [],
     checks: { a11y: false, consoleErrors: true, visual: false, video: false },
+    assignments: {},
   };
 }
 
@@ -116,6 +157,7 @@ export function formFromPlan(plan: StoredPlan): PlanForm {
     cron: plan.schedule !== undefined && plan.schedule !== '' ? plan.schedule : DEFAULT_CRON,
     exitCriteria: plan.exitCriteria,
     checks: plan.checks,
+    assignments: Object.fromEntries(Object.entries(plan.assignments ?? {}).filter(([, a]) => a.manual)),
   };
 }
 
@@ -135,6 +177,7 @@ export function toDraft(f: PlanForm) {
     unattended: f.unattended,
     exitCriteria: f.exitCriteria,
     checks: f.checks,
+    assignments: f.assignments,
     ...schedule,
   };
 }

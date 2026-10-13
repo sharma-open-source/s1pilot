@@ -1,7 +1,7 @@
 import { Navigate, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 
-import { DatasetsCard, type DatasetInfo } from './DatasetsCard';
+import { DatasetsCard } from './DatasetsCard';
 import { GeneralCard, SafeguardsCard } from './GeneralCard';
 import { LoginSetupCard } from './LoginSetupCard';
 import { buildPatch, formFromEnv, parseDomains, validateForm, type EnvForm, type FormErrors, type MaskedEnv } from './model';
@@ -15,29 +15,6 @@ import { Can } from '@/lib/session';
 import { trpc } from '@/lib/trpc';
 
 const NO_ERRORS: FormErrors = { variables: {} };
-
-function useDatasets(projectKey: string) {
-  const [state, setState] = useState<{ loading: boolean; rows: DatasetInfo[]; error: string | null }>({ loading: true, rows: [], error: null });
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    let live = true;
-    void (async () => {
-      try {
-        const res = await fetch(`/api/projects/${encodeURIComponent(projectKey)}/datasets`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const body = (await res.json()) as unknown;
-        const rows = Array.isArray(body) ? (body as DatasetInfo[]) : [];
-        if (live) setState({ loading: false, rows, error: null });
-      } catch (err) {
-        if (live) setState({ loading: false, rows: [], error: errorMessage(err) });
-      }
-    })();
-    return () => {
-      live = false;
-    };
-  }, [projectKey, tick]);
-  return { ...state, reload: () => setTick((t) => t + 1) };
-}
 
 function AddEnvironmentDialog({ projectKey, open, onOpenChange }: { projectKey: string; open: boolean; onOpenChange: (o: boolean) => void }) {
   const utils = trpc.useUtils();
@@ -128,7 +105,6 @@ function EnvironmentEditor({
   chrome: (save: ReactNode) => ReactNode;
 }) {
   const update = trpc.environments.update.useMutation();
-  const datasets = useDatasets(projectKey);
   const [saved, setSaved] = useState(env);
   const [form, setForm] = useState<EnvForm>(() => formFromEnv(env));
   const [domainText, setDomainText] = useState('');
@@ -192,13 +168,7 @@ function EnvironmentEditor({
         <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-5">
           <GeneralCard form={form} errors={errors} domainText={domainText} onDomainText={setDomainText} onChange={change} />
           <VariablesCard envId={saved.id} rows={form.variables} errors={errors.variables} onChange={(variables) => change({ variables })} />
-          <DatasetsCard
-            projectKey={projectKey}
-            datasets={datasets.rows}
-            loading={datasets.loading}
-            loadError={datasets.error}
-            onUploaded={datasets.reload}
-          />
+          <DatasetsCard projectKey={projectKey} />
         </div>
         <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
           <LoginSetupCard envId={saved.id} />

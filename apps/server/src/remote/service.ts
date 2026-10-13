@@ -197,6 +197,7 @@ export class RemoteWorkerService {
     const ciphertexts = await repos.environments.secretCiphertexts(db, environment.id);
     const secrets = Object.fromEntries(Object.entries(ciphertexts).map(([key, cipher]) => [key, db.crypto.decrypt(cipher)]));
     const flows = await repos.sharedSteps.listByProject(db, project.id);
+    const datasets = await repos.datasets.rowsForEnvironment(db, project.id, environment.id);
     const calibration = (await loadCalibrationState(db, project.id))?.models ?? [];
 
     await lifecycle.markRunning(runId, (await queue.listByRun(runId)).length);
@@ -210,6 +211,7 @@ export class RemoteWorkerService {
         modelSettings,
         secrets,
         flows,
+        datasets,
         calibration,
       },
       remote: {

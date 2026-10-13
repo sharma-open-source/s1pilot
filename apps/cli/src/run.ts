@@ -10,6 +10,7 @@ import {
   S1PilotError,
   ThresholdsSchema,
   createRedactor,
+  looksLikeSecretKey,
   newId,
   type BrowserName,
   type DecisionModel,
@@ -207,7 +208,8 @@ function resolveVars(environment: Environment, env: NodeJS.ProcessEnv): Vars {
       }
       value = v.value ?? '';
     }
-    values.set(v.key, { value, secret: v.secret });
+    // A plain variable named like a secret (`PASSWORD`) is still treated as one: redacted and never sent to models.
+    values.set(v.key, { value, secret: v.secret || looksLikeSecretKey(v.key) });
   }
   return {
     keys: () => [...values.keys()],

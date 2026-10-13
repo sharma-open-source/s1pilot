@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
-import { blankForm, cellChecked, changeDevice, criterionText, describeCron, entryAllowed, formFromPlan, toDraft, toggleCell, validateForm, type PlanEnv } from './model';
+import {
+  blankForm,
+  cellChecked,
+  changeDevice,
+  criterionText,
+  describeCron,
+  entryAllowed,
+  executionOf,
+  formFromPlan,
+  setAssignment,
+  toDraft,
+  toggleCell,
+  validateForm,
+  type PlanEnv,
+} from './model';
 
 const staging: PlanEnv = { id: 'e1', name: 'staging', readOnly: false, browsers: [{ browser: 'chromium' }] };
 const prod: PlanEnv = { id: 'e3', name: 'prod', readOnly: true, browsers: [{ browser: 'chromium' }] };
@@ -72,5 +86,23 @@ describe('form <-> plan', () => {
   it('texts for criteria', () => {
     expect(criterionText({ kind: 'pass-rate', params: { percent: 90 } })).toBe('≥ 90% of P1–P2 passed');
     expect(criterionText({ kind: 'no-open-defects', params: { severity: 'S1' } })).toBe('No open defects ≥ S1');
+  });
+});
+
+describe('manual assignments', () => {
+  it('sets manual / hybrid / automated per case and sends them with the draft', () => {
+    let a = setAssignment({}, 'c1', { execution: 'manual' });
+    expect(a).toEqual({ c1: { manual: true, hybrid: false } });
+    a = setAssignment(a, 'c1', { assignee: 'u1' });
+    a = setAssignment(a, 'c2', { execution: 'hybrid' });
+    expect(a).toEqual({ c1: { manual: true, hybrid: false, assignee: 'u1' }, c2: { manual: true, hybrid: true } });
+    expect(executionOf(a['c2'])).toBe('hybrid');
+    expect(setAssignment(a, 'c1', { assignee: '' })['c1']).toEqual({ manual: true, hybrid: false });
+    a = setAssignment(a, 'c2', { execution: 'automated' });
+    expect(Object.keys(a)).toEqual(['c1']);
+    expect(executionOf(undefined)).toBe('automated');
+
+    const form = { ...blankForm(envs), assignments: a };
+    expect(toDraft(form).assignments).toEqual({ c1: { manual: true, hybrid: false, assignee: 'u1' } });
   });
 });

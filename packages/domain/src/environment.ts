@@ -34,6 +34,22 @@ export const VariableSchema = z
   });
 export type Variable = z.infer<typeof VariableSchema>;
 
+const SECRET_KEY_RE =
+  /password|passwd|passcode|passphrase|pwd|secret|token|credential|api[\s_-]?key|private[\s_-]?key|(^|[^a-z])(pass|pin|otp|cvv|cvc)([^a-z]|$)/i;
+
+/**
+ * True when a variable key names something that should be a secret (`PASSWORD`, `admin_pwd`, `apiKey`, `auth_token`).
+ * Such keys must not be stored as plain variables: their values would be shown in clear text and sent to models.
+ */
+export function looksLikeSecretKey(key: string): boolean {
+  return SECRET_KEY_RE.test(key);
+}
+
+/** Keys of plain (non-secret) variables whose names look like secrets; see {@link looksLikeSecretKey}. */
+export function plainSecretLikeKeys(variables: readonly Pick<Variable, 'key' | 'secret'>[]): string[] {
+  return variables.filter((v) => !v.secret && looksLikeSecretKey(v.key)).map((v) => v.key);
+}
+
 export const EnvironmentSchema = z.object({
   id: IdSchema,
   projectId: IdSchema,

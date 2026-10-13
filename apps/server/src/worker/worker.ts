@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import {
   createDbLearnedScriptStore,
+  datasetBaseName,
   repos,
   resolveVariables,
   type Db,
@@ -351,6 +352,8 @@ export class WorkerPool {
     const flowMap = new Map<string, SharedStep>(
       flows.flatMap((f) => [[f.id, f] as const, [f.name, f] as const]),
     );
+    // `dataset:` parameter rows (S-026): a set scoped to this environment wins over the shared one.
+    const datasetRows = await repos.datasets.rowsForEnvironment(db, project.id, environment.id);
 
     const browser = await this.getBrowser(payload.browser);
     if (signal.aborted) return;
@@ -437,6 +440,7 @@ export class WorkerPool {
         redactor,
         ...(this.opts.auth ? { auth: this.opts.auth.providerFor(browser, this.opts.auth.lazyRefresher(browser, workDir)) } : {}),
         flows: (idOrName) => flowMap.get(idOrName),
+        datasets: (name) => datasetRows[datasetBaseName(name)],
         suiteOf: (c) => c.suiteId ?? project.key,
         signal,
         ...(this.opts.onPage || session

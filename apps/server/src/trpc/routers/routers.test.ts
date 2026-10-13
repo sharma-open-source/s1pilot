@@ -133,6 +133,17 @@ describe('environments', () => {
     expect(raw.c).not.toContain('hunter2');
   });
 
+  it('rejects plain variables named like passwords or tokens', async () => {
+    const { api, env } = await withEnv();
+    await expect(
+      api.environments.update({ id: env.id, patch: { variables: [{ key: 'admin_pwd', value: 'x', secret: false }] } }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: expect.stringContaining('"admin_pwd" looks like a password or token') });
+    await expect(
+      api.environments.create({ projectKey: 'SHOP', name: 'qa', baseUrl: 'https://qa.test', variables: [{ key: 'API_TOKEN', value: 'x', secret: false }] }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await api.environments.update({ id: env.id, patch: { variables: [{ key: 'admin_pwd', value: 'x', secret: true }] } });
+  });
+
   it('keeps an existing secret when update sends the variable without a value', async () => {
     const { api, env } = await withEnv();
     await api.environments.update({

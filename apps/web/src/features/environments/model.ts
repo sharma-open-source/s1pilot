@@ -1,4 +1,4 @@
-import type { BrowserTarget, SensitiveAction } from '@s1pilot/domain';
+import { looksLikeSecretKey, type BrowserTarget, type SensitiveAction } from '@s1pilot/domain';
 
 import type { RouterOutputs } from '@/lib/trpc';
 
@@ -113,6 +113,9 @@ export interface FormErrors {
   variables: Record<string, { key?: string; value?: string; envVar?: string }>;
 }
 
+/** Shown on a plain variable whose key names a password or token. */
+export const SECRET_LIKE_KEY_MESSAGE = 'Looks like a password or token: store it as a secret so it stays hidden and is never sent to models';
+
 /** Validates the form; `ok` means it can be saved. */
 export function validateForm(form: EnvForm): { ok: boolean; errors: FormErrors } {
   const errors: FormErrors = { variables: {} };
@@ -131,6 +134,7 @@ export function validateForm(form: EnvForm): { ok: boolean; errors: FormErrors }
     if (key === '') e.key = 'Key is required';
     else if (!/^[A-Za-z_][\w.-]*$/.test(key)) e.key = 'Use letters, digits, dot, dash or underscore';
     else if (seen.has(key)) e.key = 'Duplicate key';
+    else if (row.kind === 'variable' && looksLikeSecretKey(key)) e.key = SECRET_LIKE_KEY_MESSAGE;
     seen.add(key);
     if (row.kind === 'secret-env' || (row.kind === 'variable' && row.source === 'env')) {
       if (row.envVar.trim() === '') e.envVar = 'Host variable name is required';

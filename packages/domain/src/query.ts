@@ -111,6 +111,46 @@ function tokenize(input: string): Token[] {
   return out;
 }
 
+const OP_RE = /^(<=|>=|<|>|=|:)/;
+
+/**
+ * Joins a field term written with spaces (`priority <= P2`, `priority <=P2`, `tags: smoke`) into one word, so it is
+ * parsed as that field instead of silently becoming free-text words that match nothing.
+ */
+function joinSpacedTerms(tokens: Token[], fields: ReadonlySet<string>): Token[] {
+  const out: Token[] = [];
+  for (const tok of tokens) {
+    const prev = out[out.length - 1];
+    const keyword = isKeyword(tok, 'AND') || isKeyword(tok, 'OR') || isKeyword(tok, 'NOT');
+    if (prev?.kind === 'word' && !prev.quoted && tok.kind === 'word' && !keyword) {
+      const m = /^([A-Za-z]+)(<=|>=|<|>|=|:)?$/.exec(prev.text);
+      const field = m !== null && fields.has((m[1] as string).toLowerCase());
+      // `field` + `<=P2` / `<=`, or `field<=` / `field:` + value
+      if (field && (m[2] !== undefined ? !OP_RE.test(tok.text) : !tok.quoted && OP_RE.test(tok.text))) {
+        out[out.length - 1] = { ...prev, text: prev.text + tok.text, quoted: tok.quoted };
+        continue;
+      }
+    }
+    out.push(tok);
+  }
+  return out;
+}
+
+const CASE_FIELDS: ReadonlySet<string> = new Set([
+  'priority',
+  'tag',
+  'tags',
+  'suite',
+  'owner',
+  'requirement',
+  'requirements',
+  'status',
+  'type',
+  'learned',
+  'quarantined',
+  'lastresult',
+]);
+
 const PRIORITY_RE = /^priority(<=|>=|<|>|=|:)(.*)$/i;
 
 function yesNo(input: string, field: string, raw: string, pos: number): boolean {
@@ -182,17 +222,18 @@ const isKeyword = (t: Token | undefined, kw: string): boolean => t?.kind === 'wo
  * Terms: `suite:`, `tags:`, `priority<=P1` (operators `<= >= < > = :`), `status:`, `owner:`, `type:`,
  * `requirement:`, `learned:yes|no`, `lastResult:<verdict|none>`, `quarantined:yes|no`; any other word is free
  * text matched against title and key. Combine with `AND` / `OR` / `NOT` (uppercase) and parentheses; adjacent
- * terms are AND-ed. Precedence: `NOT` > `AND` > `OR`. Double quotes group values (`owner:"Ann Lee"`).
+ * terms are AND-ed. Precedence: `NOT` > `AND` > `OR`. Double quotes group values (`owner:"Ann Lee"`). Spaces around a
+ * field's operator are allowed (`priority <= P2`, `tags: smoke`).
  * @throws S1PilotError `INVALID_QUERY` with `details.position` (0-based) for syntax errors and unknown values.
  */
 export function parseQuery(input: string): QueryNode {
-  return parseWith(input, parseTerm);
+  return parseWith(input, parseTerm, CASE_FIELDS);
 }
 
 /** Shared boolean grammar (AND / OR / NOT, parentheses, quotes); `term` turns one word into a clause. */
-function parseWith<C>(input: string, term: (input: string, tok: Token) => C): QueryTree<C> {
+function parseWith<C>(input: string, term: (input: string, tok: Token) => C, fields: ReadonlySet<string>): QueryTree<C> {
   type QueryNode = QueryTree<C>;
-  const tokens = tokenize(input);
+  const tokens = joinSpacedTerms(tokenize(input), fields);
   if (tokens.length === 0) return { type: 'all' };
   let i = 0;
   const peek = (): Token | undefined => tokens[i];
@@ -322,6 +363,8 @@ const DEFECT_SEVERITIES = ['S1', 'S2', 'S3', 'S4'] as const;
 /** `tracker:` values: a provider, or `none` / `local` for defects not pushed to a tracker. */
 const DEFECT_TRACKERS = ['jira', 'github', 'linear', 'none', 'local'] as const;
 
+const DEFECT_FIELDS: ReadonlySet<string> = new Set(['status', 'severity', 'sev', 'tracker']);
+
 /** One leaf term of a defect query. */
 export type DefectQueryClause =
   | { kind: 'status'; value: (typeof DEFECT_STATUSES)[number] }
@@ -370,7 +413,7 @@ function parseDefectTerm(input: string, tok: Token): DefectQueryClause {
  * @throws S1PilotError `INVALID_QUERY` with `details.position`.
  */
 export function parseDefectQuery(input: string): DefectQueryNode {
-  return parseWith(input, parseDefectTerm);
+  return parseWith(input, parseDefectTerm, DEFECT_FIELDS);
 }
 
 function matchesDefectClause(d: DefectQueryRow, cl: DefectQueryClause): boolean {
