@@ -1,6 +1,6 @@
 // Copies the assets the bundled CLI needs at runtime next to it, so a packed tarball is self-contained:
 //   dist/web   <- apps/web/dist       (served by `s1pilot ui`)
-//   drizzle    <- packages/db/drizzle (SQL migrations, resolved as ../drizzle from dist/index.js)
+//   migrations <- packages/db/migrations (SQL migrations, resolved as ../migrations/<dialect> from dist/index.js)
 //   profiles   <- profiles            (model capability profiles, resolved as ../profiles from dist/index.js)
 import { chmodSync, cpSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -19,7 +19,7 @@ function normalise(path) {
 
 const assets = [
   ['../../web/dist', '../dist/web'],
-  ['../../../packages/db/drizzle', '../drizzle'],
+  ['../../../packages/db/migrations', '../migrations'],
   ['../../../profiles', '../profiles'],
 ];
 

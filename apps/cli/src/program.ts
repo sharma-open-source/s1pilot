@@ -4,6 +4,7 @@ import { AdapterKindSchema, type ProbeResult } from '@s1pilot/domain';
 import { probe as defaultProbe, type ProbeOptions, type ProbeTarget } from '@s1pilot/providers';
 import { Command, Option } from 'commander';
 
+import { registerAdminCommands } from './admin.js';
 import { registerCalibrateCommand } from './calibrate.js';
 import { registerCiCommentCommand } from './ci/comment.js';
 import { executeServerRun } from './ci/server-run.js';
@@ -214,6 +215,7 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
   registerSyncCommands(program, deps);
   registerEvalCommand(program, deps);
   registerCalibrateCommand(program, deps);
+  registerAdminCommands(program, deps);
   registerUiCommand(program, deps);
   registerCiCommentCommand(program, deps);
 

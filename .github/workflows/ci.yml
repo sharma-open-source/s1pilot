@@ -21,3 +21,35 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+
+  # S-066: the same tests with a Postgres service container, so the Postgres schema / migrations, the SQLite -> Postgres
+  # copy tool and the pg-boss queue run for real (they are skipped locally without S1PILOT_TEST_PG_URL).
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: s1pilot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      S1PILOT_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/s1pilot_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @s1pilot/fixture-sites exec playwright install --with-deps chromium
+      - run: pnpm typecheck
+      # One task at a time: the Postgres tests of @s1pilot/db and @s1pilot/cli reset the same database.
+      - run: pnpm exec turbo run test --concurrency=1

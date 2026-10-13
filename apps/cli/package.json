@@ -9,7 +9,7 @@
   },
   "files": [
     "dist",
-    "drizzle",
+    "migrations",
     "profiles"
   ],
   "scripts": {
@@ -32,6 +32,8 @@
     "libsodium-wrappers": "^0.8.4",
     "nanoid": "^5.0.9",
     "nodemailer": "^6.10.1",
+    "pg": "^8.23.1",
+    "pg-boss": "^12.37.1",
     "pino": "^9.5.0",
     "playwright": "^1.63.0",
     "ts-morph": "^28.0.0",
@@ -49,6 +51,7 @@
     "@s1pilot/server": "workspace:^",
     "@s1pilot/sync": "workspace:^",
     "@s1pilot/web": "workspace:^",
+    "@types/pg": "^8.23.1",
     "actionlint": "^2.0.6"
   }
 }

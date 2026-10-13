@@ -22,6 +22,6 @@ fixtures/sites/.s1pilot/learned/
 eval-results/
 
 # copied into the CLI package at build time
-apps/cli/drizzle/
+apps/cli/migrations/
 apps/cli/profiles/
 vite.config.ts.timestamp-*

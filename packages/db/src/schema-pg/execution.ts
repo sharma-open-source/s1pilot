@@ -1,0 +1,304 @@
+import type {
+  AssertionVerdict,
+  CheckSummary,
+  DefectDetails,
+  ExitCriterion,
+  ManualStepRecord,
+  MatrixEntry,
+  PlanAssignment,
+  PlanChecks,
+  PlanSelection,
+  ReviewOutcome,
+  RunSummary,
+} from '@s1pilot/domain';
+import { boolean, doublePrecision, index, integer, jsonb, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
+
+import { testCases } from './cases.js';
+import { projects } from './core.js';
+
+export const testPlans = pgTable('test_plans', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id')
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  release: text('release'),
+  selection: jsonb('selection').$type<PlanSelection>().notNull(),
+  matrix: jsonb('matrix').$type<MatrixEntry[]>().notNull(),
+  retries: integer('retries').notNull(),
+  parallelism: integer('parallelism').notNull(),
+  mode: text('mode', { enum: ['replay-heal', 'explore', 'replay-only'] }).notNull(),
+  unattended: text('unattended', { enum: ['block', 'pause'] }).notNull(),
+  schedule: text('schedule'),
+  exitCriteria: jsonb('exit_criteria').$type<ExitCriterion[]>().notNull(),
+  checks: jsonb('checks').$type<PlanChecks>().notNull(),
+  assignments: jsonb('assignments').$type<Record<string, PlanAssignment>>().notNull().default({}),
+  createdAt: text('created_at'),
+  updatedAt: text('updated_at'),
+});
+
+export const testRuns = pgTable(
+  'test_runs',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    planId: text('plan_id').references(() => testPlans.id, { onDelete: 'set null' }),
+    trigger: text('trigger', { enum: ['manual', 'schedule', 'ci', 'webhook', 'retest'] }).notNull(),
+    buildRef: text('build_ref'),
+    status: text('status', {
+      enum: ['queued', 'running', 'paused', 'finished', 'aborted', 'passed', 'failed', 'needs-review', 'cancelled', 'error'],
+    }).notNull(),
+    startedAt: text('started_at'),
+    finishedAt: text('finished_at'),
+    summary: jsonb('summary').$type<RunSummary>().notNull(),
+  },
+  (t) => [index('test_runs_project_idx').on(t.projectId), index('test_runs_project_started_idx').on(t.projectId, t.startedAt)],
+);
+
+export const caseResults = pgTable(
+  'case_results',
+  {
+    id: text('id').primaryKey(),
+    runId: text('run_id')
+      .notNull()
+      .references(() => testRuns.id, { onDelete: 'cascade' }),
+    caseId: text('case_id')
+      .notNull()
+      .references(() => testCases.id, { onDelete: 'cascade' }),
+    caseVersion: integer('case_version').notNull(),
+    environmentId: text('environment_id'),
+    browser: text('browser', { enum: ['chromium', 'firefox', 'webkit'] }),
+    attempt: integer('attempt').notNull(),
+    verdict: text('verdict', {
+      enum: ['passed', 'failed', 'blocked', 'skipped', 'flaky', 'needs-review'],
+    }).notNull(),
+    confidence: doublePrecision('confidence'),
+    durationMs: doublePrecision('duration_ms').notNull(),
+    mode: text('mode', { enum: ['replay', 'healed', 'explore', 'manual'] }).notNull(),
+    escalations: integer('escalations').notNull(),
+    reason: text('reason'),
+    checks: jsonb('checks').$type<CheckSummary[]>(),
+  },
+  (t) => [index('case_results_run_idx').on(t.runId), index('case_results_case_idx').on(t.caseId), index('case_results_run_case_idx').on(t.runId, t.caseId, t.attempt)],
+);
+
+export const stepResults = pgTable(
+  'step_results',
+  {
+    id: text('id').primaryKey(),
+    caseResultId: text('case_result_id')
+      .notNull()
+      .references(() => caseResults.id, { onDelete: 'cascade' }),
+    stepIndex: integer('step_index').notNull(),
+    status: text('status', { enum: ['passed', 'failed', 'blocked', 'skipped'] }).notNull(),
+    actionTaken: text('action_taken'),
+    assertions: jsonb('assertions').$type<AssertionVerdict[]>().notNull(),
+    latencyMs: doublePrecision('latency_ms').notNull(),
+  },
+  (t) => [index('step_results_case_idx').on(t.caseResultId)],
+);
+
+export const decisionRecords = pgTable(
+  'decision_records',
+  {
+    id: text('id').primaryKey(),
+    stepResultId: text('step_result_id')
+      .notNull()
+      .references(() => stepResults.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    questionId: text('question_id').notNull(),
+    options: jsonb('options').$type<string[]>().notNull(),
+    probabilities: jsonb('probabilities')
+      .$type<Record<string, number>>()
+      .notNull(),
+    chosen: text('chosen'),
+    confidence: doublePrecision('confidence').notNull(),
+    model: text('model').notNull(),
+    latencyMs: doublePrecision('latency_ms').notNull(),
+    escalatedTo: text('escalated_to', { enum: ['system2', 'human'] }),
+    decidedBy: text('decided_by'),
+    via: text('via', { enum: ['live', 'cli', 'api'] }),
+  },
+  (t) => [index('decision_records_step_idx').on(t.stepResultId)],
+);
+
+export const evidence = pgTable(
+  'evidence',
+  {
+    id: text('id').primaryKey(),
+    stepResultId: text('step_result_id')
+      .notNull()
+      .references(() => stepResults.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    kind: text('kind', {
+      enum: ['screenshot', 'video', 'trace', 'log', 'console', 'network', 'dom', 'a11y'],
+    }).notNull(),
+    artifactId: text('artifact_id').notNull(),
+  },
+  (t) => [index('evidence_step_idx').on(t.stepResultId)],
+);
+
+export const defects = pgTable('defects', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id')
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  seq: integer('seq'),
+  description: text('description'),
+  details: jsonb('details').$type<DefectDetails>(),
+  severity: text('severity', { enum: ['S1', 'S2', 'S3', 'S4'] }).notNull(),
+  status: text('status', { enum: ['draft', 'open', 'in-progress', 'fixed', 'closed'] }).notNull(),
+  externalProvider: text('external_provider', { enum: ['jira', 'github', 'linear'] }),
+  externalId: text('external_id'),
+  externalUrl: text('external_url'),
+  createdAt: text('created_at'),
+  updatedAt: text('updated_at'),
+});
+
+export const defectResults = pgTable(
+  'defect_results',
+  {
+    defectId: text('defect_id')
+      .notNull()
+      .references(() => defects.id, { onDelete: 'cascade' }),
+    caseResultId: text('case_result_id')
+      .notNull()
+      .references(() => caseResults.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.defectId, t.caseResultId] })],
+);
+
+export const reviewItems = pgTable(
+  'review_items',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['verdict', 'heal', 'decision'] }).notNull(),
+    refId: text('ref_id').notNull(),
+    status: text('status', { enum: ['pending', 'approved', 'rejected'] }).notNull(),
+    note: text('note'),
+    outcome: jsonb('outcome').$type<ReviewOutcome>(),
+    createdAt: text('created_at'),
+    resolvedAt: text('resolved_at'),
+  },
+  (t) => [index('review_items_project_status_idx').on(t.projectId, t.status)],
+);
+
+export const settings = pgTable('settings', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').$type<unknown>().notNull(),
+});
+
+/** Durable job queue (S-034). Rows are managed through `createSqliteJobQueue`, not a repo. */
+export const jobs = pgTable(
+  'jobs',
+  {
+    id: text('id').primaryKey(),
+    type: text('type').notNull(),
+    /** Run the job belongs to, when any (no FK: queue rows may outlive or precede run rows). */
+    runId: text('run_id'),
+    payload: jsonb('payload').$type<unknown>().notNull(),
+    status: text('status', { enum: ['queued', 'running', 'completed', 'failed', 'cancelled'] }).notNull(),
+    attempts: integer('attempts').notNull(),
+    maxAttempts: integer('max_attempts').notNull(),
+    workerId: text('worker_id'),
+    leaseExpiresAt: text('lease_expires_at'),
+    result: jsonb('result').$type<unknown>(),
+    error: text('error'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => [index('jobs_status_idx').on(t.status, t.type), index('jobs_run_idx').on(t.runId)],
+);
+
+/** Metadata of a stored artifact file (screenshot, video, trace, logs); the bytes live in the artifact store. */
+export const artifacts = pgTable(
+  'artifacts',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    runId: text('run_id').notNull(),
+    caseResultId: text('case_result_id').notNull(),
+    /** Step the artifact belongs to; null for case-level artifacts (video, trace, logs). */
+    stepIndex: integer('step_index'),
+    kind: text('kind', {
+      enum: ['screenshot', 'video', 'trace', 'log', 'console', 'network', 'dom', 'a11y'],
+    }).notNull(),
+    name: text('name').notNull(),
+    contentType: text('content_type').notNull(),
+    size: integer('size').notNull(),
+    /** File path relative to the store root. */
+    path: text('path').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [index('artifacts_project_idx').on(t.projectId, t.createdAt), index('artifacts_result_idx').on(t.caseResultId)],
+);
+
+/** Manual / hybrid execution item: one tester working through one case in one run (S-055). */
+export const manualItems = pgTable(
+  'manual_items',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    runId: text('run_id')
+      .notNull()
+      .references(() => testRuns.id, { onDelete: 'cascade' }),
+    caseId: text('case_id')
+      .notNull()
+      .references(() => testCases.id, { onDelete: 'cascade' }),
+    environmentId: text('environment_id'),
+    browser: text('browser', { enum: ['chromium', 'firefox', 'webkit'] }),
+    device: text('device'),
+    assignee: text('assignee').notNull(),
+    hybrid: boolean('hybrid').notNull(),
+    position: integer('position').notNull(),
+    status: text('status', { enum: ['todo', 'in-progress', 'done', 'skipped'] }).notNull(),
+    steps: jsonb('steps').$type<ManualStepRecord[]>().notNull(),
+    confirmedSteps: jsonb('confirmed_steps').$type<number[]>().notNull(),
+    notes: text('notes').notNull(),
+    elapsedMs: doublePrecision('elapsed_ms').notNull(),
+    timerStartedAt: text('timer_started_at'),
+    startedAt: text('started_at'),
+    finishedAt: text('finished_at'),
+    caseResultId: text('case_result_id'),
+  },
+  (t) => [index('manual_items_assignee_idx').on(t.assignee, t.status), index('manual_items_run_idx').on(t.runId)],
+);
+
+/**
+ * Daily pre-aggregation of final case results (S-057), one row per project x UTC day x environment x suite
+ * (`''` = none). Rebuilt per day when a run finishes or a verdict changes; see `repos.analytics`.
+ */
+export const analyticsDaily = pgTable(
+  'analytics_daily',
+  {
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    day: text('day').notNull(),
+    environmentId: text('environment_id').notNull(),
+    suiteId: text('suite_id').notNull(),
+    passed: integer('passed').notNull(),
+    review: integer('review').notNull(),
+    failed: integer('failed').notNull(),
+    flaky: integer('flaky').notNull(),
+    skipped: integer('skipped').notNull(),
+    stepsReplay: integer('steps_replay').notNull(),
+    stepsHeal: integer('steps_heal').notNull(),
+    stepsExplore: integer('steps_explore').notNull(),
+    decisions: integer('decisions').notNull(),
+    escalated: integer('escalated').notNull(),
+    /** Decision latency histogram: counts per bucket of `LATENCY_EDGES_MS`. */
+    latencyHist: jsonb('latency_hist').$type<number[]>().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.projectId, t.day, t.environmentId, t.suiteId] })],
+);
