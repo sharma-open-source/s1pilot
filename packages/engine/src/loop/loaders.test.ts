@@ -35,8 +35,8 @@ const PLAN = {
 };
 
 /** Mock System 1 that counts its calls. */
-function countingS1(): DecisionModel & { calls: number } {
-  const inner = new MockDecisionModel({ fallback: scriptedS1(PLAN) });
+function countingS1(plan: Record<string, string[]> = PLAN): DecisionModel & { calls: number } {
+  const inner = new MockDecisionModel({ fallback: scriptedS1(plan) });
   const model = {
     calls: 0,
     capabilities: inner.capabilities,
@@ -144,5 +144,39 @@ describe('multi-page flow with loaders, no wait steps', () => {
     expect(replayed.steps.map((s) => s.mode)).toEqual(['replay', 'replay', 'replay']);
     expect(s1.calls).toBe(0);
     await expect(replayCtx.page.getByRole('status').textContent()).resolves.toBe('Saved for Alex');
+  });
+});
+
+describe('unsure after acting', () => {
+  // The mock answers "stuck" while "[button] Go" is not on the page, like an unsure model.
+  const step = { index: 0, action: 'Type "tee" in Search and click Go' };
+  const plan = { 'Type "tee"': ['[searchbox] Search', '[button] Go'] };
+
+  async function searchPage(script: string): Promise<Page> {
+    const page = await openSlow('');
+    await page.setContent(`<label>Search <input type="search" id="q"></label><div id="out"></div><script>${script}</script>`);
+    return page;
+  }
+
+  it('blocks at once, without re-asking the model, when the page does not change', async () => {
+    const page = await searchPage('');
+    const s1 = countingS1(plan);
+    const t = Date.now();
+    const out = await exploreStep(ctxFor(page, s1), step);
+    expect(out.status).toBe('blocked');
+    expect(out.actions.filter((a) => a.ok)).toHaveLength(1);
+    // Two settle looks of 0.5 s each instead of 2 × 3 s, and the same model calls as the first two picks.
+    expect(Date.now() - t).toBeLessThan(4000);
+    expect(out.iterations).toBe(2);
+    expect(s1.calls).toBeLessThanOrEqual(4);
+  });
+
+  it('looks again while a request started by the action is in flight', async () => {
+    const page = await searchPage(
+      `document.getElementById('q').addEventListener('input', () => { fetch('/slow/api?delay=1500').then(() => { document.getElementById('out').innerHTML = '<button>Go</button>'; }); }, { once: true });`,
+    );
+    const out = await exploreStep(ctxFor(page, countingS1(plan)), step);
+    expect(out.status, out.reason).toBe('passed');
+    expect(out.actions.map((a) => a.target)).toEqual(['Search', 'Go']);
   });
 });

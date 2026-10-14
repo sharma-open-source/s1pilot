@@ -46,7 +46,7 @@ const BLOCKED_QUESTION =
 /** Waits when the model finds nothing to do (yet): content may still be appearing. */
 const SETTLE_RETRIES = 2;
 const SETTLE_WAIT_MS = 3000;
-/** Before the step has acted, how long an idle page (no request in flight) may take to change. */
+/** How long an idle page (no request in flight) may take to change before the step gives up. */
 const IDLE_SETTLE_MS = 500;
 
 /** Same element across two captures: a shared test id or CSS path (names may change, "Volume: 50%" → "90%"). */
@@ -186,16 +186,12 @@ export async function exploreStep(ctx: EngineContext, step: ExploreStepInput): P
   /**
    * The model found nothing to do (yet): the page may still be updating (a button that appears
    * after an action, content behind a loader). Waits for a change and says whether to look again.
-   * Before the step has acted, an idle page (no request in flight) gets only a short look, so an
-   * unsure model or a really blocked step is not slowed down.
+   * An idle page (no request in flight) gets only a short look: on an unchanged page the model
+   * would answer the same, so an unsure model or a really blocked step is not slowed down.
    */
   const settle = async (): Promise<boolean> => {
     if (settles >= SETTLE_RETRIES) return false;
     settles += 1;
-    if (actions.some((x) => x.ok)) {
-      await waitForDomChange(ctx.page, SETTLE_WAIT_MS);
-      return true;
-    }
     return waitForDomChange(ctx.page, trackRequests(ctx.page).size > 0 ? SETTLE_WAIT_MS : IDLE_SETTLE_MS);
   };
   let cleared = false;
