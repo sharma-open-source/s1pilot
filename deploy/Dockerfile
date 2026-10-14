@@ -8,6 +8,10 @@
 # for running tests.
 FROM mcr.microsoft.com/playwright:v1.63.0-noble AS build
 
+# Native modules (better-sqlite3, argon2) compile with node-gyp at install time: it needs make and a C++ compiler.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends build-essential python3 \
+  && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 WORKDIR /app
 COPY . .
