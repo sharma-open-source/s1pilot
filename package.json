@@ -6,7 +6,7 @@
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12"
   },
   "scripts": {
     "build": "turbo run build",

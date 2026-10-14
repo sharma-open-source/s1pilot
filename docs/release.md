@@ -7,7 +7,7 @@
    ```bash
    npm login                                   # account with 2FA
    pnpm build && (cd apps/cli && pnpm pack --pack-destination /tmp/s1pilot-pack)
-   npm publish /tmp/s1pilot-pack/s1pilot-0.1.0.tgz --access public
+   npm publish /tmp/s1pilot-pack/s1pilot-0.2.0.tgz --access public
    ```
    Then on npmjs.com, go to s1pilot > Settings > Trusted publisher and choose *GitHub Actions*: organisation
    `sharma-open-source`, repository `s1pilot`, workflow `release.yml` (no environment). Under *Publishing access*,

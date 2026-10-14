@@ -4,7 +4,7 @@ Thanks for helping. Bug reports, fixture sites with seeded bugs, model profiles 
 
 ## Set up
 
-Node.js 20 or newer and pnpm 9 (`corepack enable`).
+Node.js 22.12 or newer and pnpm 9 (`corepack enable`).
 
 ```bash
 pnpm install

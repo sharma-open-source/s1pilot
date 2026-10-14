@@ -36,7 +36,7 @@ that broke because the page changed goes back to the model to be healed.
 
 ## Quick start
 
-You need **Node.js 20 or newer** and a System 1 decision model endpoint (Clef, Laya, Jev, or any endpoint that
+You need **Node.js 22.12 or newer** and a System 1 decision model endpoint (Clef, Laya, Jev, or any endpoint that
 speaks one of the supported adapters below).
 
 ```bash

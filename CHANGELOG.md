@@ -2,7 +2,7 @@
 
 All notable changes to s1pilot are listed here. This project follows [Semantic Versioning](https://semver.org/).
 
-## 0.1.0 (unreleased)
+## 0.2.0 (unreleased)
 
 First public release.
 

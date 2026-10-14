@@ -6,7 +6,7 @@ unsure about), then run it again and watch it **replay** deterministically.
 
 ## 1. Prerequisites
 
-- Node.js 20 or newer.
+- Node.js 22.12 or newer.
 - A System 1 decision model endpoint (Clef, Laya, Jev, ...). A local or LAN endpoint keeps page data on your network.
 - A web app to test. This guide uses the bundled demo shop (`fixtures/sites`) on `http://127.0.0.1:4400/shop`.
 
@@ -35,7 +35,7 @@ Or from a packed CLI tarball (the web app is bundled inside it):
 ```bash
 (cd apps/cli && pnpm pack --pack-destination /tmp/s1pilot-pack)
 mkdir /tmp/s1pilot-try && cd /tmp/s1pilot-try && npm init -y
-npm install /tmp/s1pilot-pack/s1pilot-0.1.0.tgz
+npm install /tmp/s1pilot-pack/s1pilot-0.2.0.tgz
 npx playwright install chromium
 npx s1pilot ui
 ```
