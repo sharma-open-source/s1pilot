@@ -1,6 +1,6 @@
 {
   "name": "s1pilot",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "AI-native web app testing: describe a test in plain language, explore it once with a System 1 decision model, replay it deterministically, heal it with AI.",
   "keywords": [
     "testing",
@@ -63,7 +63,7 @@
     "fastify": "^5",
     "libsodium-wrappers": "^0.8.4",
     "nanoid": "^5.0.9",
-    "nodemailer": "^6.10.1",
+    "nodemailer": "^10.1.1",
     "openid-client": "^6.8.8",
     "pg": "^8.23.1",
     "pg-boss": "^12.37.1",

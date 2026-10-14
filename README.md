@@ -16,7 +16,7 @@ that broke because the page changed goes back to the model to be healed.
 [Getting started](https://github.com/sharma-open-source/s1pilot/blob/master/docs/getting-started.md) ·
 [Report an issue](https://github.com/sharma-open-source/s1pilot/issues)
 
-![screenshot](/site/assets/demo-poster.png)
+![screenshot](https://sharma-open-source.github.io/s1pilot/assets/demo-poster.png)
 
 ---
 

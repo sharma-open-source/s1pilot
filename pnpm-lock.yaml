@@ -87,8 +87,8 @@ importers:
         specifier: ^5.0.9
         version: 5.1.16
       nodemailer:
-        specifier: ^6.10.1
-        version: 6.10.1
+        specifier: ^10.1.1
+        version: 10.1.1
       openid-client:
         specifier: ^6.8.8
         version: 6.8.8
@@ -456,15 +456,11 @@ importers:
         specifier: workspace:^
         version: link:../domain
       nodemailer:
-        specifier: ^6
-        version: 6.10.1
+        specifier: ^10.1.1
+        version: 10.1.1
       zod:
         specifier: ^3.23.8
         version: 3.25.76
-    devDependencies:
-      '@types/nodemailer':
-        specifier: ^6
-        version: 6.4.24
 
   packages/providers:
     dependencies:
@@ -2354,9 +2350,6 @@ packages:
   '@types/node@20.19.43':
     resolution: {integrity: sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA==}
 
-  '@types/nodemailer@6.4.24':
-    resolution: {integrity: sha512-Ww4u0rT9wQNXh4JiQaIwx3QWdcOFXzOjQA2zc+jtFYNmQiT4mIUqcDin51bDFdkzKubFnQCZNK7FIHlPKQ/q9w==}
-
   '@types/pg@8.23.1':
     resolution: {integrity: sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==}
 
@@ -3753,9 +3746,9 @@ packages:
     resolution: {integrity: sha512-kQK9LGGFiHtrWiNhZtA7Qbw17AQz+dmsEKODRIVTXA9+e5MS/2gZEBhYJt13GrAz5/IOZKddH/0Z3TP/Zgo+yw==}
     engines: {node: '>=18'}
 
-  nodemailer@6.10.1:
-    resolution: {integrity: sha512-Z+iLaBGVaSjbIzQ4pX6XV41HrooLsQ10ZWPUehGmuantvzWoDVBnmsdUcOIDM1t+yPor5pDhVlDESgOMEGxhHA==}
-    engines: {node: '>=6.0.0'}
+  nodemailer@10.1.1:
+    resolution: {integrity: sha512-pbqZRoeYUO+1E8TJ/11WeY4D2EVujj1hsYjz3qff/vUFDtGnmi7p3iqzTFslYOfQ6PnjVcWxx/CIUSHCSrO/QA==}
+    engines: {node: '>=20.0.0'}
 
   non-error@0.1.0:
     resolution: {integrity: sha512-TMB1uHiGsHRGv1uYclfhivcnf0/PdFp2pNqRxXjncaAsjYMoisaQJI+SSZCqRq+VliwRTC8tsMQfmrWjDMhkPQ==}
@@ -6345,10 +6338,6 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/nodemailer@6.4.24':
-    dependencies:
-      '@types/node': 20.19.43
-
   '@types/pg@8.23.1':
     dependencies:
       '@types/node': 20.19.43
@@ -7902,7 +7891,7 @@ snapshots:
 
   node-releases@2.0.57: {}
 
-  nodemailer@6.10.1: {}
+  nodemailer@10.1.1: {}
 
   non-error@0.1.0: {}
 
