@@ -1,6 +1,6 @@
 {
   "name": "s1pilot",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "AI-native web app testing: describe a test in plain language, explore it once with a System 1 decision model, replay it deterministically, heal it with AI.",
   "keywords": [
     "testing",
