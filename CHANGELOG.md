@@ -2,7 +2,12 @@
 
 All notable changes to s1pilot are listed here. This project follows [Semantic Versioning](https://semver.org/).
 
-## 0.2.0 (unreleased)
+## 0.3.0 (2026-10-14)
+
+- Package and docs renamed from s1-pilot to s1pilot.
+- Requires Node.js 22.12 or newer.
+
+## 0.2.0 (2026-10-14)
 
 First public release.
 

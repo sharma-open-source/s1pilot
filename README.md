@@ -2,6 +2,7 @@
 
 **Explore once with AI. Replay deterministically. Heal with AI.**
 
+
 s1pilot is a web application testing platform where you write test cases in plain language. On the first run, a
 System 1 decision model drives a real browser one step at a time and decides what to click and type. The steps it
 resolves are saved as a *learned script*. Later runs replay that script with no model calls at all, and only a step
@@ -14,6 +15,8 @@ that broke because the page changed goes back to the model to be healed.
 **[Website and demo video](https://sharma-open-source.github.io/s1pilot/)** ·
 [Getting started](https://github.com/sharma-open-source/s1pilot/blob/master/docs/getting-started.md) ·
 [Report an issue](https://github.com/sharma-open-source/s1pilot/issues)
+
+![screenshot](/site/assets/demo-poster.png)
 
 ---
 
