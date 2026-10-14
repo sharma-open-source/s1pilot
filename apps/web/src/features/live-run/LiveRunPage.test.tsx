@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LiveRunPage } from './LiveRunPage';
 import {
+  applyEvent,
   applyMessage,
   buildDecisionView,
   decodeFrameBytes,
@@ -280,6 +281,13 @@ describe('LiveRunPage', () => {
     );
     const link = await screen.findByRole('link', { name: 'Open report' });
     expect(link).toHaveAttribute('href', `/p/SHOP/runs/${RUN.id}`);
+  });
+
+  it('does not take the address bar URL from guard lines about blocked requests', () => {
+    const log = (message: string) => ({ type: 'log' as const, runId: RUN.id, ts: TS, level: 'info' as const, message });
+    const blocked = applyEvent(INITIAL_LIVE_STATE, log('! blocked POST https://www.google.com/g/collect: Host www.google.com is not in the allowed domains'));
+    expect(blocked.url).toBeNull();
+    expect(applyEvent(blocked, log('console: Failed to load https://staging.shop.example/cart.js')).url).toBe('https://staging.shop.example/cart.js');
   });
 
   it('reconnects with backoff and shows a reconnecting notice', async () => {

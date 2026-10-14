@@ -1,10 +1,11 @@
 name: Release
 
 # Push a tag `vX.Y.Z` whose version matches apps/cli/package.json: runs the checks, publishes the `s1pilot` package
-# to npm with provenance and creates a GitHub release with generated notes. Container images are built by
-# docker-publish.yml from the same tag.
-# One-time setup: add an npm automation token as the repository secret NPM_TOKEN. Once the package exists, you can
-# switch to npm trusted publishing (no token) for this workflow.
+# to npm and creates a GitHub release with generated notes. Container images are built by docker-publish.yml from the
+# same tag.
+# Publishing uses npm trusted publishing (OIDC, no token; provenance is generated automatically). One-time setup on
+# npmjs.com > s1pilot > Settings > Trusted publisher: GitHub Actions, organisation `sharma-open-source`, repository
+# `s1pilot`, workflow `release.yml`. See docs/release.md.
 on:
   push:
     tags: ['v*']
@@ -21,9 +22,10 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: pnpm
+          # Trusted publishing needs Node >= 22.14 and npm >= 11.5.1; no dependency cache in release builds.
+          node-version: 22
           registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@^11.5.1
       - name: Tag matches the package version
         run: |
           version=$(node -p "require('./apps/cli/package.json').version")
@@ -34,11 +36,14 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      # pnpm pack rewrites the workspace: ranges; npm publishes the tarball over OIDC.
       - name: Publish to npm
-        run: pnpm --filter s1pilot publish --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: 'true'
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          # The very first version is published by hand (a trusted publisher can only be added to an existing package).
+          if npm view "s1pilot@$version" version >/dev/null 2>&1; then echo "s1pilot@$version is already on npm"; exit 0; fi
+          (cd apps/cli && pnpm pack --pack-destination "$RUNNER_TEMP/pack")
+          npm publish "$RUNNER_TEMP/pack/s1pilot-$version.tgz" --access public
       - name: GitHub release
         run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
         env:

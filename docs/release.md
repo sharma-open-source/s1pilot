@@ -2,8 +2,18 @@
 
 ## One-time setup
 
-1. **npm.** Create an npm account with 2FA and an *automation* token. Add the token as the repository secret
-   `NPM_TOKEN`. After the first publish, you can replace the token with npm trusted publishing for `release.yml`.
+1. **npm (trusted publishing, no token).** npm can only attach a trusted publisher to a package that already exists,
+   so the first version is published by hand once:
+   ```bash
+   npm login                                   # account with 2FA
+   pnpm build && (cd apps/cli && pnpm pack --pack-destination /tmp/s1pilot-pack)
+   npm publish /tmp/s1pilot-pack/s1pilot-0.1.0.tgz --access public
+   ```
+   Then on npmjs.com, go to s1pilot > Settings > Trusted publisher and choose *GitHub Actions*: organisation
+   `sharma-open-source`, repository `s1pilot`, workflow `release.yml` (no environment). Under *Publishing access*,
+   choose "Require two-factor authentication and disallow tokens". Every later version is published by `release.yml`
+   over OIDC with automatic provenance, and the workflow skips the npm step for a version that is already published.
+   Trusted publishing with provenance needs the GitHub repository to be public.
 2. **GitHub Pages.** Go to Settings > Pages > Source and choose *GitHub Actions*. Pages on a free plan needs a public
    repository.
 3. **Repository settings.** Set the description and website (`https://sharma-open-source.github.io/s1pilot/`), and add
@@ -36,23 +46,20 @@
 
 ## Demo video (`site/assets/demo.mp4`)
 
-Target length is 90 to 120 seconds at 1920×1080, with captions burned in rather than a voice-over. Also export a
-1280×720 PNG frame as `site/assets/demo-poster.png`. That image is used as the video poster and the social preview.
-Keep the MP4 under 25 MB (H.264, `-crf 28`).
+The video and its poster (`site/assets/demo-poster.png`, also the social preview) are recorded by a script that drives
+the real app against a **real** System 1 model and the public practice site
+[PlayLab](https://playwrightlab.github.io/login.html). It covers the wizard, Test connection, a draft test, the
+`email` variable and the encrypted `password` secret, an AI exploration, the learned script, and a replay with no
+model calls. Re-record it when the UI changes visibly:
 
-Record against the fixture shop with a real model, in a fresh data directory, so no personal data appears on screen.
+```bash
+set -a; . ./.env; set +a                       # S1PILOT_API_KEY, never echoed
+pnpm build
+S1PILOT_DEMO_MODEL_URL=https://api.typesafe.ai/v1/systemone S1PILOT_DEMO_MODEL=jev-latest \
+  node e2e/record-demo.mjs                     # needs ffmpeg; writes site/assets/
+```
 
-| # | Shot | Caption |
-|---|---|---|
-| 1 | Terminal: `npm i -g s1pilot && s1pilot ui`, and the browser opens | One command starts the app |
-| 2 | Project wizard: name, base URL, model URL, **Test connection** shows the capability grid | Bring your own decision model |
-| 3 | First tests: type the Classic Tee sentence, then press **Run now (explore)** | Describe the test in plain language |
-| 4 | Live run: screencast with element boxes, and the decision panel with probabilities | System 1 picks each action, with a probability |
-| 5 | The run pauses on an unsure step, and you press **Approve** | Unsure? It asks instead of guessing |
-| 6 | Passed. **Learned script** tab: *Ready* | A passing run becomes a learned script |
-| 7 | **Run now** again: every step shows `✓ replay`, with the duration next to it | Replay: no model calls |
-| 8 | Run with `?bugs=shop.badge-wrong-count`: it fails at step 2 with the expected and actual values | Catches real bugs |
-| 9 | Terminal: `s1pilot run … --reporter junit,html`, exit code, HTML report | Same tests in CI |
-| 10 | End card: `npm i -g s1pilot` and the GitHub URL | |
-
-Before publishing, check every frame for API keys, tokens and personal data.
+It uses a fresh temporary data directory and gives the UI only `env:S1PILOT_API_KEY`, so the key never appears on
+screen. The model may escalate a step on another day; the script approves each escalation. Another site:
+`S1PILOT_DEMO_BASE_URL` (the script's test step and test data are written for the PlayLab login).
+Watch the result before committing.

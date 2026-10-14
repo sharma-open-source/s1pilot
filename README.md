@@ -7,7 +7,7 @@ System 1 decision model drives a real browser one step at a time and decides wha
 resolves are saved as a *learned script*. Later runs replay that script with no model calls at all, and only a step
 that broke because the page changed goes back to the model to be healed.
 
-[![npm](https://img.shields.io/npm/v/s1pilot)](https://www.npmjs.com/package/s1pilot)
+[![npm](https://img.shields.io/npm/v/s1-pilot)](https://www.npmjs.com/package/s1-pilot)
 [![CI](https://github.com/sharma-open-source/s1pilot/actions/workflows/ci.yml/badge.svg)](https://github.com/sharma-open-source/s1pilot/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/sharma-open-source/s1pilot/blob/master/LICENSE)
 

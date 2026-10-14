@@ -315,7 +315,8 @@ export function applyEvent(prev: LiveRunState, ev: RunEvent): LiveRunState {
       };
       break;
     case 'log': {
-      const url = URL_RE.exec(ev.message)?.[0];
+      // Guard lines ("! blocked POST https://analytics…") name third-party requests, never the page being tested.
+      const url = ev.message.startsWith('! ') ? undefined : URL_RE.exec(ev.message)?.[0];
       if (url !== undefined) s = { ...s, url };
       break;
     }
