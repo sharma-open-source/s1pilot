@@ -65,3 +65,20 @@ The latest report showed 9 passed and 1 failed. Its failed result was attributed
 ## Audit Limits
 
 No destructive actions, state-changing saves, model probes, live runs, notification sends, tracker connections, token creation, or real integration calls were exercised. The report describes the instance served on port 5317 only; the repository already contained staged source changes during the audit, and they were not modified.
+
+## Recheck: 2026-10-14
+
+The following statuses reflect the current `127.0.0.1:5317` instance. The original findings above are retained as the initial audit record.
+
+- **Plan query preview: fixed.** `priority<=P2` previews 13 cases; the case list shows 13 cases, each at P2. Typing the query emitted one transient HTTP 400 before the valid preview settled.
+- **Analytics Quality: fixed.** Pass-rate trend, results by suite, flaky cases, slowest cases, execution-mode mix, and AI-quality metrics all rendered.
+- **Password-named environment value: partially fixed.** The row is now marked secret-related and model exposure is shown as key-only/not-sent. The populated value is still held in a `text` input, so it remains visible in the environment editor.
+- **Test data endpoint: fixed at page level.** The unavailable-server/HTTP 404 message is gone and the CSV/JSON upload control is visible. Upload/commit was not exercised.
+- **Domain-safeguard toggle: still disabled.** Allowed domains remain editable, but the independent “Block navigation outside allowed domains” checkbox is disabled.
+- **Retry reporting: fixed.** Result rows now identify attempts (for example, attempt 1 of 2 and 2 of 2) and show per-attempt durations.
+- **Checkout target warning: still present, but not the verdict cause.** The latest `PLAY2-TC-16` result still flags `querySelector('#')` as a console warning; the report says the verdict is unchanged. The run was blocked at step 7 while filling the UPI ID. This remains a target/test-data issue to clean up before using the case as a benchmark.
+- **Manual/hybrid plan setup: UI gap fixed.** The plan builder now offers per-case Automated, Manual, and Hybrid choices. No plan was saved or run, so queue creation and session completion were not retested.
+- **Audit log: fixed for local mode.** The page now shows local-admin events, filter controls, and CSV export. User administration remains team-mode-only; clicking Invite user displays that local mode uses a single local admin.
+- **External integrations: still unconnected.** Jira, GitHub Issues, Linear, CI, and chat/webhook integrations show Not connected. Notifications still has a channel but no rules. MCP remains marked Coming soon; visual comparison remains disabled as “later.”
+
+The case list currently reports 16 unsynced `.s1pilot/` changes. No project data was changed during this recheck.

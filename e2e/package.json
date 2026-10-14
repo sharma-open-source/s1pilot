@@ -9,7 +9,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@s1pilot/cli": "workspace:*",
+    "s1pilot": "workspace:*",
     "@s1pilot/domain": "workspace:*",
     "@s1pilot/fixture-sites": "workspace:*",
     "@s1pilot/providers": "workspace:*",

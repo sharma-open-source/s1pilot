@@ -347,9 +347,6 @@ importers:
 
   e2e:
     devDependencies:
-      '@s1pilot/cli':
-        specifier: workspace:*
-        version: link:../apps/cli
       '@s1pilot/domain':
         specifier: workspace:*
         version: link:../packages/domain
@@ -362,6 +359,9 @@ importers:
       playwright:
         specifier: ^1.63.0
         version: 1.63.0
+      s1pilot:
+        specifier: workspace:*
+        version: link:../apps/cli
 
   fixtures/sites:
     devDependencies:

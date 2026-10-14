@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildProgram, getVersion } from './program.js';
 
-describe('@s1pilot/cli', () => {
+describe('s1pilot', () => {
   it('exposes the root package version', () => {
     const root = JSON.parse(
       readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'),

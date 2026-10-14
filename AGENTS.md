@@ -47,7 +47,7 @@ packages/sync   YAML tests-as-code  packages/integrations  trackers, notificatio
 profiles/       model capability profiles   fixtures/sites/  demo apps with seeded bugs   suites/  eval suites
 ```
 
-Package names: `@s1pilot/<dir>`; internal deps use `workspace:*`.
+Package names: `@s1pilot/<dir>`; internal deps use `workspace:*`. Exception: `apps/cli` is the published npm package `s1pilot` (it bundles the private `@s1pilot/*` packages); see `docs/release.md`.
 
 ## Commands
 

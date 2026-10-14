@@ -12,7 +12,15 @@ unsure about), then run it again and watch it **replay** deterministically.
 
 ## 2. Start the app
 
-From a checkout of this repository:
+Install the published package:
+
+```bash
+npm install -g s1pilot
+npx playwright install chromium               # once: the browser the runs use
+s1pilot ui
+```
+
+For the demo shop used below, you also need a checkout of this repository. Build it and start the fixture sites:
 
 ```bash
 pnpm install
@@ -27,7 +35,7 @@ Or from a packed CLI tarball (the web app is bundled inside it):
 ```bash
 (cd apps/cli && pnpm pack --pack-destination /tmp/s1pilot-pack)
 mkdir /tmp/s1pilot-try && cd /tmp/s1pilot-try && npm init -y
-npm install /tmp/s1pilot-pack/s1pilot-cli-0.1.0.tgz
+npm install /tmp/s1pilot-pack/s1pilot-0.1.0.tgz
 npx playwright install chromium
 npx s1pilot ui
 ```

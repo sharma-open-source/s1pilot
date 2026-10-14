@@ -1,0 +1,45 @@
+name: Release
+
+# Push a tag `vX.Y.Z` whose version matches apps/cli/package.json: runs the checks, publishes the `s1pilot` package
+# to npm with provenance and creates a GitHub release with generated notes. Container images are built by
+# docker-publish.yml from the same tag.
+# One-time setup: add an npm automation token as the repository secret NPM_TOKEN. Once the package exists, you can
+# switch to npm trusted publishing (no token) for this workflow.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Tag matches the package version
+        run: |
+          version=$(node -p "require('./apps/cli/package.json').version")
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME does not match version $version"; exit 1; }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @s1pilot/fixture-sites exec playwright install --with-deps chromium
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Publish to npm
+        run: pnpm --filter s1pilot publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: 'true'
+      - name: GitHub release
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

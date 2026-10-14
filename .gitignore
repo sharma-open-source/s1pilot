@@ -25,3 +25,10 @@ eval-results/
 apps/cli/migrations/
 apps/cli/profiles/
 vite.config.ts.timestamp-*
+
+# copied into the CLI package at build time (from the repository root)
+apps/cli/README.md
+apps/cli/LICENSE
+
+# local `pnpm pack` output
+apps/pack/

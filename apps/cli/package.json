@@ -1,8 +1,29 @@
 {
-  "name": "@s1pilot/cli",
+  "name": "s1pilot",
   "version": "0.1.0",
-  "private": true,
-  "description": "s1pilot command line: probe, run, sync, eval and the local web app (`s1pilot ui`)",
+  "description": "AI-native web app testing: describe a test in plain language, explore it once with a System 1 decision model, replay it deterministically, heal it with AI.",
+  "keywords": [
+    "testing",
+    "e2e",
+    "playwright",
+    "ai",
+    "test-automation",
+    "test-management",
+    "llm",
+    "qa",
+    "self-healing"
+  ],
+  "homepage": "https://sharma-open-source.github.io/s1pilot/",
+  "bugs": {
+    "url": "https://github.com/sharma-open-source/s1pilot/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sharma-open-source/s1pilot.git",
+    "directory": "apps/cli"
+  },
+  "license": "Apache-2.0",
+  "author": "Sharma Sathananthan",
   "type": "module",
   "bin": {
     "s1pilot": "./dist/index.js"
@@ -10,8 +31,17 @@
   "files": [
     "dist",
     "migrations",
-    "profiles"
+    "profiles",
+    "README.md",
+    "LICENSE"
   ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsup && node scripts/copy-assets.mjs",
     "typecheck": "tsc -p tsconfig.json",

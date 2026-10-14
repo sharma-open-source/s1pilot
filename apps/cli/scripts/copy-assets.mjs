@@ -2,6 +2,7 @@
 //   dist/web   <- apps/web/dist       (served by `s1pilot ui`)
 //   migrations <- packages/db/migrations (SQL migrations, resolved as ../migrations/<dialect> from dist/index.js)
 //   profiles   <- profiles            (model capability profiles, resolved as ../profiles from dist/index.js)
+//   README.md, LICENSE <- repository root (shown on the npm page)
 import { chmodSync, cpSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,4 +38,11 @@ for (const [from, to] of assets) {
   rmSync(dest, { recursive: true, force: true });
   normalise(tmp);
   renameSync(tmp, dest);
+}
+
+// The npm page shows the package's own README; ship the repository README and LICENSE with the tarball.
+for (const name of ['README.md', 'LICENSE']) {
+  const dest = here(`../${name}`);
+  cpSync(here(`../../../${name}`), dest);
+  chmodSync(dest, 0o644);
 }

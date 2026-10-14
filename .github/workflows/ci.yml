@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
 
 jobs:
@@ -51,5 +51,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @s1pilot/fixture-sites exec playwright install --with-deps chromium
       - run: pnpm typecheck
-      # One task at a time: the Postgres tests of @s1pilot/db and @s1pilot/cli reset the same database.
+      # One task at a time: the Postgres tests of @s1pilot/db and s1pilot (CLI) reset the same database.
       - run: pnpm exec turbo run test --concurrency=1
