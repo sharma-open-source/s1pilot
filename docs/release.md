@@ -25,7 +25,8 @@
 ## Each release
 
 1. Make sure `master` is green in CI.
-2. Set the version in `apps/cli/package.json` and move the `CHANGELOG.md` entry from *unreleased* to the release date.
+2. Run `pnpm release:version <x.y.z>`. It sets the version in both `package.json` and `apps/cli/package.json`, which must
+   match. Then add the `CHANGELOG.md` entry with the release date.
 3. Smoke-test the packed package outside the repository:
    ```bash
    pnpm build

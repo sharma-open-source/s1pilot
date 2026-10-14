@@ -14,7 +14,8 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "dev": "turbo run dev",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "release:version": "node scripts/set-version.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
