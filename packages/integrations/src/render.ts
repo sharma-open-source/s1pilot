@@ -29,7 +29,7 @@ export function buildSections(d: TrackerDefect, attachmentNames: string[] = []):
 }
 
 /** Markdown rendering (GitHub, Linear). */
-export function toMarkdown(sections: Section[], footer = 'Reported by s1-pilot'): string {
+export function toMarkdown(sections: Section[], footer = 'Reported by s1pilot'): string {
   const parts = sections.map((s) => {
     const lines = [...(s.paragraphs ?? []), ...(s.items ?? []).map((i, n) => (s.ordered ? `${n + 1}. ${i}` : `- ${i}`))];
     return `## ${s.heading}\n\n${lines.join(s.items ? '\n' : '\n\n')}`;
@@ -48,7 +48,7 @@ const adfText = (text: string): AdfNode[] => (text === '' ? [] : [{ type: 'text'
 const adfParagraph = (text: string): AdfNode => ({ type: 'paragraph', content: adfText(text) });
 
 /** Atlassian Document Format rendering (Jira Cloud REST v3). */
-export function toAdf(sections: Section[], footer = 'Reported by s1-pilot'): { type: 'doc'; version: 1; content: AdfNode[] } {
+export function toAdf(sections: Section[], footer = 'Reported by s1pilot'): { type: 'doc'; version: 1; content: AdfNode[] } {
   const content: AdfNode[] = [];
   for (const s of sections) {
     content.push({ type: 'heading', attrs: { level: 3 }, content: adfText(s.heading) });

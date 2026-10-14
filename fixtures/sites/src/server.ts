@@ -41,7 +41,7 @@ function index(): string {
     .map((name) => `<li><a href="/${name}">/${name}</a></li>`)
     .join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Fixture sites</title></head>
-<body><main><h1>s1-pilot fixture sites</h1><ul>${links}</ul>
+<body><main><h1>s1pilot fixture sites</h1><ul>${links}</ul>
 <p>Enable bugs with <code>?bugs=${esc(BUG_IDS[0])}</code> and variants with <code>?variant=${esc(VARIANT_IDS[0])}</code>.</p>
 </main></body></html>`;
 }

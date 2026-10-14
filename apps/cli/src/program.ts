@@ -99,7 +99,7 @@ interface ServerFlags {
 /** Builds the `s1pilot` command tree. */
 export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
   const deps: CliDeps = { ...defaultDeps, ...overrides };
-  const program = new Command('s1pilot').description('s1-pilot CLI').version(getVersion());
+  const program = new Command('s1pilot').description('s1pilot CLI').version(getVersion());
   if (deps.exitOverride) {
     program.exitOverride();
     program.configureOutput({ writeOut: () => undefined, writeErr: () => undefined });
@@ -152,8 +152,8 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
       'Run YAML test cases: replay learned scripts (healing broken steps) or explore with AI (exit codes: 0 passed, 1 failed, 2 needs review, 3 config error)',
     )
     .argument('[file-or-dir]', 'a test case YAML file or a directory of them (omit with --plan --server)')
-    .option('--plan <name>', 'run a test plan by name on an s1-pilot server (needs --server)')
-    .option('--server <url>', 'report to / run on this s1-pilot server (with --plan)')
+    .option('--plan <name>', 'run a test plan by name on an s1pilot server (needs --server)')
+    .option('--server <url>', 'report to / run on this s1pilot server (with --plan)')
     .option('--token <token>', 'API token for --server (or set S1PILOT_TOKEN)')
     .option('--project-key <key>', 'project key on the server (default: key from .s1pilot/project.yaml)')
     .option('--build-ref <ref>', 'build number or reference recorded on the run')

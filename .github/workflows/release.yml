@@ -34,7 +34,8 @@ jobs:
       - run: pnpm --filter @s1pilot/fixture-sites exec playwright install --with-deps chromium
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm test
+      # Browser tests have timing budgets; run one package at a time so parallel suites do not starve them.
+      - run: pnpm exec turbo run test --concurrency=1
       - run: pnpm build
       # pnpm pack rewrites the workspace: ranges; npm publishes the tarball over OIDC.
       - name: Publish to npm

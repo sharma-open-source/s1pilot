@@ -253,7 +253,7 @@ export function Nav({
         <div className="flex h-7 w-7 items-center justify-center rounded-tag bg-ink font-mono text-[13px] font-semibold text-white">
           S1
         </div>
-        <div className="font-mono text-base font-semibold">s1-pilot</div>
+        <div className="font-mono text-base font-semibold">s1pilot</div>
       </div>
       <ProjectSwitcher
         projects={projects}

@@ -1,10 +1,10 @@
-# AGENTS.md — working on s1-pilot
+# AGENTS.md — working on s1pilot
 
 Instructions for any coding agent (Claude Code sub-agents, Codex, Cursor, etc.) working in this repository.
 
 ## What this project is
 
-**s1-pilot** is an AI-native web application testing platform: test management (projects, cases, plans, runs, defects, reports) plus a Playwright execution engine where each step is decided by a **System 1 decision model** (answers `choice` / `noul` / `score` with probabilities), with System 2 (chat LLM) and human escalation.
+**s1pilot** is an AI-native web application testing platform: test management (projects, cases, plans, runs, defects, reports) plus a Playwright execution engine where each step is decided by a **System 1 decision model** (answers `choice` / `noul` / `score` with probabilities), with System 2 (chat LLM) and human escalation.
 
 Core idea: **explore once with AI, replay deterministically, heal with AI.**
 

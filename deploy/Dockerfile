@@ -1,4 +1,4 @@
-# Images of the s1-pilot server and the remote worker (team mode). Build context: the repository root.
+# Images of the s1pilot server and the remote worker (team mode). Build context: the repository root.
 #
 #   docker build -f deploy/Dockerfile --target server -t s1pilot/server .
 #   docker build -f deploy/Dockerfile --target worker -t s1pilot/worker .

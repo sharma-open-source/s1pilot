@@ -1,4 +1,4 @@
-# GitLab CI template for s1-pilot. Include it from your .gitlab-ci.yml:
+# GitLab CI template for s1pilot. Include it from your .gitlab-ci.yml:
 #
 #   include:
 #     - local: .gitlab/s1pilot.yml

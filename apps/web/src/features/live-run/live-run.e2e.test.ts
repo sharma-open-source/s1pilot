@@ -163,6 +163,13 @@ describe('live run screen (headless Chromium, scripted socket)', () => {
   it('shows the decision panel, approves, and keeps overlay boxes aligned with the frame at several widths', async () => {
     for (const width of [1440, 1000, 700]) {
       const { page, sent } = await open(width);
+      // The viewport resizes once the frame image has loaded; measure after layout has settled, not mid-reflow.
+      await expect
+        .poll(async () => {
+          const [v, b] = [await rect(page, '[data-testid="viewport"]'), await rect(page, '[data-element="e3"]')];
+          return v !== null && b !== null && Math.abs(b.x - v.x - (640 / 1280) * v.w) < 0.5 && Math.abs(b.y - v.y - (360 / 720) * v.h) < 0.5;
+        })
+        .toBe(true);
       const vp = await rect(page, '[data-testid="viewport"]');
       const box = await rect(page, '[data-element="e3"]');
       if (vp === null || box === null) throw new Error('missing geometry');

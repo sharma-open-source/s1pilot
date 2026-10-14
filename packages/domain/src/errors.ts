@@ -1,4 +1,4 @@
-/** Base error for all expected failures in s1-pilot. */
+/** Base error for all expected failures in s1pilot. */
 export class S1PilotError extends Error {
   readonly code: string;
   readonly details?: Record<string, unknown>;

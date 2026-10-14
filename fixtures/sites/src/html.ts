@@ -55,7 +55,7 @@ export function page(opts: PageOptions): string {
 <main>
 ${opts.body}
 </main>
-<footer><small>Fixture site for s1-pilot tests. Not a real store.</small></footer>
+<footer><small>Fixture site for s1pilot tests. Not a real store.</small></footer>
 <script>window.__FX__ = ${fx};</script>
 ${opts.script ? `<script>${opts.script}</script>` : ''}
 </body>

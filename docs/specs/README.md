@@ -1,4 +1,4 @@
-# s1-pilot · Implementation specs
+# s1pilot · Implementation specs
 
 Small, sequential specs derived from [`../plan.md`](../plan.md). Each spec is sized for **one sub-agent session** (roughly 0.5–2 days of human work) and ends in a mergeable, tested state.
 

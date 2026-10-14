@@ -35,7 +35,7 @@ export const MAX_CRAWL_CASES = 8;
 const SCHEMA_HINT =
   'Reply with one JSON object: {"cases":[{"title":string,"priority":"P0"|"P1"|"P2"|"P3","type":"smoke"|"regression"|"e2e"|"exploratory","tags":string[],"steps":[{"action":string,"expected"?:string,"inputs"?:string[]}]}]}.';
 
-/** How to write steps (the shared s1-pilot step guide), given the project's test data keys. */
+/** How to write steps (the shared s1pilot step guide), given the project's test data keys. */
 const rules = (inputKeys: readonly string[]): string => `Write the steps following these rules.\n${stepGuidePrompt({ inputKeys })}`;
 
 const storySystem = (inputKeys: readonly string[]): string =>

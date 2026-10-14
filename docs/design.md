@@ -1,7 +1,7 @@
-# s1-pilot · UI Design Guide
+# s1pilot · UI Design Guide
 
 > Source of truth for every UI spec (`docs/specs/**`, phase P3 onward).
-> Derived from the wireframe canvas **"S1-Pilot Wireframes"** (https://claude.ai/artifact/7JqTPxRmPXkBATqh5opk6u).
+> Derived from the wireframe canvas **"s1pilot Wireframes"** (https://claude.ai/artifact/7JqTPxRmPXkBATqh5opk6u).
 > **Local copy for agents:** [`docs/wireframes/`](wireframes/index.html) — one standalone HTML file per screen (open in a browser; links between screens work).
 > When this document and a spec disagree, the spec's functional requirements win and this document's visual rules win.
 
@@ -120,7 +120,7 @@ Line-height: 1.4 body, 1.2 headings.
 
 - Shell is `display:flex; flex-wrap:wrap`; nav `flex: 1 1 220px; max-width: 260px`; main `flex: 999 1 560px; min-width:0`. At narrow widths the nav wraps above main.
 - **Nav** (top → bottom, gap 22 px, padding `20px 14px`):
-  1. Logo: 28 px ink tile with mono "S1" + mono "s1-pilot" 16/600.
+  1. Logo: 28 px ink tile with mono "S1" + mono "s1pilot" 16/600.
   2. Project switcher button: `--surface-subtle` bg, 1px border, eyebrow "Project", bold `SHOP · Storefront`, chevron. Opens a popover listing projects + "New project".
   3. Nav items (40 px tall, radius 6, 14 px): Dashboard, Project setup, Environments, Test cases, Test plans, Runs, Manual testing, Reports, Review queue, Defects, Analytics, Settings. Active: `--primary-soft` bg, `--primary-text`, 600, `aria-current="page"`. Right-aligned mono 12 px badge (e.g. `1 live`, review count) in `--warning` when idle.
   4. Bottom (margin-top:auto): dashed box "Models" with S1 / S2 status rows (8 px dot `--success-dot` when reachable, `--danger` when not; `S1 clef-flash · localhost:8000`).

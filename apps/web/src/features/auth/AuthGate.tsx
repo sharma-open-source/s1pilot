@@ -18,7 +18,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const path = typeof window === 'undefined' ? '/' : window.location.pathname;
   if (status.isLoading) {
     return (
-      <AuthFrame title="s1-pilot">
+      <AuthFrame title="s1pilot">
         <div aria-busy="true" className="flex flex-col gap-2">
           <Skeleton className="h-11 w-full" />
         </div>

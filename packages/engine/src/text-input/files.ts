@@ -36,7 +36,7 @@ export function sampleFile(name: string): string {
             ? '{"sample": true}\n'
             : ext === '.csv'
               ? 'name,value\nsample,1\n'
-              : 's1-pilot sample upload file\n';
+              : 's1pilot sample upload file\n';
   writeFileSync(path, body);
   return path;
 }

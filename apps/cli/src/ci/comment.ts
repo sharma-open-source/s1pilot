@@ -38,7 +38,7 @@ function pullNumber(flag: string | undefined, env: NodeJS.ProcessEnv): number | 
 export function registerCiCommentCommand(program: Command, deps: CommentDeps): void {
   program
     .command('ci-comment')
-    .description('Post or update the s1-pilot summary comment on a GitHub pull request (used by the run-action)')
+    .description('Post or update the s1pilot summary comment on a GitHub pull request (used by the run-action)')
     .requiredOption('--summary <file>', 'ci-summary.json written by `s1pilot run`')
     .option('--repo <owner/name>', 'repository (default: $GITHUB_REPOSITORY)')
     .option('--pr <number>', 'pull request number (default: from $GITHUB_EVENT_PATH)')

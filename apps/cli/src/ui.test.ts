@@ -23,7 +23,7 @@ function tmp(): string {
 function webDist(): string {
   const dir = join(tmp(), 'web');
   mkdirSync(dir);
-  writeFileSync(join(dir, 'index.html'), '<!doctype html><title>s1-pilot</title><div id="root"></div>');
+  writeFileSync(join(dir, 'index.html'), '<!doctype html><title>s1pilot</title><div id="root"></div>');
   return dir;
 }
 

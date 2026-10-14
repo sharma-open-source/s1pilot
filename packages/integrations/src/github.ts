@@ -17,7 +17,7 @@ import type {
 
 /**
  * GitHub Issues (REST). The API has no attachment upload, so attachments are listed by file name in the body
- * and stay in s1-pilot.
+ * and stay in s1pilot.
  */
 export class GithubTracker implements IssueTracker {
   readonly provider = 'github' as const;
@@ -71,7 +71,7 @@ export class GithubTracker implements IssueTracker {
 
   async createIssue(defect: TrackerDefect, attachments: TrackerAttachment[]): Promise<CreatedIssue> {
     const repo = this.repo();
-    const names = attachments.map((a) => `${a.filename} (kept in s1-pilot)`);
+    const names = attachments.map((a) => `${a.filename} (kept in s1pilot)`);
     const issue = await this.json<{ number: number; html_url: string }>(`/repos/${repo}/issues`, 'GitHub create issue', 'POST', {
       title: defect.title.slice(0, 250),
       body: toMarkdown(buildSections(defect, names)),

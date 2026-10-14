@@ -167,7 +167,7 @@ export function RecorderDialog({ open, onOpenChange, projectKey, caseKey, fromSt
     body = (
       <div className="flex flex-col gap-3.5">
         <p className="m-0 text-sm text-secondary">
-          A Chromium window opens on the machine running s1-pilot. Click through your app; each action is captured as a step and as a learned script, so the next run replays it without a model.
+          A Chromium window opens on the machine running s1pilot. Click through your app; each action is captured as a step and as a learned script, so the next run replays it without a model.
         </p>
         {fromStep !== undefined && fromStep > 0 && (
           <Callout tone="info-ai">Recording starts paused. Go to the page where the new steps begin, then press Resume in the toolbar.</Callout>

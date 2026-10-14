@@ -38,7 +38,7 @@ describe('PR comment template', () => {
   it('renders the summary table, criteria and report link', () => {
     expect(renderPrComment(SUMMARY)).toMatchInlineSnapshot(`
       "<!-- s1pilot-run-summary -->
-      ### s1-pilot: Failed
+      ### s1pilot: Failed
 
       **Smoke** on \`staging\` · build \`abc1234\` · branch \`feature/x\`
 
@@ -108,7 +108,7 @@ describe('upsertPrComment', () => {
     expect(second).toEqual({ id: first.id, created: false });
     expect(gh.comments).toHaveLength(2);
     expect(gh.comments[1]?.body).toContain(PR_COMMENT_MARKER);
-    expect(gh.comments[1]?.body).toContain('s1-pilot: Passed');
+    expect(gh.comments[1]?.body).toContain('s1pilot: Passed');
     expect(gh.calls.filter((c) => c.startsWith('POST'))).toHaveLength(1);
   });
 

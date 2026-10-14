@@ -33,7 +33,7 @@ export function AcceptInvitePage({ token }: { token: string }) {
 
   if (info.isLoading) {
     return (
-      <AuthFrame title="Join s1-pilot">
+      <AuthFrame title="Join s1pilot">
         <div aria-busy="true" className="flex flex-col gap-2">
           <Skeleton className="h-11 w-full" />
           <Skeleton className="h-11 w-full" />
@@ -52,7 +52,7 @@ export function AcceptInvitePage({ token }: { token: string }) {
     );
   }
   return (
-    <AuthFrame title="Join s1-pilot" intro={`You were invited as ${info.data.role}. Choose a name and password to finish.`}>
+    <AuthFrame title="Join s1pilot" intro={`You were invited as ${info.data.role}. Choose a name and password to finish.`}>
       <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3.5">
         <Field label="Email">{(id) => <Input id={id} value={info.data.email} readOnly autoComplete="username" />}</Field>
         <Field label="Name">{(id) => <Input id={id} value={name} autoComplete="name" onChange={(e) => setName(e.target.value)} required />}</Field>

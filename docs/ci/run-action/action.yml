@@ -1,6 +1,6 @@
 name: s1pilot run
-description: Run an s1-pilot test plan on your s1-pilot server, upload the reports and comment on the pull request.
-author: s1-pilot
+description: Run an s1pilot test plan on your s1pilot server, upload the reports and comment on the pull request.
+author: s1pilot
 
 inputs:
   plan:
@@ -10,7 +10,7 @@ inputs:
     description: Environment name from the plan matrix (for example staging).
     required: true
   server:
-    description: URL of the s1-pilot server.
+    description: URL of the s1pilot server.
     required: true
   token:
     description: API token with the runs:write and results:read scopes. Store it as a repository secret.

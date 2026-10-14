@@ -3,7 +3,7 @@
 **Phase:** P5 · **Depends on:** S-023, S-044 · **Packages:** `@s1pilot/runner`, `apps/server`, `apps/web` · **Plan refs:** §2.1 Record mode
 
 ## Goal
-User clicks through the app in a headed browser; s1-pilot captures actions into natural-language steps and a learned script at the same time.
+User clicks through the app in a headed browser; s1pilot captures actions into natural-language steps and a learned script at the same time.
 
 ## Scope
 - `recorder.start({ projectKey, environment, caseKey?, fromStep? })` opens headed Chromium (local mode) with an injected recording script (capture click/fill/select/check/press/navigation with element descriptors from S-012 logic in page) + small floating toolbar (Stop, Add expected result, Pause).

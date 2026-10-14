@@ -128,7 +128,7 @@ function resolveProjectKey(opts: ServerRunOptions): string {
 }
 
 /**
- * Runs a plan on an s1-pilot server (`trigger: ci`): creates the run, prints progress lines while polling, downloads
+ * Runs a plan on an s1pilot server (`trigger: ci`): creates the run, prints progress lines while polling, downloads
  * the requested reports into `--out`, writes `ci-summary.json` and returns the exit code (see `exitCodeForRemote`).
  * Configuration problems (missing token, unknown plan, rejected token) return 3.
  */

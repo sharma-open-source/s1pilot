@@ -217,7 +217,7 @@ export async function applyExternalStatus(ctx: Context, defect: Defect, tracker:
   const updated = await applyUpdate(ctx, defect.id, { ...(status ? { status } : {}), details: { trackerState: ext.state } });
   const runId = updated.details?.retestRunId;
   if (status && runId && runId !== defect.details?.retestRunId) {
-    await tracker.addComment(defect.external.id, `s1-pilot queued a re-test (run ${runId}) after this issue was resolved.`).catch((error: unknown) => {
+    await tracker.addComment(defect.external.id, `s1pilot queued a re-test (run ${runId}) after this issue was resolved.`).catch((error: unknown) => {
       ctx.log.warn({ err: error instanceof Error ? error.message : 'unknown' }, 'tracker comment failed');
     });
   }

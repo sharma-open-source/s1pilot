@@ -10,7 +10,7 @@ export function AuthFrame({ title, intro, children }: { title: string; intro?: R
     <main className="flex min-h-screen items-center justify-center bg-app px-4 py-10">
       <Card className="flex w-full max-w-[420px] flex-col gap-4 p-6">
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium uppercase tracking-wide text-secondary">s1-pilot</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-secondary">s1pilot</span>
           <h1 className="m-0 text-xl font-semibold text-fg">{title}</h1>
           {intro !== undefined && <p className="m-0 text-sm text-secondary">{intro}</p>}
         </div>

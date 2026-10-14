@@ -12,7 +12,7 @@ export interface CiSummary {
   totals: { passed: number; failed: number; blocked: number; flaky: number; needsReview: number; skipped: number };
   /** Exit-criteria evaluation (server mode, plans with criteria). */
   criteria: { met: number; total: number; allMet: boolean; items: { label: string; met: boolean; actual?: string; detail?: string }[] } | null;
-  /** Link to the run in the s1-pilot UI (server mode). */
+  /** Link to the run in the s1pilot UI (server mode). */
   reportUrl?: string;
   buildRef?: string;
   branch?: string;
@@ -31,7 +31,7 @@ export function renderPrComment(summary: CiSummary): string {
   const total = t.passed + t.failed + t.blocked + t.flaky + t.needsReview + t.skipped;
   const lines: string[] = [
     PR_COMMENT_MARKER,
-    `### s1-pilot: ${HEADLINE[summary.outcome]}`,
+    `### s1pilot: ${HEADLINE[summary.outcome]}`,
     '',
     `**${cell(summary.title)}** on \`${cell(summary.environment)}\`${summary.buildRef ? ` · build \`${cell(summary.buildRef)}\`` : ''}${summary.branch ? ` · branch \`${cell(summary.branch)}\`` : ''}`,
     '',

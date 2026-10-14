@@ -1,6 +1,6 @@
-# Plan: S1-Pilot — AI-Native Web Application Testing Platform on System 1 Decision Models
+# Plan: s1pilot — AI-Native Web Application Testing Platform on System 1 Decision Models
 
-> Working name: **s1-pilot**. TypeScript / Node, Playwright, pluggable System 1 decision model behind a user-configured endpoint (local or cloud), with a web UI for projects, test cases, test plans, runs and reports.
+> Working name: **s1pilot**. TypeScript / Node, Playwright, pluggable System 1 decision model behind a user-configured endpoint (local or cloud), with a web UI for projects, test cases, test plans, runs and reports.
 >
 > v2 of this plan: extends the original RPA agent into a full test management + execution application. The agent engine (Part B) is unchanged in spirit; Parts A, C and D are new.
 
@@ -323,13 +323,13 @@ Local-first web app launched by `s1pilot ui` (opens `http://localhost:5317`), sa
 | Auth | Local single-user by default; team: email/password + OIDC SSO; roles (admin, lead, tester, viewer) |
 | Secrets | Encrypted at rest (libsodium), master key from env/OS keychain |
 | Logging/observability | pino, OpenTelemetry traces for runs and model calls |
-| Testing the tool | vitest (unit), Playwright (UI e2e of s1-pilot itself), fixture sites, contract tests per adapter |
+| Testing the tool | vitest (unit), Playwright (UI e2e of s1pilot itself), fixture sites, contract tests per adapter |
 | Packaging | npm (`npx s1pilot`), Docker images (server, worker), optional Tauri desktop |
 
 ## 11. Repository structure
 
 ```
-s1-pilot/
+s1pilot/
 ├── apps/
 │   ├── web/                 # React UI
 │   ├── server/              # Fastify API, WebSocket, scheduler

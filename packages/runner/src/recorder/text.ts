@@ -56,7 +56,7 @@ const S2_SYSTEM = [
     '"action" is one short imperative sentence in plain language that covers all actions of the step. ' +
     'Typed values come from test data: refer to them by their key name (for example "Fill ZIP code with shipping_zip"); never invent, quote or guess a value. ' +
     '"expected" is optional: give it only when the step clearly ends on a new page (see "after") and omit it otherwise.',
-  'Otherwise follow the s1-pilot step wording:',
+  'Otherwise follow the s1pilot step wording:',
   ...STEP_WRITING_RULES.filter((r) => !r.startsWith('Put every exact value')),
   stepGuideExamples(),
 ].join('\n');

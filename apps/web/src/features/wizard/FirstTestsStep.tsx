@@ -90,7 +90,7 @@ export function FirstTestsStep({ draft, patch, go, onFinish }: StepProps) {
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold text-fg">First tests</h2>
           <p className="text-sm text-secondary">
-            Write what a user should be able to do. s1-pilot explores it once with AI, then you can
+            Write what a user should be able to do. s1pilot explores it once with AI, then you can
             replay it deterministically.
           </p>
         </div>
