@@ -1,6 +1,6 @@
 {
   "name": "s1pilot",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": false,
   "description": "AI-native web application testing platform on System 1 decision models",
   "type": "module",
