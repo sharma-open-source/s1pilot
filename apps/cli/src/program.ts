@@ -8,6 +8,7 @@ import { registerAdminCommands } from './admin.js';
 import { registerCalibrateCommand } from './calibrate.js';
 import { registerCiCommentCommand } from './ci/comment.js';
 import { executeServerRun } from './ci/server-run.js';
+import { registerDemoCommand } from './demo.js';
 import { registerEvalCommand } from './eval.js';
 import { executeRun, type RunOptions } from './run.js';
 import { registerSyncCommands } from './sync.js';
@@ -218,6 +219,7 @@ export function buildProgram(overrides: Partial<CliDeps> = {}): Command {
   registerCalibrateCommand(program, deps);
   registerAdminCommands(program, deps);
   registerUiCommand(program, deps);
+  registerDemoCommand(program, deps);
   registerWorkerCommand(program, deps);
   registerCiCommentCommand(program, deps);
 

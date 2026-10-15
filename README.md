@@ -5,8 +5,11 @@
 
 s1pilot is a web application testing platform where you write test cases in plain language. On the first run, a
 System 1 decision model drives a real browser one step at a time and decides what to click and type. The steps it
-resolves are saved as a *learned script*. Later runs replay that script with no model calls at all, and only a step
-that broke because the page changed goes back to the model to be healed.
+resolves are saved as a *learned script*. Later runs replay that script without asking the model what to click, and
+only a step that broke because the page changed goes back to the model to be healed.
+
+A System 1 model answers like a classifier: it picks one option and gives a probability, instead of writing free text.
+That's what makes each step inspectable and lets s1pilot ask for help when it's unsure.
 
 [![npm](https://img.shields.io/npm/v/s1pilot)](https://www.npmjs.com/package/s1pilot)
 [![CI](https://github.com/sharma-open-source/s1pilot/actions/workflows/ci.yml/badge.svg)](https://github.com/sharma-open-source/s1pilot/actions/workflows/ci.yml)
@@ -16,7 +19,7 @@ that broke because the page changed goes back to the model to be healed.
 [Getting started](https://github.com/sharma-open-source/s1pilot/blob/master/docs/getting-started.md) ·
 [Report an issue](https://github.com/sharma-open-source/s1pilot/issues)
 
-![screenshot](https://sharma-open-source.github.io/s1pilot/assets/demo-poster.png)
+[![s1pilot demo: explore once, replay with no model calls](https://sharma-open-source.github.io/s1pilot/assets/demo-poster.png)](https://sharma-open-source.github.io/s1pilot/)
 
 ---
 
@@ -24,8 +27,8 @@ that broke because the page changed goes back to the model to be healed.
 
 - **Plain-language tests.** A step is an action plus an expected result, such as *"Choose colour Blue and size M, then
   add to cart"* and *"Cart badge shows 1 item"*. You can add deterministic assertions where you want them.
-- **Fast, cheap reruns.** Once a test has passed, it replays like a normal Playwright script. The model is only called
-  when something changed.
+- **Fast, cheap reruns.** Once a test has passed, it replays like a normal Playwright script. The model is only asked
+  what to do when something changed. Steps checked with `assert` need no model call at all.
 - **Decisions you can inspect.** A System 1 model answers with a choice and a probability. Every step records the
   options, the probabilities and the chosen action, so you can see *why* a test did what it did.
 - **It asks instead of guessing.** When the model is not confident, an attended run pauses for your approval. An
@@ -37,14 +40,26 @@ that broke because the page changed goes back to the model to be healed.
 - **Runs in CI.** A CLI with JUnit, JSON and HTML reports, meaningful exit codes and a pull request summary comment.
 - **Your data stays local by default.** SQLite on your machine, and secrets that never reach a model.
 
-## Quick start
+## Try it in one minute (no API key)
 
-You need **Node.js 22.12 or newer** and a System 1 decision model endpoint (Clef, Laya, Jev, or any endpoint that
-speaks one of the supported adapters below).
+You need **Node.js 22.12 or newer**.
 
 ```bash
 npm install -g s1pilot
 npx playwright install chromium    # once: the browser test runs use
+s1pilot demo
+```
+
+`s1pilot demo` starts a bundled demo shop, a scripted stand-in model and the web app, with a `DEMO` project that has
+one ready test. Open the test, press **Run now** to watch it explore (each step shows its options and probabilities),
+then run it again: the second run replays the learned script and the report says *no model call*. Nothing leaves your
+machine. The scripted model only knows the demo test; connect a real model to write your own.
+
+## Quick start
+
+You need a System 1 decision model endpoint (see [Getting a model](#getting-a-model)).
+
+```bash
 s1pilot ui
 ```
 
@@ -104,6 +119,38 @@ steps:
 Steps are followed literally. Write each one to include the action that moves the flow on, as in *"... then continue
 to the payment step"*.
 
+A replay never asks the model what to do. A plain-language `expected` is still checked by the model on each run; use
+`assert` checks (as above) where you want a step verified with no model call at all.
+
+## How is this different?
+
+| | Model calls per rerun | Deterministic reruns | Inspectable decisions | Local-first | Test management |
+|---|---|---|---|---|---|
+| Playwright codegen | none | yes | n/a (recorded script) | yes | no |
+| Agent-style AI browser tools | usually one LLM call per step, every run | no | free-text reasoning | varies | no |
+| Commercial AI QA services | varies by vendor | varies | varies | usually no (SaaS) | yes |
+| **s1pilot** | none for actions; only broken steps and `expected` checks | yes | options + probabilities per step | yes (SQLite, local models) | yes |
+
+Some agent tools and services now cache actions too. Check each tool's current docs for its caching behaviour.
+
+## Getting a model
+
+The fastest real option is Cloudflare's [Clef](https://openrouter.ai/cloudflare/clef) on OpenRouter:
+
+1. Create an API key at <https://openrouter.ai/keys> and export it: `export S1PILOT_API_KEY=...`
+2. Check the endpoint:
+   `s1pilot probe --url https://openrouter.ai/api/alpha/decisions --model cloudflare/clef --adapter systemone --timeout 30000`
+3. In the project wizard (or `.s1pilot/project.yaml`), use:
+
+```yaml
+model:
+  system1: { adapter: systemone, baseUrl: https://openrouter.ai/api/alpha/decisions, model: cloudflare/clef, apiKeyRef: env:S1PILOT_API_KEY, profileId: clef }
+  thresholds: { act: 0.8, pass: 0.8, fail: 0.2, escalate: 0.5 }
+```
+
+Cloud calls take about 0.7–1.5 s each. To keep page data on your network, run a model locally and use the `systemone`
+or `openai-logprobs` adapter (see [Models](#models)).
+
 ## Command line
 
 ```bash
@@ -112,6 +159,7 @@ s1pilot run ./.s1pilot/suites --reporter junit,html --out ./s1pilot-results
 
 | Command | What it does |
 |---|---|
+| `s1pilot demo` | Starts the web app with a demo shop, a scripted model and a ready test. No API key needed. |
 | `s1pilot ui` | Starts the local web app (`--port`, `--data-dir`, `--workers`, `--no-open`). |
 | `s1pilot run [file-or-dir]` | Runs YAML test cases. Exit codes: `0` passed, `1` failed, `2` needs review, `3` config error. |
 | `s1pilot run --plan <name> --server <url>` | Runs a test plan on an s1pilot server and waits for the result. |
@@ -174,6 +222,16 @@ pnpm lint && pnpm typecheck && pnpm test
 See [CONTRIBUTING.md](https://github.com/sharma-open-source/s1pilot/blob/master/CONTRIBUTING.md) and
 [AGENTS.md](https://github.com/sharma-open-source/s1pilot/blob/master/AGENTS.md) for conventions and the architecture
 plan.
+
+## Roadmap and community
+
+- **Roadmap:** [docs/plan.md](https://github.com/sharma-open-source/s1pilot/blob/master/docs/plan.md#15-roadmap) (product plan and
+  roadmap) and the [changelog](https://github.com/sharma-open-source/s1pilot/blob/master/CHANGELOG.md).
+- **Questions and ideas:** [GitHub Discussions](https://github.com/sharma-open-source/s1pilot/discussions).
+- **Want to help?** Start with a
+  [good first issue](https://github.com/sharma-open-source/s1pilot/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+
+⭐ Star the repository to follow releases.
 
 ## License
 

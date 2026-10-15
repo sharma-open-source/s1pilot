@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/sharma-open-source/s1pilot/discussions
+    about: Ask a question or share an idea in GitHub Discussions.
+  - name: Security vulnerability
+    url: https://github.com/sharma-open-source/s1pilot/security/advisories/new
+    about: Report security problems privately, never in a public issue.

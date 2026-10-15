@@ -2,9 +2,12 @@
 
 Adapter for `POST {baseUrl}/v1/systemone` (Clef, Laya via `laya-serve`, TypeSafe Jev).
 
-> **Status:** this describes the format the adapter *expects*, derived from plan §5. It has been
-> exercised only against recorded fixtures, not a live server. When a real server disagrees, fix the
-> adapter and this document together (the provider probe, S-011, is the place to detect it).
+> **Status:** tested live against Cloudflare Clef (`cloudflare/clef`) through OpenRouter's decisions endpoint
+> (`https://openrouter.ai/api/alpha/decisions`) on 2026-10-08: `probe` succeeded and the shop smoke test
+> (`fixtures/sites/cases/shop/tc-042.yaml`) passed 4/4, with the seeded-bug run failing at the expected step (see
+> "Real-model smoke test" in `AGENTS.md`). Unit tests use recorded fixtures and the mock adapter. When a real
+> server disagrees with this document, fix the adapter and this document together (the provider probe, S-011, is
+> the place to detect it).
 
 ## Request
 

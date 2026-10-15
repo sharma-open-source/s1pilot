@@ -8,7 +8,7 @@ Instructions for any coding agent (Claude Code sub-agents, Codex, Cursor, etc.) 
 
 Core idea: **explore once with AI, replay deterministically, heal with AI.**
 
-Stack: TypeScript (strict, ESM, Node ≥ 20) · pnpm workspaces + Turborepo · Playwright · Fastify + tRPC + WebSocket · Drizzle (SQLite → Postgres) · React + Vite + TanStack Router/Query + Tailwind + shadcn/ui · zod · vitest.
+Stack: TypeScript (strict, ESM, Node ≥ 22.12) · pnpm workspaces + Turborepo · Playwright · Fastify + tRPC + WebSocket · Drizzle (SQLite → Postgres) · React + Vite + TanStack Router/Query + Tailwind + shadcn/ui · zod · vitest.
 
 ## Current state
 

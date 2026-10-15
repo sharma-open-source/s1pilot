@@ -1,0 +1,36 @@
+<!doctype html>
+<!-- Source of site/assets/social-card.png (1280x640, repo social preview and og:image).
+     Regenerate: node scripts/render-social-card.mjs -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;600;700&display=block" rel="stylesheet">
+<style>
+  :root { --bg: #F4F4F1; --surface: #FFFFFF; --border: #D9D9D4; --text: #1C1C1A; --muted: #4A4A45; --ink: #1C1C1A; --ink-text: #E8E8E3; --primary: #1F4FC4; --primary-soft: #E8EEFB; --ok: #1E6B3A; --ok-soft: #E3F1E7; }
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1280px; height: 640px; background: var(--bg); color: var(--text); font-family: 'IBM Plex Sans', system-ui, sans-serif; padding: 72px 80px; display: flex; flex-direction: column; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 24px; }
+  .tile { width: 96px; height: 96px; border-radius: 20px; background: var(--ink); color: var(--ink-text); display: grid; place-items: center; font: 600 40px 'IBM Plex Mono', monospace; }
+  .name { font: 600 72px 'IBM Plex Mono', monospace; letter-spacing: -0.02em; }
+  .tagline { font-size: 46px; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; max-width: 1100px; }
+  .steps { display: flex; align-items: center; gap: 20px; }
+  .step { flex: 1; background: var(--surface); border: 2px solid var(--border); border-radius: 16px; padding: 22px 26px; }
+  .step b { display: block; font-size: 34px; font-weight: 700; }
+  .step span { font: 500 22px 'IBM Plex Mono', monospace; color: var(--muted); }
+  .step.replay { border-color: var(--ok); background: var(--ok-soft); }
+  .step.replay span { color: var(--ok); }
+  .arrow { font-size: 40px; color: var(--muted); }
+</style>
+</head>
+<body>
+  <div class="brand"><div class="tile">S1</div><div class="name">s1pilot</div></div>
+  <p class="tagline">Plain-language web tests. Explore once with AI, replay deterministically, heal with AI.</p>
+  <div class="steps">
+    <div class="step"><b>Explore</b><span>AI picks each step</span></div>
+    <div class="arrow">→</div>
+    <div class="step replay"><b>Replay</b><span>0 model calls</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><b>Heal</b><span>only what broke</span></div>
+  </div>
+</body>
+</html>

@@ -4,10 +4,15 @@ This walks through the same flow the automated E2E (`e2e/first-test.spec.ts`) ru
 connect a decision model, describe a test in plain language, let the AI explore it once (with you approving what it is
 unsure about), then run it again and watch it **replay** deterministically.
 
+> **Just want to see it work?** `s1pilot demo` starts the demo shop, a scripted model and the app with a ready test.
+> No API key and no repository checkout needed. This guide is the longer path with your own model.
+
 ## 1. Prerequisites
 
 - Node.js 22.12 or newer.
 - A System 1 decision model endpoint (Clef, Laya, Jev, ...). A local or LAN endpoint keeps page data on your network.
+  The fastest option is Clef on OpenRouter; see
+  [Getting a model](https://github.com/sharma-open-source/s1pilot#getting-a-model) in the README.
 - A web app to test. This guide uses the bundled demo shop (`fixtures/sites`) on `http://127.0.0.1:4400/shop`.
 
 ## 2. Start the app
@@ -35,7 +40,7 @@ Or from a packed CLI tarball (the web app is bundled inside it):
 ```bash
 (cd apps/cli && pnpm pack --pack-destination /tmp/s1pilot-pack)
 mkdir /tmp/s1pilot-try && cd /tmp/s1pilot-try && npm init -y
-npm install /tmp/s1pilot-pack/s1pilot-0.2.0.tgz
+npm install /tmp/s1pilot-pack/s1pilot-*.tgz
 npx playwright install chromium
 npx s1pilot ui
 ```

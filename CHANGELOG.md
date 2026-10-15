@@ -2,6 +2,17 @@
 
 All notable changes to s1pilot are listed here. This project follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+- `s1pilot demo`: try s1pilot with no API key. Starts the bundled demo shop, a scripted stand-in model and the web app
+  with a `DEMO` project and a ready test.
+- README: "Getting a model", "How is this different?", and a clearer note on when replays call the model.
+
+## 0.3.1 (2026-10-14)
+
+- Security: nodemailer updated to 10.1.1.
+- `pnpm release:version` script to set the version across all packages.
+
 ## 0.3.0 (2026-10-14)
 
 - Package and docs renamed from s1-pilot to s1pilot.

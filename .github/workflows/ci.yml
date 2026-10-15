@@ -23,6 +23,26 @@ jobs:
       - run: pnpm exec turbo run test --concurrency=1
       - run: pnpm build
 
+  # Early bug reports often come from macOS and Windows: build there and smoke-test the CLI (`s1pilot demo` and a
+  # mock-adapter browser run of the shop case). The full test suite runs on Linux only.
+  cli-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @s1pilot/fixture-sites exec playwright install chromium
+      - run: pnpm build
+      - run: node scripts/cli-smoke.mjs
+
   # S-066: the same tests with a Postgres service container, so the Postgres schema / migrations, the SQLite -> Postgres
   # copy tool and the pg-boss queue run for real (they are skipped locally without S1PILOT_TEST_PG_URL).
   postgres:

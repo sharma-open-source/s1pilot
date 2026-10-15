@@ -1,0 +1,54 @@
+name: Bug report
+description: Something in s1pilot does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Never paste API keys, secret values or traces from runs that typed secrets.**
+        Security problems go to a [private advisory](https://github.com/sharma-open-source/s1pilot/security/advisories/new), not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The smallest test case YAML or command that shows the problem. `s1pilot demo` is a good base.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: s1pilot version
+      description: Output of `s1pilot --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Linux, macOS, Windows, Docker image, Other]
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      description: Output of `node --version`
+  - type: input
+    id: model
+    attributes:
+      label: Model and adapter
+      description: For example `systemone` with `cloudflare/clef`, `openai-logprobs` with a local vLLM, or `mock`.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or trace excerpt
+      description: Relevant lines from the terminal or `trace.jsonl`, with secrets removed.
+      render: text
